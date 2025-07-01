@@ -335,7 +335,7 @@ export function Dashboard() {
 
         {/* New User Onboarding Banner */}
         {user.isNewUser && !user.onboardingCompleted && (
-          <Card className="relative overflow-hidden rounded-2xl border border-pink-300/30 shadow-2xl backdrop-blur-xl bg-white/10 bg-gradient-to-br from-brand-pink/30 to-brand-magenta/20 before:absolute before:inset-0 before:bg-white/30 before:backdrop-blur-2xl before:rounded-2xl before:pointer-events-none">
+          <Card className="relative overflow-hidden rounded-2xl border border-gray-700/60 shadow-2xl backdrop-blur-xl bg-gray-900/80">
             <CardContent className="relative z-10 flex items-center justify-between p-10 gap-8">
               <div className="flex items-center gap-8">
                 <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-pink-400/20 shadow-xl backdrop-blur-lg border border-pink-200/40">
