@@ -300,42 +300,37 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions - Moved to prominent position */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {quickActions.map((action, index) => (
-            <Card key={index} className="relative overflow-hidden rounded-2xl border border-pink-300/20 shadow-xl backdrop-blur-xl bg-white/10 bg-gradient-to-br from-brand-pink/20 to-brand-magenta/10 hover:border-pink-300/40 hover:bg-white/15 transition-all duration-300 group">
-              <CardContent className="p-6 relative z-10">
-                <div className="flex items-start space-x-4">
-                  <div className="relative p-3 bg-gradient-to-br from-brand-pink/30 to-brand-magenta/30 rounded-xl shadow-lg border border-pink-200/30 group-hover:scale-110 transition-transform duration-300">
-                    <action.icon className="w-6 h-6 text-white drop-shadow-lg" />
-                    <div className="absolute inset-0 rounded-xl bg-brand-pink/20 blur-sm" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-bold mb-2 text-lg drop-shadow-sm">{action.title}</h3>
-                    <p className="text-white/80 text-sm mb-4 leading-relaxed">{action.description}</p>
-                    
-                    {action.progress && (
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-white/70 font-medium">Progress</span>
-                          <span className="text-white font-bold">{action.progress}%</span>
-                        </div>
-                        <Progress value={action.progress} className="h-2 bg-white/20" />
-                      </div>
-                    )}
-                    
-                    <Button asChild variant="gradient" className="w-full bg-gradient-to-r from-brand-pink to-brand-magenta hover:from-brand-magenta hover:to-brand-pink text-white font-semibold shadow-lg border border-white/30">
-                      <Link to={action.href}>
-                        {action.title}
-                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                      </Link>
-                    </Button>
-                  </div>
+        {/* Quick Actions - Original color theme */}
+        <div>
+          <div className="text-lg font-semibold text-white mb-2">Quick Actions</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {quickActions.map((action, index) => {
+              // Assign a color class based on index or action
+              const colorClasses = [
+                'bg-pink-500', // Start a New Campaign
+                'bg-emerald-600', // Manage Billing
+                'bg-purple-600', // Invite Team
+                'bg-blue-600', // fallback/extra
+                'bg-yellow-500', // fallback/extra
+              ];
+              const cardColor = colorClasses[index % colorClasses.length];
+              return (
+                <div
+                  key={index}
+                  className={`rounded-xl shadow-lg p-6 flex flex-col items-center justify-center text-center text-white transition-transform duration-200 hover:scale-[1.03] ${cardColor}`}
+                >
+                  <action.icon className="w-8 h-8 mb-2" />
+                  <div className="text-xl font-bold mb-1">{action.title}</div>
+                  <div className="text-white/80 text-sm mb-4">{action.description}</div>
+                  <Button asChild variant="outline" className="bg-white/10 border-white/20 text-white font-semibold w-full mt-auto hover:bg-white/20">
+                    <Link to={action.href}>
+                      {action.title}
+                    </Link>
+                  </Button>
                 </div>
-              </CardContent>
-              <div className="absolute inset-0 bg-gradient-to-br from-brand-pink/5 to-brand-magenta/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </Card>
-          ))}
+              );
+            })}
+          </div>
         </div>
 
         {/* New User Onboarding Banner */}
