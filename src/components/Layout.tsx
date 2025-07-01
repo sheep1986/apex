@@ -233,9 +233,7 @@ export function Layout() {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 border-r border-gray-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex-shrink-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 border-r border-gray-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex-shrink-0 h-screen`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
           <div className="flex items-center space-x-3">
             <img 
@@ -330,7 +328,7 @@ export function Layout() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col lg:ml-64 h-screen overflow-y-auto">
         {/* Top Bar */}
         <div className="sticky top-0 z-30 bg-gray-900 border-b border-gray-800">
           <div className="flex items-center justify-between h-16 px-6">
