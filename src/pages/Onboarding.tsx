@@ -188,7 +188,7 @@ export function Onboarding() {
             </div>
 
             {/* Comparison */}
-            <Card className="bg-gradient-to-r from-brand-pink/10 to-brand-magenta/10 border-brand-pink/20">
+            <Card className="bg-gray-900/90 border-gray-700/60">
               <CardContent className="p-6">
                 <h3 className="text-white font-bold text-lg mb-4 text-center">Why Choose Apex?</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
