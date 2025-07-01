@@ -218,7 +218,7 @@ export function LiveCalls() {
       label: 'Success Rate',
       value: '78%',
       icon: TrendingUp,
-      color: 'bg-pink-500 text-white'
+      color: 'bg-brand-pink text-white'
     },
     {
       label: 'Online Agents',
@@ -270,7 +270,7 @@ export function LiveCalls() {
           </TabsTrigger>
           <TabsTrigger 
             value="recent" 
-            className="flex-1 rounded-full px-6 py-2 text-base font-semibold transition-all duration-200 data-[state=active]:bg-pink-500 data-[state=active]:text-white data-[state=inactive]:bg-gray-900/0 data-[state=inactive]:text-gray-400 focus:outline-none"
+            className="flex-1 rounded-full px-6 py-2 text-base font-semibold transition-all duration-200 data-[state=active]:bg-brand-pink data-[state=active]:text-white data-[state=inactive]:bg-gray-900/0 data-[state=inactive]:text-gray-400 focus:outline-none"
           >
             Recent Calls ({mockRecentCalls.length})
           </TabsTrigger>
