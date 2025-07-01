@@ -335,12 +335,11 @@ export function Dashboard() {
 
         {/* New User Onboarding Banner */}
         {user.isNewUser && !user.onboardingCompleted && (
-          <Card className="relative overflow-hidden rounded-2xl border border-gray-700/60 shadow-2xl backdrop-blur-xl bg-gray-900/80">
+          <Card className="relative overflow-hidden rounded-2xl border border-gray-700/60 shadow-2xl backdrop-blur-xl bg-gray-900/90">
             <CardContent className="relative z-10 flex items-center justify-between p-10 gap-8">
               <div className="flex items-center gap-8">
-                <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-pink-400/20 shadow-xl backdrop-blur-lg border border-pink-200/40">
+                <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-gray-800/80 shadow-xl backdrop-blur-lg border border-gray-700/60">
                   <Zap className="w-10 h-10 text-pink-500 drop-shadow-glow animate-pulse" />
-                  <div className="absolute inset-0 rounded-full bg-pink-400/30 blur-xl opacity-40" />
                 </div>
                 <div>
                   <h3 className="text-3xl font-extrabold text-white drop-shadow-lg mb-2 tracking-tight">Complete Your Setup</h3>
