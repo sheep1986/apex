@@ -328,7 +328,7 @@ export function Layout() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:ml-64 h-screen overflow-y-auto p-0 m-0">
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto p-0 m-0 lg:pl-64">
         {/* Top Bar */}
         <div className="sticky top-0 z-30 bg-gray-900 border-b border-gray-800">
           <div className="flex items-center justify-between h-16 px-6">
