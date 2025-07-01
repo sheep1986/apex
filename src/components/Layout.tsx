@@ -1,195 +1,385 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { 
-  LayoutDashboard, 
-  Menu,
-  X,
-  Bell,
-  UserCircle,
-  Coins,
-  Plus,
+  Menu, 
+  X, 
+  Phone, 
+  Users, 
+  BarChart3, 
+  Settings, 
+  DollarSign, 
+  Target,
+  FileText,
+  Calendar,
+  HelpCircle,
   Zap,
-  Phone
+  Building,
+  Activity,
+  CreditCard,
+  Bell,
+  Search,
+  ChevronDown
 } from 'lucide-react'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Campaigns', href: '/campaigns', icon: Zap },
-  { name: 'Phone Numbers', href: '/phone-numbers', icon: Phone },
-]
+// Mock user data - in real app this would come from auth context
+const mockUser = {
+  name: 'Sean',
+  email: 'sean@example.com',
+  role: 'agency_admin', // 'agency_admin', 'campaign_manager', 'analyst', 'new_user'
+  organization: 'Digital Marketing Agency',
+  avatar: '/avatars/sean.jpg'
+}
+
+const getNavigationItems = (role: string) => {
+  const baseItems = [
+    {
+      title: 'Dashboard',
+      href: '/',
+      icon: Activity,
+      badge: null
+    }
+  ]
+
+  switch (role) {
+    case 'new_user':
+      return [
+        ...baseItems,
+        {
+          title: 'Get Started',
+          href: '/onboarding',
+          icon: Zap,
+          badge: 'New'
+        },
+        {
+          title: 'Tutorials',
+          href: '/help/tutorials',
+          icon: HelpCircle,
+          badge: null
+        }
+      ]
+    
+    case 'agency_admin':
+      return [
+        ...baseItems,
+        {
+          title: 'Campaigns',
+          href: '/campaigns',
+          icon: Target,
+          badge: '12'
+        },
+        {
+          title: 'Clients',
+          href: '/clients',
+          icon: Building,
+          badge: '8'
+        },
+        {
+          title: 'Leads',
+          href: '/leads',
+          icon: FileText,
+          badge: '2.8k'
+        },
+        {
+          title: 'Analytics',
+          href: '/analytics',
+          icon: BarChart3,
+          badge: null
+        },
+        {
+          title: 'Live Calls',
+          href: '/live-calls',
+          icon: Phone,
+          badge: '3'
+        },
+        {
+          title: 'Team',
+          href: '/team',
+          icon: Users,
+          badge: null
+        },
+        {
+          title: 'Billing',
+          href: '/billing',
+          icon: DollarSign,
+          badge: null
+        }
+      ]
+    
+    case 'campaign_manager':
+      return [
+        ...baseItems,
+        {
+          title: 'Campaigns',
+          href: '/campaigns',
+          icon: Target,
+          badge: '6'
+        },
+        {
+          title: 'Leads',
+          href: '/leads',
+          icon: FileText,
+          badge: '1.2k'
+        },
+        {
+          title: 'Analytics',
+          href: '/analytics',
+          icon: BarChart3,
+          badge: null
+        },
+        {
+          title: 'Live Calls',
+          href: '/live-calls',
+          icon: Phone,
+          badge: '2'
+        },
+        {
+          title: 'Phone Numbers',
+          href: '/phone-numbers',
+          icon: Phone,
+          badge: null
+        }
+      ]
+    
+    default:
+      return [
+        ...baseItems,
+        {
+          title: 'Campaigns',
+          href: '/campaigns',
+          icon: Target,
+          badge: '12'
+        },
+        {
+          title: 'Leads',
+          href: '/leads',
+          icon: FileText,
+          badge: '2.8k'
+        },
+        {
+          title: 'Analytics',
+          href: '/analytics',
+          icon: BarChart3,
+          badge: null
+        },
+        {
+          title: 'Live Calls',
+          href: '/live-calls',
+          icon: Phone,
+          badge: '3'
+        },
+        {
+          title: 'VAPI Dashboard',
+          href: '/vapi',
+          icon: Zap,
+          badge: null
+        },
+        {
+          title: 'Phone Numbers',
+          href: '/phone-numbers',
+          icon: Phone,
+          badge: null
+        },
+        {
+          title: 'CRM',
+          href: '/crm',
+          icon: Users,
+          badge: null
+        },
+        {
+          title: 'Team',
+          href: '/team',
+          icon: Users,
+          badge: null
+        },
+        {
+          title: 'Billing',
+          href: '/billing',
+          icon: DollarSign,
+          badge: null
+        },
+        {
+          title: 'Settings',
+          href: '/settings',
+          icon: Settings,
+          badge: null
+        }
+      ]
+  }
+}
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showCreditsModal, setShowCreditsModal] = useState(false)
+  const [user] = useState(mockUser)
   const location = useLocation()
+  const navigationItems = getNavigationItems(user.role)
 
-  const getPageTitle = () => {
-    const currentNav = navigation.find(item => item.href === location.pathname)
-    return currentNav ? currentNav.name : 'Dashboard'
-  }
+  // Close sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
 
   return (
-    <div className="min-h-screen bg-gray-950 flex">
-      {/* Mobile sidebar backdrop */}
+    <div className="min-h-screen bg-gray-950 lg:flex">
+      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar - Icon Only */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-16 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        bg-gray-925 border-r border-gray-800
-      `}>
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex items-center justify-center px-3 py-4 border-b border-gray-800">
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 border-r border-gray-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex-shrink-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
+          <div className="flex items-center space-x-3">
             <img 
               src="/am-web-logo-white.png" 
-              alt="Platform" 
-              className="h-8 w-8"
+              alt="Apex AI Calling Platform" 
+              className="h-8 w-auto"
             />
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-2 py-6 space-y-2">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`
-                    flex items-center justify-center p-3 text-sm font-medium rounded-lg transition-colors
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-brand-pink to-brand-magenta text-white shadow-lg' 
-                      : 'text-gray-300 hover:text-white hover:bg-gray-800'
-                    }
-                  `}
-                  onClick={() => setSidebarOpen(false)}
-                  title={item.name}
-                >
-                  <item.icon className="h-5 w-5" />
-                </Link>
-              )
-            })}
-          </nav>
-
-          {/* Credits Status */}
-          <div className="px-2 py-4 border-t border-gray-800">
-            <div className="bg-gray-900 rounded-lg p-2">
-              <div className="flex flex-col items-center space-y-1">
-                <Coins className="h-4 w-4 text-yellow-400" />
-                <span className="text-xs text-yellow-400 font-medium">2,847</span>
-                <span className="text-xs text-gray-400">Credits</span>
-              </div>
+            <div>
+              <h1 className="text-lg font-bold text-white">Apex</h1>
+              <p className="text-xs text-gray-400">AI Calling Platform</p>
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-gray-400 hover:text-white"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {navigationItems.map((item) => {
+            const isActive = location.pathname === item.href
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-brand-pink/10 text-brand-pink border border-brand-pink/20'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="flex-1">{item.title}</span>
+                {item.badge && (
+                  <Badge 
+                    variant={item.badge === 'New' ? 'default' : 'secondary'}
+                    className={`text-xs ${
+                      item.badge === 'New' 
+                        ? 'bg-brand-pink text-white' 
+                        : 'bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    {item.badge}
+                  </Badge>
+                )}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* User Profile */}
+        <div className="border-t border-gray-800 p-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-full justify-start space-x-3 p-3 hover:bg-gray-800">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user.avatar} />
+                  <AvatarFallback className="bg-gray-700 text-white">
+                    {user.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-white">{user.name}</p>
+                  <p className="text-xs text-gray-400">{user.organization}</p>
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56 bg-gray-800 border-gray-700">
+              <DropdownMenuLabel className="text-gray-300">Account</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-gray-700" />
+              <DropdownMenuItem className="text-gray-300 hover:bg-gray-700">
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-gray-300 hover:bg-gray-700">
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Help & Support
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-gray-700" />
+              <DropdownMenuItem className="text-red-400 hover:bg-gray-700">
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Top navigation */}
-        <header className="bg-gray-925 border-b border-gray-800 px-6 py-4">
-          <div className="flex items-center justify-between">
+        {/* Top Bar */}
+        <div className="sticky top-0 z-30 bg-gray-900 border-b border-gray-800">
+          <div className="flex items-center justify-between h-16 px-6">
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
                 size="sm"
-                className="lg:hidden text-gray-400 hover:text-white"
                 onClick={() => setSidebarOpen(true)}
+                className="lg:hidden text-gray-400 hover:text-white"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="w-5 h-5" />
               </Button>
               
-              <h1 className="text-xl font-semibold text-white">{getPageTitle()}</h1>
+              {/* Search Bar */}
+              <div className="hidden md:flex items-center space-x-2 bg-gray-800 rounded-lg px-3 py-2">
+                <Search className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search campaigns, leads, or settings..."
+                  className="bg-transparent border-none outline-none text-white placeholder-gray-400 text-sm w-64"
+                />
+              </div>
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Credits indicator */}
-              <div 
-                className="hidden md:flex items-center space-x-2 px-3 py-1 bg-yellow-900/20 rounded-full cursor-pointer hover:bg-yellow-900/30 transition-colors"
-                onClick={() => setShowCreditsModal(true)}
-              >
-                <Coins className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm text-yellow-400 font-medium">2,847 Credits</span>
-                <Button size="sm" className="ml-2 h-6 bg-yellow-600 hover:bg-yellow-700 text-white">
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-
               {/* Notifications */}
-              <Button variant="ghost" size="sm" className="relative text-gray-400 hover:text-white">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 bg-brand-pink text-white text-xs">
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white relative">
+                <Bell className="w-5 h-5" />
+                <Badge className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs">
                   3
                 </Badge>
               </Button>
 
-              {/* User menu */}
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                <UserCircle className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 p-6 bg-gray-950 overflow-auto">
-          <Outlet />
-        </main>
-      </div>
-
-      {/* Credits Modal */}
-      {showCreditsModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Credits Balance</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCreditsModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Coins className="h-8 w-8 text-yellow-400" />
-                  <span className="text-3xl font-bold text-yellow-400">2,847</span>
-                </div>
-                <p className="text-gray-400">Available Credits</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">This month usage:</span>
-                  <span className="text-white">153 credits</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Last purchase:</span>
-                  <span className="text-white">Dec 15, 2024</span>
-                </div>
-              </div>
-              
-              <Button className="w-full bg-gradient-to-r from-brand-pink to-brand-magenta hover:from-brand-magenta hover:to-brand-pink">
-                <Plus className="h-4 w-4 mr-2" />
-                Purchase More Credits
-              </Button>
+              {/* Quick Actions */}
+              {user.role !== 'new_user' && (
+                <Button className="bg-gradient-to-r from-brand-pink to-brand-magenta hover:from-brand-magenta hover:to-brand-pink">
+                  <Phone className="w-4 h-4 mr-2" />
+                  New Campaign
+                </Button>
+              )}
             </div>
           </div>
         </div>
-      )}
+
+        {/* Page Content */}
+        <main className="p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

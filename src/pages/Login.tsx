@@ -58,7 +58,7 @@ export function Login() {
             <img 
               src="/am-web-logo-white.png" 
               alt="AI Calling Platform" 
-              className="h-10 w-auto"
+              className="h-16 w-auto"
             />
             <div>
               <h1 className="text-2xl font-bold text-white">AI Calling Platform</h1>

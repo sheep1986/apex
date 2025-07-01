@@ -11,7 +11,12 @@ import {
   Copy,
   Download,
   Share,
-  Info
+  Info,
+  BarChart3,
+  Filter,
+  ArrowUpDown,
+  Phone,
+  Users
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,69 +36,249 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useNavigate } from 'react-router-dom'
 
 // Mock data for campaigns
-const campaigns = [
+const initialCampaigns = [
   {
     id: '1',
-    name: '[AI] [2025-06-10] Campaign Business Development',
-    description: 'Enterprise B2B Outreach',
-    status: 'active',
-    progress: 75,
-    leadsCalled: 145,
-    answered: 23,
-    calledBack: 8,
-    opportunities: 3,
-    tags: ['B2B', 'Enterprise']
+    name: 'Healthcare Providers Campaign',
+    description: 'Medical Practice Outreach',
+    status: 'paused',
+    progress: 60,
+    leadsCalled: 120,
+    answered: 30,
+    calledBack: 10,
+    opportunities: 2,
+    tags: ['Healthcare']
   },
   {
     id: '2',
+    name: 'SaaS Startup Outreach',
+    description: 'Technology Startups',
+    status: 'draft',
+    progress: 20,
+    leadsCalled: 40,
+    answered: 5,
+    calledBack: 1,
+    opportunities: 0,
+    tags: ['SaaS', 'Tech']
+  },
+  {
+    id: '3',
     name: 'Car Dealers - Malta',
     description: 'Malta Car Dealer',
-    status: 'completed',
-    progress: 100,
-    leadsCalled: 89,
-    answered: 34,
-    calledBack: 12,
+    status: 'active',
+    progress: 80,
+    leadsCalled: 200,
+    answered: 50,
+    calledBack: 15,
     opportunities: 5,
     tags: ['Car', 'Malta']
   },
   {
-    id: '3',
+    id: '4',
     name: 'UK Cleaning Services Outreach',
     description: 'UK Cleaning companies',
-    status: 'bounces',
-    progress: 48,
-    leadsCalled: 67,
-    answered: 8,
-    calledBack: 2,
-    opportunities: 0,
-    bounceRate: 48,
-    tags: ['UK Cleaning companies']
-  },
-  {
-    id: '4',
-    name: 'SaaS Startup Outreach',
-    description: 'Technology Startups',
-    status: 'draft',
+    status: 'disabled',
     progress: 0,
     leadsCalled: 0,
     answered: 0,
     calledBack: 0,
     opportunities: 0,
-    tags: ['SaaS', 'Tech']
+    tags: ['UK Cleaning companies']
   },
   {
     id: '5',
-    name: 'Healthcare Providers Campaign',
-    description: 'Medical Practice Outreach',
+    name: 'Real Estate Agents - London',
+    description: 'London Real Estate Professionals',
+    status: 'active',
+    progress: 45,
+    leadsCalled: 150,
+    answered: 35,
+    calledBack: 8,
+    opportunities: 3,
+    tags: ['Real Estate', 'London']
+  },
+  {
+    id: '6',
+    name: 'Restaurant Owners - Manchester',
+    description: 'Manchester Restaurant Outreach',
+    status: 'active',
+    progress: 70,
+    leadsCalled: 180,
+    answered: 45,
+    calledBack: 12,
+    opportunities: 4,
+    tags: ['Restaurant', 'Manchester']
+  },
+  {
+    id: '7',
+    name: 'Law Firms - Birmingham',
+    description: 'Birmingham Legal Services',
     status: 'paused',
-    progress: 32,
-    leadsCalled: 45,
-    answered: 12,
-    calledBack: 3,
+    progress: 30,
+    leadsCalled: 90,
+    answered: 20,
+    calledBack: 5,
     opportunities: 1,
-    tags: ['Healthcare']
+    tags: ['Legal', 'Birmingham']
+  },
+  {
+    id: '8',
+    name: 'Dental Practices - Scotland',
+    description: 'Scottish Dental Clinics',
+    status: 'active',
+    progress: 55,
+    leadsCalled: 140,
+    answered: 32,
+    calledBack: 9,
+    opportunities: 2,
+    tags: ['Dental', 'Scotland']
+  },
+  {
+    id: '9',
+    name: 'Fitness Centers - Wales',
+    description: 'Welsh Fitness Industry',
+    status: 'draft',
+    progress: 15,
+    leadsCalled: 30,
+    answered: 3,
+    calledBack: 0,
+    opportunities: 0,
+    tags: ['Fitness', 'Wales']
+  },
+  {
+    id: '10',
+    name: 'IT Consultants - Bristol',
+    description: 'Bristol IT Services',
+    status: 'active',
+    progress: 65,
+    leadsCalled: 160,
+    answered: 38,
+    calledBack: 11,
+    opportunities: 3,
+    tags: ['IT', 'Bristol']
+  },
+  {
+    id: '11',
+    name: 'Marketing Agencies - Leeds',
+    description: 'Leeds Marketing Firms',
+    status: 'active',
+    progress: 75,
+    leadsCalled: 190,
+    answered: 48,
+    calledBack: 14,
+    opportunities: 5,
+    tags: ['Marketing', 'Leeds']
+  },
+  {
+    id: '12',
+    name: 'Construction Companies - Liverpool',
+    description: 'Liverpool Construction',
+    status: 'paused',
+    progress: 40,
+    leadsCalled: 110,
+    answered: 25,
+    calledBack: 6,
+    opportunities: 2,
+    tags: ['Construction', 'Liverpool']
+  },
+  {
+    id: '13',
+    name: 'Financial Advisors - Edinburgh',
+    description: 'Edinburgh Financial Services',
+    status: 'active',
+    progress: 85,
+    leadsCalled: 220,
+    answered: 55,
+    calledBack: 18,
+    opportunities: 6,
+    tags: ['Finance', 'Edinburgh']
+  },
+  {
+    id: '14',
+    name: 'Retail Stores - Cardiff',
+    description: 'Cardiff Retail Sector',
+    status: 'draft',
+    progress: 10,
+    leadsCalled: 25,
+    answered: 2,
+    calledBack: 0,
+    opportunities: 0,
+    tags: ['Retail', 'Cardiff']
+  },
+  {
+    id: '15',
+    name: 'Manufacturing - Sheffield',
+    description: 'Sheffield Manufacturing',
+    status: 'active',
+    progress: 50,
+    leadsCalled: 130,
+    answered: 30,
+    calledBack: 7,
+    opportunities: 2,
+    tags: ['Manufacturing', 'Sheffield']
+  },
+  {
+    id: '16',
+    name: 'Education Centers - Newcastle',
+    description: 'Newcastle Education',
+    status: 'active',
+    progress: 60,
+    leadsCalled: 145,
+    answered: 35,
+    calledBack: 10,
+    opportunities: 3,
+    tags: ['Education', 'Newcastle']
+  },
+  {
+    id: '17',
+    name: 'Transportation - Glasgow',
+    description: 'Glasgow Transport Services',
+    status: 'paused',
+    progress: 35,
+    leadsCalled: 95,
+    answered: 22,
+    calledBack: 5,
+    opportunities: 1,
+    tags: ['Transport', 'Glasgow']
+  },
+  {
+    id: '18',
+    name: 'Healthcare Tech - Oxford',
+    description: 'Oxford Health Technology',
+    status: 'active',
+    progress: 90,
+    leadsCalled: 250,
+    answered: 65,
+    calledBack: 20,
+    opportunities: 8,
+    tags: ['Health Tech', 'Oxford']
+  },
+  {
+    id: '19',
+    name: 'E-commerce - Cambridge',
+    description: 'Cambridge Online Retail',
+    status: 'active',
+    progress: 70,
+    leadsCalled: 175,
+    answered: 42,
+    calledBack: 13,
+    opportunities: 4,
+    tags: ['E-commerce', 'Cambridge']
+  },
+  {
+    id: '20',
+    name: 'Consulting Firms - Belfast',
+    description: 'Belfast Business Consulting',
+    status: 'draft',
+    progress: 5,
+    leadsCalled: 15,
+    answered: 1,
+    calledBack: 0,
+    opportunities: 0,
+    tags: ['Consulting', 'Belfast']
   }
 ]
 
@@ -171,28 +356,52 @@ export function Campaigns() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortOrder, setSortOrder] = useState('newest')
+  const navigate = useNavigate();
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const allSelected = initialCampaigns.length > 0 && selectedRows.length === initialCampaigns.length;
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(initialCampaigns.map((c) => c.id));
+    }
+  };
+  const toggleRow = (id: string) => {
+    setSelectedRows((prev) => prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]);
+  };
+  const [campaigns, setCampaigns] = useState(initialCampaigns);
 
-  const getStatusBadge = (status: string, bounceRate?: number) => {
+  // Handler to toggle campaign status between 'active' and 'paused'
+  const toggleCampaignStatus = (id: string) => {
+    setCampaigns((prev) =>
+      prev.map((c) => {
+        if (c.id === id) {
+          if (c.status === 'active') {
+            return { ...c, status: 'paused' };
+          } else if (c.status === 'paused') {
+            return { ...c, status: 'active' };
+          } else {
+            // For draft, disabled, or any other status, set to active
+            return { ...c, status: 'active' };
+          }
+        }
+        return c;
+      })
+    );
+  };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-blue-900 text-blue-400 border-blue-800">Active</Badge>
-      case 'completed':
-        return <Badge className="bg-green-900 text-green-400 border-green-800">Completed</Badge>
+        return <span className="inline-block rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold">Active</span>;
+      case 'disabled':
+        return <span className="inline-block rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold">Disabled</span>;
       case 'draft':
-        return <Badge className="bg-gray-700 text-gray-300 border-gray-600">Draft</Badge>
+        return <span className="inline-block rounded-full bg-blue-500 text-white px-3 py-1 text-xs font-semibold">Draft</span>;
       case 'paused':
-        return <Badge className="bg-yellow-900 text-yellow-400 border-yellow-800">Paused</Badge>
-      case 'bounces':
-        return (
-          <div className="flex items-center space-x-2">
-            <Badge className="bg-red-900 text-red-400 border-red-800">
-              Bounces {bounceRate}%
-            </Badge>
-            <Info className="w-4 h-4 text-gray-400" />
-          </div>
-        )
+        return <span className="inline-block rounded-full bg-gray-500 text-white px-3 py-1 text-xs font-semibold">Paused</span>;
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return null;
     }
   }
 
@@ -219,7 +428,7 @@ export function Campaigns() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto w-full px-4 space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
         <div>
@@ -227,9 +436,12 @@ export function Campaigns() {
           <p className="text-gray-400 mt-1">Manage your AI calling campaigns and track performance</p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button className="bg-gradient-to-r from-brand-pink to-brand-magenta hover:from-brand-magenta hover:to-brand-pink">
-            <Plus className="w-4 h-4 mr-2" />
-            Add New
+          <Button
+            className="bg-gradient-to-r from-brand-pink to-brand-magenta hover:from-brand-magenta hover:to-brand-pink transition-colors"
+            onClick={() => navigate('/campaigns/new')}
+          >
+            <Plus className="w-4 h-4 mr-2 text-white" />
+            New Campaign
           </Button>
         </div>
       </div>
@@ -249,84 +461,98 @@ export function Campaigns() {
         <CardContent>
           {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="flex-1 relative">
+            <div className="w-full sm:w-1/2 max-w-[320px] relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search campaigns..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                className="pl-10 bg-gray-800 border border-neutral-800 text-white placeholder-gray-400 rounded-lg"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-white">
+              <SelectTrigger className="w-[220px] bg-gray-800 border border-gray-800 text-white rounded-lg">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="paused">Paused</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="bounces">Bounces</SelectItem>
+              <SelectContent className="glassy-dropdown-content rounded-xl shadow-2xl border border-gray-800 bg-gradient-to-br from-gray-900/90 via-gray-950/90 to-black/95 backdrop-blur-xl">
+                <SelectItem value="all" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">All statuses</SelectItem>
+                <SelectItem value="active" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Active</SelectItem>
+                <SelectItem value="disabled" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Disabled</SelectItem>
+                <SelectItem value="draft" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Draft</SelectItem>
+                <SelectItem value="paused" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Paused</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-[140px] bg-gray-800 border-gray-700 text-white">
+              <SelectTrigger className="w-full bg-gray-800 border border-gray-800 text-white rounded-lg">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="oldest">Oldest first</SelectItem>
-                <SelectItem value="name-az">Name A-Z</SelectItem>
-                <SelectItem value="name-za">Name Z-A</SelectItem>
+              <SelectContent className="glassy-dropdown-content rounded-xl shadow-2xl border border-gray-800 bg-gradient-to-br from-gray-900/90 via-gray-950/90 to-black/95 backdrop-blur-xl">
+                <SelectItem value="newest" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Newest first</SelectItem>
+                <SelectItem value="oldest" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Oldest first</SelectItem>
+                <SelectItem value="name-az" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Name A-Z</SelectItem>
+                <SelectItem value="name-za" className="flex items-center gap-2 text-white text-sm py-2 px-3 rounded-lg hover:bg-brand-pink/20 transition-all">Name Z-A</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Campaigns Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div
+            className="overflow-y-scroll overflow-x-hidden rounded-lg always-show-scrollbar"
+            style={{
+              maxHeight: 400,
+              minHeight: 200,
+              border: '1px solid #222',
+              background: '#18181b',
+              scrollbarWidth: 'auto',
+              msOverflowStyle: 'scrollbar',
+            }}
+          >
+            <table className="w-full table-fixed">
               <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">
-                    <input type="checkbox" className="rounded border-gray-600 bg-gray-800" />
+                <tr className="bg-gradient-to-r from-pink-500 via-orange-400 to-yellow-400 sticky top-0 z-10">
+                  <th className="w-12 px-2 text-center align-middle">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="accent-purple-600 focus:ring-2 focus:ring-purple-500 rounded"
+                    />
                   </th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">CAMPAIGN NAME</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">STATUS</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">PROGRESS</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">LEADS CALLED</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">ANSWERED</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">CALLED BACK</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">OPPORTUNITIES</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium"></th>
+                  <th className="pl-3 pr-2 py-3 text-left text-xs font-medium text-white tracking-wider w-1/4 min-w-[180px]">CAMPAIGN NAME</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white tracking-wider">STATUS</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white tracking-wider">PROGRESS</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white tracking-wider">LEADS CALLED</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white tracking-wider">ANSWERED</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white tracking-wider">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedCampaigns.map((campaign) => (
-                  <tr key={campaign.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                    <td className="py-4 px-4">
-                      <input type="checkbox" className="rounded border-gray-600 bg-gray-800" />
+                  <tr key={campaign.id} className="border-b border-zinc-800 hover:bg-zinc-900 transition-colors">
+                    <td className="w-12 px-2 text-center align-middle">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.includes(campaign.id)}
+                        onChange={() => toggleRow(campaign.id)}
+                        className="accent-purple-600 focus:ring-2 focus:ring-purple-500 rounded"
+                      />
+                    </td>
+                    <td className="pl-3 pr-2 py-3 flex items-center gap-2 min-w-[180px]">
+                      <span 
+                        className="truncate font-medium text-white text-sm cursor-pointer hover:text-brand-pink transition-colors"
+                        onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                      >
+                        {campaign.name}
+                      </span>
                     </td>
                     <td className="py-4 px-4">
-                      <div>
-                        <div className="text-white font-medium mb-1">{campaign.name}</div>
-                        <div className="text-gray-400 text-sm">{campaign.description}</div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {campaign.tags.map((tag, index) => (
-                            <Badge key={index} variant="outline" className="text-xs border-gray-600 text-gray-400">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
+                      {getStatusBadge(campaign.status)}
                     </td>
-                    <td className="py-4 px-4">
-                      {getStatusBadge(campaign.status, campaign.bounceRate)}
-                    </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 align-middle">
                       <div className="flex items-center space-x-2">
-                        <Progress value={campaign.progress} className="w-16 h-2" />
+                        <div className="w-24">
+                          <Progress value={campaign.progress} indicatorClassName="bg-green-500" className="h-2 bg-gray-800" />
+                        </div>
                         <span className="text-gray-300 text-sm font-medium">{campaign.progress}%</span>
                       </div>
                     </td>
@@ -336,38 +562,34 @@ export function Campaigns() {
                     <td className="py-4 px-4 text-gray-300 font-medium">
                       {campaign.answered}
                     </td>
-                    <td className="py-4 px-4 text-gray-300 font-medium">
-                      {campaign.calledBack}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-green-400 font-medium">{campaign.opportunities}</span>
-                    </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-gray-400 hover:text-white p-1"
-                          title={campaign.status === 'paused' ? 'Click to resume' : 'Click to pause'}
+                          className="relative group bg-transparent hover:bg-transparent p-1"
+                          title={campaign.status === 'active' ? 'Click to pause' : 'Click to resume'}
+                          onClick={() => toggleCampaignStatus(campaign.id)}
                         >
-                          {campaign.status === 'paused' ? (
-                            <Play className="w-4 h-4" />
-                          ) : campaign.status === 'active' ? (
-                            <Pause className="w-4 h-4" />
+                          {campaign.status === 'active' ? (
+                            <Pause className="w-4 h-4 text-gray-400 group-hover:text-brand-pink transition-colors" />
                           ) : (
-                            <Play className="w-4 h-4" />
+                            <Play className="w-4 h-4 text-gray-400 group-hover:text-brand-pink transition-colors" />
                           )}
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-1">
-                              <MoreHorizontal className="w-4 h-4" />
+                            <Button variant="ghost" size="sm" className="relative group bg-transparent hover:bg-transparent p-1">
+                              <MoreHorizontal className="w-4 h-4 text-gray-400 group-hover:text-brand-pink transition-colors" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                            <DropdownMenuItem className="text-gray-300 hover:text-white">
+                            <DropdownMenuItem 
+                              className="text-gray-300 hover:text-white"
+                              onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                            >
                               <Edit3 className="w-4 h-4 mr-2" />
-                              Rename
+                              View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem className="text-gray-300 hover:text-white">
                               <Copy className="w-4 h-4 mr-2" />

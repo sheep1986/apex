@@ -40,3 +40,19 @@
 .read-the-docs {
   color: #888;
 }
+
+.always-show-scrollbar {
+  /* For Webkit browsers */
+  scrollbar-color: #888 #18181b;
+}
+.always-show-scrollbar::-webkit-scrollbar {
+  width: 12px;
+  background: #18181b;
+}
+.always-show-scrollbar::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 8px;
+}
+.always-show-scrollbar::-webkit-scrollbar-track {
+  background: #18181b;
+}

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import './index.css'
 import App from './App.tsx'
+import NewCampaign from './pages/NewCampaign'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
