@@ -261,16 +261,16 @@ export function LiveCalls() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-gray-900 border border-gray-800 rounded-lg p-1">
+        <TabsList className="flex w-full bg-gray-900/80 border border-gray-800 rounded-full p-1 gap-2 shadow-lg">
           <TabsTrigger 
             value="active" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-brand-pink data-[state=active]:to-brand-magenta data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all duration-200"
+            className="flex-1 rounded-full px-6 py-2 text-base font-semibold transition-all duration-200 data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=inactive]:bg-gray-900/0 data-[state=inactive]:text-gray-400 focus:outline-none"
           >
             Active Calls ({mockActiveCalls.length})
           </TabsTrigger>
           <TabsTrigger 
             value="recent" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-brand-pink data-[state=active]:to-brand-magenta data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all duration-200"
+            className="flex-1 rounded-full px-6 py-2 text-base font-semibold transition-all duration-200 data-[state=active]:bg-pink-500 data-[state=active]:text-white data-[state=inactive]:bg-gray-900/0 data-[state=inactive]:text-gray-400 focus:outline-none"
           >
             Recent Calls ({mockRecentCalls.length})
           </TabsTrigger>
@@ -362,8 +362,8 @@ export function LiveCalls() {
         <TabsContent value="recent" className="mt-6">
           <div className="space-y-4">
             {mockRecentCalls.map((call) => (
-              <Card key={call.id} className="overflow-hidden rounded-xl border border-gray-800 bg-gradient-to-br from-gray-900/80 via-gray-950/80 to-black/90 backdrop-blur-md shadow-2xl">
-                <CardContent className="p-6">
+              <Card key={call.id} className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900/90 backdrop-blur-md shadow-xl p-0">
+                <CardContent className="p-4 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <Avatar className="w-10 h-10 border border-gray-800">
