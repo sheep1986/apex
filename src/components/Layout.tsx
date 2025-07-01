@@ -293,7 +293,7 @@ export function Layout() {
         <div className="border-t border-gray-800 p-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start space-x-3 p-3 hover:bg-gray-800">
+              <Button variant="ghost" className="w-full justify-between space-x-3 p-3 pr-2 hover:bg-gray-800">
                 <Avatar className="w-8 h-8">
                   <AvatarImage src={user.avatar} />
                   <AvatarFallback className="bg-gray-700 text-white">
