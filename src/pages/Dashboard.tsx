@@ -29,7 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 // Mock user data - in real app this would come from auth context
 const mockUser = {
-  name: 'Sean',
+  name: 'Sam',
   role: 'agency_admin', // 'agency_admin', 'campaign_manager', 'analyst', 'new_user'
   organization: 'Digital Marketing Agency',
   isNewUser: true,

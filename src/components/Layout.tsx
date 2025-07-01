@@ -27,7 +27,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 // Mock user data - in real app this would come from auth context
 const mockUser = {
-  name: 'Sean',
+  name: 'Sam',
   email: 'sean@example.com',
   role: 'agency_admin', // 'agency_admin', 'campaign_manager', 'analyst', 'new_user'
   organization: 'Digital Marketing Agency',
