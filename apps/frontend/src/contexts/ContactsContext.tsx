@@ -1,0 +1,430 @@
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+interface Contact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company: string;
+  title: string;
+  status: 'new' | 'contacted' | 'interested' | 'qualified' | 'converted' | 'unqualified';
+  priority: 'low' | 'medium' | 'high';
+  source: string;
+  campaign: string;
+  notes: string;
+  cid: string;
+  date: string;
+  value: number;
+  assignedTo: string;
+  assignedToId: string;
+  lastContactDate: string;
+  nextFollowUp: string;
+  lastActivity: string;
+  activities: number;
+  tags: string[];
+}
+
+interface ContactsContextType {
+  contacts: Contact[];
+  setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
+  updateContactStatus: (contactId: string, status: Contact['status']) => void;
+}
+
+const ContactsContext = createContext<ContactsContextType | undefined>(undefined);
+
+export const useContacts = () => {
+  const context = useContext(ContactsContext);
+  if (!context) {
+    throw new Error('useContacts must be used within ContactsProvider');
+  }
+  return context;
+};
+
+// Complete mock data - consolidated from CRM and LeadPage
+const mockContacts: Contact[] = [
+  {
+    id: '1',
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    phone: '+1 (555) 123-4567',
+    company: 'Acme Corp',
+    title: 'CEO',
+    status: 'qualified',
+    priority: 'high',
+    source: 'Website',
+    campaign: 'Q4 Growth',
+    notes: 'Interested in enterprise plan',
+    cid: '93705c74-c7dd-4ed0-b95a-3a341bc68b34',
+    date: '2024-01-15',
+    value: 25000,
+    assignedTo: 'Sarah Johnson',
+    assignedToId: 'sarah',
+    lastContactDate: '2024-01-15',
+    nextFollowUp: '2024-01-20',
+    lastActivity: '2024-01-15',
+    activities: 5,
+    tags: ['hot-lead', 'enterprise'],
+  },
+  {
+    id: '2',
+    firstName: 'Jane',
+    lastName: 'Smith',
+    email: 'jane.smith@techstart.io',
+    phone: '+1 (555) 987-6543',
+    company: 'TechStart',
+    title: 'CTO',
+    status: 'interested',
+    priority: 'medium',
+    source: 'LinkedIn',
+    campaign: 'Tech Leaders',
+    notes: 'Needs demo',
+    cid: '2a8b94e1-5f3c-4a7d-9e8f-1c2d3e4f5a6b',
+    date: '2024-01-14',
+    value: 15000,
+    assignedTo: 'Mike Chen',
+    assignedToId: 'mike',
+    lastContactDate: '2024-01-14',
+    nextFollowUp: '2024-01-18',
+    lastActivity: '2024-01-14',
+    activities: 3,
+    tags: ['demo-requested'],
+  },
+  {
+    id: '3',
+    firstName: 'Bob',
+    lastName: 'Wilson',
+    email: 'bob.wilson@innovate.com',
+    phone: '+1 (555) 456-7890',
+    company: 'Innovate LLC',
+    title: 'VP Marketing',
+    status: 'new',
+    priority: 'low',
+    source: 'Referral',
+    campaign: 'Referral Program',
+    notes: 'Referred by existing client',
+    cid: '',
+    date: '2024-01-13',
+    value: 8000,
+    assignedTo: 'Sarah Johnson',
+    assignedToId: 'sarah',
+    lastContactDate: '2024-01-13',
+    nextFollowUp: '2024-01-16',
+    lastActivity: '2024-01-13',
+    activities: 1,
+    tags: ['referral'],
+  },
+  {
+    id: '4',
+    firstName: 'Alice',
+    lastName: 'Brown',
+    email: 'alice.brown@datatech.com',
+    phone: '+1 (555) 234-5678',
+    company: 'DataTech Solutions',
+    title: 'Data Director',
+    status: 'contacted',
+    priority: 'high',
+    source: 'Cold Call',
+    campaign: 'Data Analytics',
+    notes: 'Looking for data solutions',
+    cid: '4e6f8a9b-3c1d-5e7f-8a9b-2c3d4e5f6a7b',
+    date: '2024-01-12',
+    value: 35000,
+    assignedTo: 'David Lee',
+    assignedToId: 'david',
+    lastContactDate: '2024-01-12',
+    nextFollowUp: '2024-01-17',
+    lastActivity: '2024-01-12',
+    activities: 7,
+    tags: ['data', 'enterprise'],
+  },
+  {
+    id: '5',
+    firstName: 'Charlie',
+    lastName: 'Davis',
+    email: 'charlie.davis@cloudify.io',
+    phone: '+1 (555) 345-6789',
+    company: 'Cloudify Inc',
+    title: 'Cloud Architect',
+    status: 'qualified',
+    priority: 'medium',
+    source: 'Webinar',
+    campaign: 'Cloud Migration',
+    notes: 'Ready to migrate to cloud',
+    cid: '7b9d2e5f-6a8c-4e7f-9a1b-3c4d5e6f7a8b',
+    date: '2024-01-11',
+    value: 22000,
+    assignedTo: 'Emma Wilson',
+    assignedToId: 'emma',
+    lastContactDate: '2024-01-11',
+    nextFollowUp: '2024-01-19',
+    lastActivity: '2024-01-11',
+    activities: 4,
+    tags: ['cloud', 'migration'],
+  },
+  {
+    id: '6',
+    firstName: 'Diana',
+    lastName: 'Garcia',
+    email: 'diana.garcia@fintech.com',
+    phone: '+1 (555) 456-7891',
+    company: 'FinTech Innovations',
+    title: 'CFO',
+    status: 'interested',
+    priority: 'high',
+    source: 'Conference',
+    campaign: 'Financial Services',
+    notes: 'Interested in financial analytics',
+    cid: '9f2e5a8b-4d6e-7f9a-1b2c-4e5f6a7b8c9d',
+    date: '2024-01-10',
+    value: 45000,
+    assignedTo: 'Sarah Johnson',
+    assignedToId: 'sarah',
+    lastContactDate: '2024-01-10',
+    nextFollowUp: '2024-01-21',
+    lastActivity: '2024-01-10',
+    activities: 6,
+    tags: ['fintech', 'analytics'],
+  },
+  {
+    id: '7',
+    firstName: 'Ethan',
+    lastName: 'Martinez',
+    email: 'ethan.martinez@healthtech.org',
+    phone: '+1 (555) 567-8912',
+    company: 'HealthTech Solutions',
+    title: 'Medical Director',
+    status: 'new',
+    priority: 'medium',
+    source: 'Website',
+    campaign: 'Healthcare IT',
+    notes: 'Looking for HIPAA compliant solutions',
+    cid: '',
+    date: '2024-01-09',
+    value: 18000,
+    assignedTo: 'Mike Chen',
+    assignedToId: 'mike',
+    lastContactDate: '2024-01-09',
+    nextFollowUp: '2024-01-22',
+    lastActivity: '2024-01-09',
+    activities: 2,
+    tags: ['healthcare', 'compliance'],
+  },
+  {
+    id: '8',
+    firstName: 'Fiona',
+    lastName: 'Anderson',
+    email: 'fiona.anderson@retailtech.com',
+    phone: '+1 (555) 678-9123',
+    company: 'RetailTech Corp',
+    title: 'Operations Manager',
+    status: 'contacted',
+    priority: 'low',
+    source: 'LinkedIn',
+    campaign: 'Retail Automation',
+    notes: 'Interested in inventory management',
+    cid: '1a3c5e7f-8b9d-2e4f-6a8c-5e7f8a9b1c2d',
+    date: '2024-01-08',
+    value: 12000,
+    assignedTo: 'David Lee',
+    assignedToId: 'david',
+    lastContactDate: '2024-01-08',
+    nextFollowUp: '2024-01-23',
+    lastActivity: '2024-01-08',
+    activities: 3,
+    tags: ['retail', 'automation'],
+  },
+  {
+    id: '9',
+    firstName: 'George',
+    lastName: 'Taylor',
+    email: 'george.taylor@edutech.edu',
+    phone: '+1 (555) 789-1234',
+    company: 'EduTech University',
+    title: 'IT Administrator',
+    status: 'qualified',
+    priority: 'medium',
+    source: 'Referral',
+    campaign: 'Education Sector',
+    notes: 'Looking for student management system',
+    cid: '3e6a9d2f-5b8c-4e7f-9a1b-7f8a9b2c3d4e',
+    date: '2024-01-07',
+    value: 28000,
+    assignedTo: 'Emma Wilson',
+    assignedToId: 'emma',
+    lastContactDate: '2024-01-07',
+    nextFollowUp: '2024-01-24',
+    lastActivity: '2024-01-07',
+    activities: 5,
+    tags: ['education', 'management'],
+  },
+  {
+    id: '10',
+    firstName: 'Hannah',
+    lastName: 'Thomas',
+    email: 'hannah.thomas@greentech.com',
+    phone: '+1 (555) 891-2345',
+    company: 'GreenTech Energy',
+    title: 'Sustainability Officer',
+    status: 'interested',
+    priority: 'high',
+    source: 'Cold Email',
+    campaign: 'Green Technology',
+    notes: 'Wants carbon tracking solutions',
+    cid: '5f8b1e4a-7c9d-6e8f-1a2b-8a9b1c2d3e4f',
+    date: '2024-01-06',
+    value: 32000,
+    assignedTo: 'Sarah Johnson',
+    assignedToId: 'sarah',
+    lastContactDate: '2024-01-06',
+    nextFollowUp: '2024-01-25',
+    lastActivity: '2024-01-06',
+    activities: 4,
+    tags: ['green-tech', 'sustainability'],
+  },
+  {
+    id: '11',
+    firstName: 'Ian',
+    lastName: 'Jackson',
+    email: 'ian.jackson@logistech.com',
+    phone: '+1 (555) 912-3456',
+    company: 'LogisTech Solutions',
+    title: 'Logistics Manager',
+    status: 'converted',
+    priority: 'high',
+    source: 'Partner',
+    campaign: 'Supply Chain',
+    notes: 'Completed purchase last month',
+    cid: '7d9f3a6c-8e1b-4f7a-2c3d-9b1c2d3e4f5a',
+    date: '2024-01-05',
+    value: 55000,
+    assignedTo: 'Mike Chen',
+    assignedToId: 'mike',
+    lastContactDate: '2024-01-05',
+    nextFollowUp: '2024-01-26',
+    lastActivity: '2024-01-05',
+    activities: 8,
+    tags: ['logistics', 'converted'],
+  },
+  {
+    id: '12',
+    firstName: 'Julia',
+    lastName: 'White',
+    email: 'julia.white@autotech.com',
+    phone: '+1 (555) 123-4567',
+    company: 'AutoTech Industries',
+    title: 'Production Manager',
+    status: 'unqualified',
+    priority: 'low',
+    source: 'Trade Show',
+    campaign: 'Manufacturing',
+    notes: 'Budget constraints this year',
+    cid: '',
+    date: '2024-01-04',
+    value: 5000,
+    assignedTo: 'David Lee',
+    assignedToId: 'david',
+    lastContactDate: '2024-01-04',
+    nextFollowUp: '2024-01-27',
+    lastActivity: '2024-01-04',
+    activities: 2,
+    tags: ['manufacturing', 'budget-constrained'],
+  },
+  {
+    id: '13',
+    firstName: 'Kevin',
+    lastName: 'Harris',
+    email: 'kevin.harris@sporttech.com',
+    phone: '+1 (555) 234-5678',
+    company: 'SportTech Analytics',
+    title: 'Head of Analytics',
+    status: 'new',
+    priority: 'medium',
+    source: 'Website',
+    campaign: 'Sports Analytics',
+    notes: 'Interested in player performance tracking',
+    cid: '9b1c2d3e-4f5a-6b7c-8d9e-1f2a3b4c5d6e',
+    date: '2024-01-03',
+    value: 19000,
+    assignedTo: 'Emma Wilson',
+    assignedToId: 'emma',
+    lastContactDate: '2024-01-03',
+    nextFollowUp: '2024-01-28',
+    lastActivity: '2024-01-03',
+    activities: 3,
+    tags: ['sports', 'analytics'],
+  },
+  {
+    id: '14',
+    firstName: 'Linda',
+    lastName: 'Clark',
+    email: 'linda.clark@traveltech.com',
+    phone: '+1 (555) 345-6789',
+    company: 'TravelTech Solutions',
+    title: 'Operations Director',
+    status: 'contacted',
+    priority: 'medium',
+    source: 'LinkedIn',
+    campaign: 'Travel Industry',
+    notes: 'Looking for booking system integration',
+    cid: '1f2a3b4c-5d6e-7f8a-9b1c-2d3e4f5a6b7c',
+    date: '2024-01-02',
+    value: 24000,
+    assignedTo: 'Sarah Johnson',
+    assignedToId: 'sarah',
+    lastContactDate: '2024-01-02',
+    nextFollowUp: '2024-01-29',
+    lastActivity: '2024-01-02',
+    activities: 4,
+    tags: ['travel', 'integration'],
+  },
+  {
+    id: '15',
+    firstName: 'Michael',
+    lastName: 'Rodriguez',
+    email: 'michael.rodriguez@foodtech.io',
+    phone: '+1 (555) 456-7890',
+    company: 'FoodTech Innovations',
+    title: 'Product Manager',
+    status: 'interested',
+    priority: 'high',
+    source: 'Referral',
+    campaign: 'Food Service',
+    notes: 'Wants restaurant management platform',
+    cid: '3d4e5f6a-7b8c-9d1e-2f3a-4b5c6d7e8f9a',
+    date: '2024-01-01',
+    value: 41000,
+    assignedTo: 'Mike Chen',
+    assignedToId: 'mike',
+    lastContactDate: '2024-01-01',
+    nextFollowUp: '2024-01-30',
+    lastActivity: '2024-01-01',
+    activities: 6,
+    tags: ['food-service', 'platform'],
+  },
+];
+
+export const ContactsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [contacts, setContacts] = useState<Contact[]>(mockContacts);
+
+  const updateContactStatus = (contactId: string, status: Contact['status']) => {
+    setContacts((prevContacts) => {
+      const contactExists = prevContacts.find((contact) => contact.id === contactId);
+      if (!contactExists) {
+        console.warn(`Contact with ID ${contactId} not found`);
+        return prevContacts;
+      }
+
+      return prevContacts.map((contact) =>
+        contact.id === contactId ? { ...contact, status } : contact
+      );
+    });
+  };
+
+  return (
+    <ContactsContext.Provider value={{ contacts, setContacts, updateContactStatus }}>
+      {children}
+    </ContactsContext.Provider>
+  );
+};
