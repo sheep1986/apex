@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 
 // User roles type
 export type UserRole =
@@ -77,7 +77,7 @@ const createMockUser = (role: UserRole) => {
 
 export const DevAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [currentRole, setCurrentRole] = useState<UserRole>('platform_owner');
+  const [currentRole, setCurrentRole] = useState<UserRole>('client_admin');
 
   useEffect(() => {
     // Simulate loading delay
@@ -87,27 +87,41 @@ export const DevAuthProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, 100);
   }, [currentRole]);
 
-  const switchRole = (role: UserRole) => {
+  const switchRole = useCallback((role: UserRole) => {
+    console.log(`🔄 Dev Auth: Switching from ${currentRole} to ${role}`);
     setCurrentRole(role);
-    console.log(`🔄 Dev Auth: Switched to role: ${role}`);
-  };
+    console.log(`✅ Dev Auth: Switched to role: ${role}`);
+  }, [currentRole]);
 
-  const currentUser = createMockUser(currentRole);
+  const currentUser = useMemo(() => {
+    const user = createMockUser(currentRole);
+    console.log('🔄 Dev Auth: Creating new user object', {
+      currentRole,
+      userRole: user.role,
+      userId: user.id,
+      timestamp: new Date().toISOString()
+    });
+    return user;
+  }, [currentRole]);
 
-  const value: DevAuthContextType = {
+  const value: DevAuthContextType = useMemo(() => ({
     isLoaded,
     isSignedIn: true, // Always signed in for dev
     user: currentUser,
     currentRole,
     getToken: async () => {
-      // Return test token for API calls with role info
+      // Return test token that backend recognizes
+      // Backend looks for 'sean' in token for platform_owner
+      if (currentRole === 'platform_owner') {
+        return 'sean-dev-token';
+      }
       return `test-token-${currentRole}`;
     },
     signOut: async () => {
       console.log('🔓 Dev Auth: Sign out (no-op in dev mode)');
     },
     switchRole,
-  };
+  }), [isLoaded, currentUser, currentRole, switchRole]);
 
   return <DevAuthContext.Provider value={value}>{children}</DevAuthContext.Provider>;
 };
@@ -118,6 +132,7 @@ export const useUser = () => {
   if (!context) {
     throw new Error('useUser must be used within DevAuthProvider');
   }
+  
   return {
     isLoaded: context.isLoaded,
     isSignedIn: context.isSignedIn,
