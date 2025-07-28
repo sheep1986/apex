@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react';import { ClerkProvider, SignIn } from '@clerk/clerk-react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -66,7 +66,7 @@ import { ContactsProvider } from './contexts/ContactsContext';
 
 function App() {
   return (
-    <ContactsProvider>
+    <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>    <ContactsProvider>
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -244,7 +244,7 @@ function App() {
         </Routes>
         <Toaster />
       </ErrorBoundary>
-    </ContactsProvider>
+        </ContactsProvider>
   );
 }
 
