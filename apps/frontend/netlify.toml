@@ -1,6 +1,6 @@
 [build]
 publish = "dist"
-command = "npm install --force && npm run build"
+command = "npm ci --force --no-audit --no-fund && npm run build"
 
 [build.environment]
 NODE_VERSION = "20"
