@@ -1,10 +1,10 @@
 // VAPI API Configuration
 const VAPI_BASE_URL = 'https://api.vapi.ai';
-const VAPI_API_KEY = import.meta.env.VITE_VAPI_API_KEY;
 
 /**
  * VAPI Service - Complete integration with VAPI platform
  * Handles all VAPI API interactions for Apex CRM
+ * Now uses organization-level credentials instead of platform-level
  */
 
 // Types for VAPI entities
@@ -98,15 +98,77 @@ export interface CallAnalytics {
 
 class VapiService {
   private baseURL = VAPI_BASE_URL;
-  private apiKey = VAPI_API_KEY;
+  private apiKey: string | null = null;
+  private organizationId: string | null = null;
 
   constructor() {
-    if (!this.apiKey) {
-      console.warn('⚠️ VAPI API key not configured. Set VITE_VAPI_API_KEY environment variable.');
+    // VAPI service now requires organization context to function
+    console.log('📝 VAPI Service initialized - requires organization credentials to make API calls');
+  }
+
+  /**
+   * Initialize service with organization credentials
+   */
+  async initializeWithOrganization(organizationId: string): Promise<boolean> {
+    try {
+      this.organizationId = organizationId;
+      
+      // Get auth token
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      
+      // Get organization VAPI credentials via API
+      const response = await fetch(`${window.location.origin}/api/vapi-credentials`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+
+      if (!response.ok) {
+        console.warn('⚠️ Failed to fetch VAPI credentials for organization');
+        return false;
+      }
+
+      const data = await response.json();
+      
+      if (data.hasApiKey && data.credentials?.vapi_api_key) {
+        this.apiKey = data.credentials.vapi_api_key;
+        console.log('✅ VAPI service initialized with organization credentials');
+        return true;
+      } else if (data.hasApiKey) {
+        // API key exists but wasn't returned (non-admin user)
+        console.warn('⚠️ VAPI API key exists but user lacks permission to view it');
+        return false;
+      } else {
+        console.warn('⚠️ No VAPI API key configured for this organization');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error initializing VAPI service with organization:', error);
+      return false;
     }
   }
 
+  /**
+   * Check if service is properly initialized
+   */
+  isInitialized(): boolean {
+    return !!(this.apiKey && this.organizationId);
+  }
+
+  /**
+   * Get current organization ID
+   */
+  getOrganizationId(): string | null {
+    return this.organizationId;
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    if (!this.isInitialized()) {
+      throw new Error('VAPI Service not initialized. Call initializeWithOrganization() first.');
+    }
+
     const url = `${this.baseURL}${endpoint}`;
 
     const headers = {

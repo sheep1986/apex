@@ -1,0 +1,606 @@
+{
+  "competitors": {
+    "Synthflow.ai": {
+      "latency": "0ms (claimed)",
+      "latency_ms": 200,
+      "uptime": "99.9%+",
+      "uptime_numeric": 99.9,
+      "languages": "50+",
+      "languages_numeric": 50,
+      "pricing_model": "Subscription + per-minute",
+      "pricing_base": 0.08,
+      "target_audience": "No-code users",
+      "ease_of_use": "Easy",
+      "api_native": false,
+      "reliability_tier": "Business",
+      "compliance": [
+        "Standard"
+      ],
+      "key_strengths": [
+        "No-code setup",
+        "Zero latency claim",
+        "Robust integrations"
+      ],
+      "key_weaknesses": [
+        "Limited customization",
+        "Newer platform"
+      ],
+      "rating": "4.5/5"
+    },
+    "Bland.ai": {
+      "latency": "3-4s (reported issues)",
+      "latency_ms": 3500,
+      "uptime": "99.99%",
+      "uptime_numeric": 99.99,
+      "languages": "25+",
+      "languages_numeric": 25,
+      "pricing_model": "Per-minute",
+      "pricing_base": 0.09,
+      "target_audience": "Developers/Enterprise",
+      "ease_of_use": "Technical",
+      "api_native": true,
+      "reliability_tier": "Enterprise",
+      "compliance": [
+        "HIPAA"
+      ],
+      "key_strengths": [
+        "Self-hosted infrastructure",
+        "High uptime",
+        "End-to-end"
+      ],
+      "key_weaknesses": [
+        "High latency",
+        "Complex setup",
+        "Poor call quality reports"
+      ],
+      "rating": "2.6/5"
+    },
+    "Retell.ai": {
+      "latency": "800ms",
+      "latency_ms": 800,
+      "uptime": "99.99%",
+      "uptime_numeric": 99.99,
+      "languages": "30+",
+      "languages_numeric": 30,
+      "pricing_model": "Pay-as-you-go",
+      "pricing_base": 0.07,
+      "target_audience": "Developers",
+      "ease_of_use": "Technical",
+      "api_native": true,
+      "reliability_tier": "Enterprise",
+      "compliance": [
+        "SOC2",
+        "HIPAA",
+        "GDPR"
+      ],
+      "key_strengths": [
+        "High concurrency",
+        "BYOC support",
+        "Premium voices"
+      ],
+      "key_weaknesses": [
+        "No visual builder",
+        "Manual multilingual setup"
+      ],
+      "rating": "3.2/5"
+    },
+    "Lindy.ai": {
+      "latency": "500ms (estimated)",
+      "latency_ms": 500,
+      "uptime": "99.9%",
+      "uptime_numeric": 99.9,
+      "languages": "30+",
+      "languages_numeric": 30,
+      "pricing_model": "Subscription + usage",
+      "pricing_base": 0.19,
+      "target_audience": "Business users",
+      "ease_of_use": "Easy",
+      "api_native": false,
+      "reliability_tier": "Business",
+      "compliance": [
+        "Standard"
+      ],
+      "key_strengths": [
+        "Post-call automation",
+        "No-code builder",
+        "Workflow integration"
+      ],
+      "key_weaknesses": [
+        "Higher per-minute cost",
+        "Limited to specific use cases"
+      ]
+    },
+    "PolyAI": {
+      "latency": "600ms (estimated)",
+      "latency_ms": 600,
+      "uptime": "99.9%",
+      "uptime_numeric": 99.9,
+      "languages": "40+",
+      "languages_numeric": 40,
+      "pricing_model": "Enterprise custom",
+      "pricing_base": 0.95,
+      "target_audience": "Enterprise",
+      "ease_of_use": "Complex",
+      "api_native": true,
+      "reliability_tier": "Enterprise",
+      "compliance": [
+        "Enterprise-grade"
+      ],
+      "key_strengths": [
+        "Human-like conversations",
+        "Enterprise focus",
+        "Advanced NLP"
+      ],
+      "key_weaknesses": [
+        "Very expensive",
+        "Complex setup",
+        "Limited customization"
+      ]
+    },
+    "Air.ai": {
+      "latency": "2-3s (estimated)",
+      "latency_ms": 2500,
+      "uptime": "95%",
+      "uptime_numeric": 95,
+      "languages": "20+",
+      "languages_numeric": 20,
+      "pricing_model": "Usage + license fee",
+      "pricing_base": 0.11,
+      "target_audience": "Enterprise",
+      "ease_of_use": "Complex",
+      "api_native": false,
+      "reliability_tier": "Basic",
+      "compliance": [
+        "Basic"
+      ],
+      "key_strengths": [
+        "Long conversation capability",
+        "5000+ integrations claimed"
+      ],
+      "key_weaknesses": [
+        "Poor reviews",
+        "High upfront cost",
+        "Reliability issues"
+      ],
+      "rating": "1.5/5",
+      "license_fee": 25000
+    },
+    "Phonely.ai": {
+      "latency": "300ms (low latency stack)",
+      "latency_ms": 300,
+      "uptime": "99.9%",
+      "uptime_numeric": 99.9,
+      "languages": "25+",
+      "languages_numeric": 25,
+      "pricing_model": "Subscription",
+      "pricing_base": 0.175,
+      "target_audience": "Business users",
+      "ease_of_use": "Easy",
+      "api_native": false,
+      "reliability_tier": "Business",
+      "compliance": [
+        "HIPAA"
+      ],
+      "key_strengths": [
+        "AI vision + voice",
+        "Easy setup",
+        "Testing suite"
+      ],
+      "key_weaknesses": [
+        "No voice API",
+        "Limited customization"
+      ]
+    },
+    "Voiceflow": {
+      "latency": "700ms (estimated)",
+      "latency_ms": 700,
+      "uptime": "99.5%",
+      "uptime_numeric": 99.5,
+      "languages": "20+",
+      "languages_numeric": 20,
+      "pricing_model": "Subscription",
+      "pricing_base": 0.3,
+      "target_audience": "Designers/Product teams",
+      "ease_of_use": "Medium",
+      "api_native": false,
+      "reliability_tier": "Business",
+      "compliance": [
+        "Standard"
+      ],
+      "key_strengths": [
+        "Visual flow designer",
+        "Collaboration tools",
+        "Prototyping"
+      ],
+      "key_weaknesses": [
+        "Not voice-focused",
+        "Limited telephony features"
+      ]
+    }
+  },
+  "scores": {
+    "Synthflow.ai": 5.6640000000000015,
+    "Bland.ai": 5.839999999999999,
+    "Retell.ai": 5.2989999999999995,
+    "Lindy.ai": 5.722000000000001,
+    "PolyAI": 6.090000000000002,
+    "Air.ai": 3.6680000000000006,
+    "Phonely.ai": 5.5550000000000015,
+    "Voiceflow": 5.52
+  },
+  "detailed_scores": {
+    "Synthflow.ai": {
+      "Performance": {
+        "latency": 1.0,
+        "uptime": 9.800000000000011,
+        "languages": 5.0
+      },
+      "Usability": {
+        "ease_of_use": 10,
+        "api_native": 5
+      },
+      "Pricing": {
+        "pricing_base": 1.5999999999999996,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 7,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 9.0,
+        "market_presence": 5
+      }
+    },
+    "Bland.ai": {
+      "Performance": {
+        "latency": 10,
+        "uptime": 9.97999999999999,
+        "languages": 2.5
+      },
+      "Usability": {
+        "ease_of_use": 3,
+        "api_native": 8
+      },
+      "Pricing": {
+        "pricing_base": 1.8000000000000007,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 10,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 5.2,
+        "market_presence": 5
+      }
+    },
+    "Retell.ai": {
+      "Performance": {
+        "latency": 4.0,
+        "uptime": 9.97999999999999,
+        "languages": 3.0
+      },
+      "Usability": {
+        "ease_of_use": 3,
+        "api_native": 8
+      },
+      "Pricing": {
+        "pricing_base": 1.4000000000000004,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 10,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 6.4,
+        "market_presence": 5
+      }
+    },
+    "Lindy.ai": {
+      "Performance": {
+        "latency": 2.5,
+        "uptime": 9.800000000000011,
+        "languages": 3.0
+      },
+      "Usability": {
+        "ease_of_use": 10,
+        "api_native": 5
+      },
+      "Pricing": {
+        "pricing_base": 3.8,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 7,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 5,
+        "market_presence": 5
+      }
+    },
+    "PolyAI": {
+      "Performance": {
+        "latency": 3.0,
+        "uptime": 9.800000000000011,
+        "languages": 4.0
+      },
+      "Usability": {
+        "ease_of_use": 1,
+        "api_native": 8
+      },
+      "Pricing": {
+        "pricing_base": 10,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 10,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 5,
+        "market_presence": 5
+      }
+    },
+    "Air.ai": {
+      "Performance": {
+        "latency": 10,
+        "uptime": 0,
+        "languages": 2.0
+      },
+      "Usability": {
+        "ease_of_use": 1,
+        "api_native": 5
+      },
+      "Pricing": {
+        "pricing_base": 2.2,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 3,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 3.0,
+        "market_presence": 5
+      }
+    },
+    "Phonely.ai": {
+      "Performance": {
+        "latency": 1.5,
+        "uptime": 9.800000000000011,
+        "languages": 2.5
+      },
+      "Usability": {
+        "ease_of_use": 10,
+        "api_native": 5
+      },
+      "Pricing": {
+        "pricing_base": 3.5,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 7,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 5,
+        "market_presence": 5
+      }
+    },
+    "Voiceflow": {
+      "Performance": {
+        "latency": 3.5,
+        "uptime": 9.0,
+        "languages": 2.0
+      },
+      "Usability": {
+        "ease_of_use": 6,
+        "api_native": 5
+      },
+      "Pricing": {
+        "pricing_base": 6.0,
+        "pricing_transparency": 5
+      },
+      "Enterprise_Readiness": {
+        "reliability_tier": 7,
+        "compliance": 5
+      },
+      "Market_Position": {
+        "rating": 5,
+        "market_presence": 5
+      }
+    }
+  },
+  "summary": {
+    "top_performers": [
+      [
+        "PolyAI",
+        6.090000000000002
+      ],
+      [
+        "Bland.ai",
+        5.839999999999999
+      ],
+      [
+        "Lindy.ai",
+        5.722000000000001
+      ],
+      [
+        "Synthflow.ai",
+        5.6640000000000015
+      ],
+      [
+        "Phonely.ai",
+        5.5550000000000015
+      ]
+    ],
+    "performance_leaders": {
+      "fastest_latency": [
+        "Synthflow.ai",
+        {
+          "latency": "0ms (claimed)",
+          "latency_ms": 200,
+          "uptime": "99.9%+",
+          "uptime_numeric": 99.9,
+          "languages": "50+",
+          "languages_numeric": 50,
+          "pricing_model": "Subscription + per-minute",
+          "pricing_base": 0.08,
+          "target_audience": "No-code users",
+          "ease_of_use": "Easy",
+          "api_native": false,
+          "reliability_tier": "Business",
+          "compliance": [
+            "Standard"
+          ],
+          "key_strengths": [
+            "No-code setup",
+            "Zero latency claim",
+            "Robust integrations"
+          ],
+          "key_weaknesses": [
+            "Limited customization",
+            "Newer platform"
+          ],
+          "rating": "4.5/5"
+        }
+      ],
+      "highest_uptime": [
+        "Bland.ai",
+        {
+          "latency": "3-4s (reported issues)",
+          "latency_ms": 3500,
+          "uptime": "99.99%",
+          "uptime_numeric": 99.99,
+          "languages": "25+",
+          "languages_numeric": 25,
+          "pricing_model": "Per-minute",
+          "pricing_base": 0.09,
+          "target_audience": "Developers/Enterprise",
+          "ease_of_use": "Technical",
+          "api_native": true,
+          "reliability_tier": "Enterprise",
+          "compliance": [
+            "HIPAA"
+          ],
+          "key_strengths": [
+            "Self-hosted infrastructure",
+            "High uptime",
+            "End-to-end"
+          ],
+          "key_weaknesses": [
+            "High latency",
+            "Complex setup",
+            "Poor call quality reports"
+          ],
+          "rating": "2.6/5"
+        }
+      ],
+      "most_languages": [
+        "Synthflow.ai",
+        {
+          "latency": "0ms (claimed)",
+          "latency_ms": 200,
+          "uptime": "99.9%+",
+          "uptime_numeric": 99.9,
+          "languages": "50+",
+          "languages_numeric": 50,
+          "pricing_model": "Subscription + per-minute",
+          "pricing_base": 0.08,
+          "target_audience": "No-code users",
+          "ease_of_use": "Easy",
+          "api_native": false,
+          "reliability_tier": "Business",
+          "compliance": [
+            "Standard"
+          ],
+          "key_strengths": [
+            "No-code setup",
+            "Zero latency claim",
+            "Robust integrations"
+          ],
+          "key_weaknesses": [
+            "Limited customization",
+            "Newer platform"
+          ],
+          "rating": "4.5/5"
+        }
+      ],
+      "lowest_price": [
+        "Retell.ai",
+        {
+          "latency": "800ms",
+          "latency_ms": 800,
+          "uptime": "99.99%",
+          "uptime_numeric": 99.99,
+          "languages": "30+",
+          "languages_numeric": 30,
+          "pricing_model": "Pay-as-you-go",
+          "pricing_base": 0.07,
+          "target_audience": "Developers",
+          "ease_of_use": "Technical",
+          "api_native": true,
+          "reliability_tier": "Enterprise",
+          "compliance": [
+            "SOC2",
+            "HIPAA",
+            "GDPR"
+          ],
+          "key_strengths": [
+            "High concurrency",
+            "BYOC support",
+            "Premium voices"
+          ],
+          "key_weaknesses": [
+            "No visual builder",
+            "Manual multilingual setup"
+          ],
+          "rating": "3.2/5"
+        }
+      ]
+    },
+    "market_gaps": {
+      "Performance Gaps": [
+        "Bland.ai: 3-4s (reported issues) latency",
+        "Retell.ai: 800ms latency",
+        "Lindy.ai: 500ms (estimated) latency",
+        "PolyAI: 600ms (estimated) latency",
+        "Air.ai: 2-3s (estimated) latency",
+        "Phonely.ai: 300ms (low latency stack) latency",
+        "Voiceflow: 700ms (estimated) latency"
+      ],
+      "Feature Gaps": [],
+      "Pricing Gaps": [
+        "PolyAI: Significantly above market average"
+      ],
+      "Market Gaps": [
+        "Limited no-code business solutions"
+      ]
+    },
+    "total_platforms_analyzed": 8,
+    "average_latency": 1137.5,
+    "average_price": 0.245625,
+    "market_segments": {
+      "Developer-First": [
+        "Retell.ai"
+      ],
+      "No-Code Business": [
+        "Lindy.ai",
+        "Phonely.ai"
+      ],
+      "Enterprise": [
+        "PolyAI"
+      ],
+      "Hybrid": [
+        "Synthflow.ai",
+        "Bland.ai",
+        "Air.ai",
+        "Voiceflow"
+      ]
+    }
+  },
+  "timestamp": "2025-06-17 22:55:36"
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +45,7 @@ import {
 
 export function Analytics() {
   const [activeTab, setActiveTab] = useState('overview');
+  const { t } = useTranslation(['analytics', 'common']);
 
   // Platform KPIs
   const kpis = {
@@ -114,12 +116,12 @@ export function Analytics() {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+      <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-gray-400">
-              Comprehensive insights into your platform performance
+              {t('analytics:subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -128,11 +130,11 @@ export function Analytics() {
               className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
             >
               <Calendar className="mr-2 h-4 w-4" />
-              Export Report
+              {t('analytics:export.export_report')}
             </Button>
             <Button className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700">
               <Plus className="mr-2 h-4 w-4" />
-              Create Dashboard
+              {t('analytics:dashboard.custom_dashboard')}
             </Button>
           </div>
         </div>
@@ -143,7 +145,7 @@ export function Analytics() {
             <CardContent className="p-6">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Total Calls</p>
+                  <p className="text-sm font-medium text-gray-400">{t('analytics:call_analytics.total_calls')}</p>
                   <p className="text-3xl font-bold text-white">
                     {kpis.calls.total.toLocaleString()}
                   </p>
@@ -153,8 +155,8 @@ export function Analytics() {
                 </div>
               </div>
               <div className="flex items-center gap-4 text-sm">
-                <span className="text-green-400">+{kpis.calls.successful} successful</span>
-                <span className="text-red-400">-{kpis.calls.failed} failed</span>
+                <span className="text-green-400">+{kpis.calls.successful} {t('analytics:call_analytics.successful_calls')}</span>
+                <span className="text-red-400">-{kpis.calls.failed} {t('analytics:call_analytics.failed_calls')}</span>
               </div>
             </CardContent>
           </Card>
@@ -163,7 +165,7 @@ export function Analytics() {
             <CardContent className="p-6">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Active Organizations</p>
+                  <p className="text-sm font-medium text-gray-400">{t('analytics:user_analytics.active_users')}</p>
                   <p className="text-3xl font-bold text-white">{kpis.organizations.active}</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/20">

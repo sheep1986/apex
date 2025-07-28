@@ -38,7 +38,6 @@ const NotificationsPage: React.FC = () => {
     markAllAsRead,
     deleteNotification,
     clearAll,
-    getNotificationStats,
   } = useNotificationStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,7 +47,18 @@ const NotificationsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 10;
-  const stats = getNotificationStats();
+  
+  // Calculate stats from notifications array
+  const stats = useMemo(() => {
+    const total = notifications.length;
+    const unread = notifications.filter(n => !n.read).length;
+    const byType = notifications.reduce((acc, n) => {
+      acc[n.type] = (acc[n.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return { total, unread, byType };
+  }, [notifications]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -185,7 +195,7 @@ const NotificationsPage: React.FC = () => {
           )}
           <Button
             variant="outline"
-            onClick={() => navigate('/settings/notifications')}
+            onClick={() => navigate('/settings')}
             className="border-gray-700 hover:bg-gray-800"
           >
             Settings

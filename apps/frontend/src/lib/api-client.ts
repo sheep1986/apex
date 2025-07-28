@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { useAuth } from '../hooks/auth';
+import { supabase, getSupabase } from '../services/supabase-client';
 
 // API Configuration - Force empty for dev to use proxy
 const API_BASE_URL = '';
@@ -73,7 +74,7 @@ const retryRequest = async (
   }
 };
 
-// Create Axios Instance with Clerk integration
+// Create Axios Instance with auth integration
 const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance => {
   const instance = axios.create({
     baseURL: API_BASE_URL,
@@ -86,30 +87,48 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
   // Request Interceptor
   instance.interceptors.request.use(
     async (config) => {
-      // Try to get token from Clerk first, then fallback to localStorage, then use test token
       let token: string | null = null;
 
       console.log('🔍 API Client: Getting token...');
 
-      if (getToken) {
+      // Check if we're using dev auth
+      const USE_DEV_AUTH = import.meta.env.VITE_USE_DEV_AUTH === 'true';
+
+      if (USE_DEV_AUTH) {
+        // TEMPORARILY DISABLED - Remove all dev token logic to fix auth issues
+        console.warn('⚠️ Dev auth is disabled - using Supabase auth only');
+      }
+      
+      // Always use Supabase auth
+      {
+        // Use Supabase auth token
         try {
-          token = await getToken();
-          console.log('🔍 API Client: Got token from getToken():', token ? '***EXISTS***' : 'NULL');
+          const supabaseClient = getSupabase();
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.access_token) {
+            token = session.access_token;
+            console.log('🔍 API Client: Got Supabase token:', '***EXISTS***');
+          } else {
+            console.warn('⚠️ API Client: No Supabase session found');
+          }
         } catch (error) {
-          console.warn('⚠️ Failed to get token:', error);
+          console.error('❌ API Client: Error getting Supabase session:', error);
         }
-      }
 
-      // Fallback to localStorage if no token
-      if (!token) {
-        token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-        console.log('🔍 API Client: Got token from localStorage:', token ? '***EXISTS***' : 'NULL');
-      }
+        // Fallback to custom getToken function
+        if (!token && getToken) {
+          try {
+            token = await getToken();
+            console.log('🔍 API Client: Got token from getToken():', token ? '***EXISTS***' : 'NULL');
+          } catch (error) {
+            console.warn('⚠️ Failed to get token from getToken:', error);
+          }
+        }
 
-      // Final fallback to test-token
-      if (!token) {
-        token = 'test-token';
-        console.log('🔧 API Client: Using fallback test-token');
+        // No fallback in production mode - user must be authenticated
+        if (!token) {
+          console.warn('⚠️ No authentication token available in production mode');
+        }
       }
 
       if (token) {
@@ -130,7 +149,7 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
           url: config.url,
           data: config.data,
           hasAuth: !!token,
-          tokenSource: token === 'test-token' ? 'development' : getToken ? 'Clerk' : 'localStorage',
+          authMode: USE_DEV_AUTH ? 'development' : 'supabase',
         });
       }
 
@@ -210,7 +229,7 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
 // Create API instance (legacy - for backwards compatibility)
 export const apiClient = createApiClient();
 
-// Hook to create API client with Clerk integration
+// Hook to create API client with auth integration
 export const useApiClient = () => {
   const { getToken } = useAuth();
   return createApiClient(getToken);

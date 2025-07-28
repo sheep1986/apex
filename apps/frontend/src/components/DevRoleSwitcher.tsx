@@ -120,10 +120,7 @@ export function DevRoleSwitcher() {
                     <DropdownMenuItem
                       key={role}
                       className={`cursor-pointer text-zinc-400 hover:bg-gray-700/50 hover:text-white ${isActive ? 'bg-gray-800/50 text-white' : ''} `}
-                      onClick={() => {
-                        console.log(`🎯 DevRoleSwitcher: User clicked to switch to ${role}`);
-                        switchRole(role as UserRole);
-                      }}
+                      onClick={() => switchRole(role as UserRole)}
                     >
                       <div className="flex w-full items-center gap-3">
                         <Icon className="h-4 w-4" />

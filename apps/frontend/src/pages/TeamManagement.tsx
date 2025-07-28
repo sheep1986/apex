@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,7 @@ interface TeamMember {
 }
 
 export default function TeamManagement() {
+  const { t } = useTranslation(['common']);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -114,8 +116,8 @@ export default function TeamManagement() {
 
       if (response.ok) {
         toast({
-          title: 'Team Member Added',
-          description: `Invitation sent to ${formData.email}. They will need to verify their account.`,
+          title: t('team.addMemberDialog.memberAdded'),
+          description: t('team.addMemberDialog.invitationSent', { email: formData.email }),
         });
         setShowAddMember(false);
         fetchTeamMembers();
@@ -138,8 +140,8 @@ export default function TeamManagement() {
     } catch (error: any) {
       console.error('Error adding team member:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to add team member. Please try again.',
+        title: t('error'),
+        description: error.message || t('team.addMemberDialog.failedToAdd'),
         variant: 'destructive',
       });
     } finally {
@@ -173,11 +175,11 @@ export default function TeamManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="mb-8">
-          <p className="text-gray-400">Manage your support team and their permissions</p>
+          <p className="text-gray-400">{t('team.description')}</p>
         </div>
 
         {/* Stats Cards */}
@@ -185,33 +187,33 @@ export default function TeamManagement() {
           <Card className="border-gray-700 bg-gray-800/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">
-                Total Team Members
+                {t('team.totalMembers')}
               </CardTitle>
               <Users className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">{teamMembers.length}</div>
-              <p className="mt-1 text-xs text-gray-500">Active support staff</p>
+              <p className="mt-1 text-xs text-gray-500">{t('team.activeStaff')}</p>
             </CardContent>
           </Card>
 
           <Card className="border-gray-700 bg-gray-800/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Support Admins</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-400">{t('team.supportAdmins')}</CardTitle>
               <Shield className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
                 {teamMembers.filter((m) => m.role === 'support_admin').length}
               </div>
-              <p className="mt-1 text-xs text-gray-500">Full access to all clients</p>
+              <p className="mt-1 text-xs text-gray-500">{t('team.fullAccess')}</p>
             </CardContent>
           </Card>
 
           <Card className="border-gray-700 bg-gray-800/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">
-                Pending Verification
+                {t('team.pendingVerification')}
               </CardTitle>
               <Mail className="h-4 w-4 text-gray-400" />
             </CardHeader>
@@ -219,7 +221,7 @@ export default function TeamManagement() {
               <div className="text-2xl font-bold text-white">
                 {teamMembers.filter((m) => m.verificationRequired).length}
               </div>
-              <p className="mt-1 text-xs text-gray-500">Awaiting account setup</p>
+              <p className="mt-1 text-xs text-gray-500">{t('team.awaitingSetup')}</p>
             </CardContent>
           </Card>
         </div>
@@ -231,16 +233,16 @@ export default function TeamManagement() {
             className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700"
           >
             <UserPlus className="mr-2 h-4 w-4" />
-            Add Team Member
+            {t('team.addMember')}
           </Button>
         </div>
 
         {/* Team Members List */}
         <Card className="border-gray-700 bg-gray-800/50">
           <CardHeader>
-            <CardTitle className="text-white">Support Team Members</CardTitle>
+            <CardTitle className="text-white">{t('team.supportTeamMembers')}</CardTitle>
             <CardDescription className="text-gray-400">
-              Your team members can access client organizations for support purposes
+              {t('team.teamAccessDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -261,12 +263,12 @@ export default function TeamManagement() {
                           {member.firstName} {member.lastName}
                         </h4>
                         <Badge variant={member.role === 'support_admin' ? 'default' : 'secondary'}>
-                          {member.role.replace('_', ' ').toUpperCase()}
+                          {t(`team.roles.${member.role === 'support_admin' ? 'supportAdmin' : 'supportAgent'}`)}
                         </Badge>
                         {member.verificationRequired && (
                           <Badge variant="outline" className="border-yellow-500 text-yellow-500">
                             <AlertCircle className="mr-1 h-3 w-3" />
-                            Pending Verification
+                            {t('team.status.pendingVerification')}
                           </Badge>
                         )}
                       </div>
@@ -280,19 +282,19 @@ export default function TeamManagement() {
                       {member.permissions.canAccessAllOrganizations && (
                         <div className="flex items-center gap-1 text-xs text-gray-400">
                           <Eye className="h-3 w-3" />
-                          <span>View All</span>
+                          <span>{t('team.permissions.viewAll')}</span>
                         </div>
                       )}
                       {member.permissions.canManageClients && (
                         <div className="flex items-center gap-1 text-xs text-gray-400">
                           <Building className="h-3 w-3" />
-                          <span>Manage Clients</span>
+                          <span>{t('team.permissions.manageClientsShort')}</span>
                         </div>
                       )}
                       {member.permissions.canManageTeam && (
                         <div className="flex items-center gap-1 text-xs text-gray-400">
                           <Settings className="h-3 w-3" />
-                          <span>Admin</span>
+                          <span>{t('team.permissions.admin')}</span>
                         </div>
                       )}
                     </div>
@@ -302,10 +304,10 @@ export default function TeamManagement() {
                       {member.isActive ? (
                         <Badge className="bg-green-600">
                           <CheckCircle className="mr-1 h-3 w-3" />
-                          Active
+                          {t('team.status.active')}
                         </Badge>
                       ) : (
-                        <Badge variant="secondary">Inactive</Badge>
+                        <Badge variant="secondary">{t('team.status.inactive')}</Badge>
                       )}
                     </div>
                   </div>
@@ -315,7 +317,7 @@ export default function TeamManagement() {
               {teamMembers.length === 0 && !isLoading && (
                 <div className="py-8 text-center text-gray-400">
                   <Users className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>No team members yet. Add your first support team member to get started.</p>
+                  <p>{t('team.noMembersYet')}</p>
                 </div>
               )}
             </div>
@@ -326,10 +328,9 @@ export default function TeamManagement() {
         <Dialog open={showAddMember} onOpenChange={setShowAddMember}>
           <DialogContent className="max-w-2xl border-gray-800 bg-gray-900 text-white">
             <DialogHeader>
-              <DialogTitle>Add Team Member</DialogTitle>
+              <DialogTitle>{t('team.addMemberDialog.title')}</DialogTitle>
               <DialogDescription className="text-gray-400">
-                Invite a new member to your support team. They'll receive an email with verification
-                instructions.
+                {t('team.addMemberDialog.description')}
               </DialogDescription>
             </DialogHeader>
 
@@ -337,7 +338,7 @@ export default function TeamManagement() {
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>First Name</Label>
+                  <Label>{t('team.addMemberDialog.firstName')}</Label>
                   <Input
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -346,7 +347,7 @@ export default function TeamManagement() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Last Name</Label>
+                  <Label>{t('team.addMemberDialog.lastName')}</Label>
                   <Input
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -357,7 +358,7 @@ export default function TeamManagement() {
               </div>
 
               <div className="space-y-2">
-                <Label>Email Address</Label>
+                <Label>{t('team.addMemberDialog.email')}</Label>
                 <Input
                   type="email"
                   value={formData.email}
@@ -369,7 +370,7 @@ export default function TeamManagement() {
 
               {/* Role Selection */}
               <div className="space-y-2">
-                <Label>Role</Label>
+                <Label>{t('team.addMemberDialog.role')}</Label>
                 <Select
                   value={formData.role}
                   onValueChange={(value) => {
@@ -385,20 +386,20 @@ export default function TeamManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="border-gray-700 bg-gray-800">
-                    <SelectItem value="support_admin">Support Admin</SelectItem>
-                    <SelectItem value="support_agent">Support Agent</SelectItem>
+                    <SelectItem value="support_admin">{t('team.roles.supportAdmin')}</SelectItem>
+                    <SelectItem value="support_agent">{t('team.roles.supportAgent')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Permissions */}
               <div className="space-y-3">
-                <Label>Permissions</Label>
+                <Label>{t('team.addMemberDialog.permissions')}</Label>
                 <div className="space-y-3 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Eye className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm">Access all client organizations</span>
+                      <span className="text-sm">{t('team.permissions.accessAllOrganizations')}</span>
                     </div>
                     <Checkbox
                       checked={formData.permissions.canAccessAllOrganizations}
@@ -411,7 +412,7 @@ export default function TeamManagement() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Building className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm">Manage client accounts</span>
+                      <span className="text-sm">{t('team.permissions.manageClients')}</span>
                     </div>
                     <Checkbox
                       checked={formData.permissions.canManageClients}
@@ -424,7 +425,7 @@ export default function TeamManagement() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Shield className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm">View client data (leads, campaigns)</span>
+                      <span className="text-sm">{t('team.permissions.viewClientData')}</span>
                     </div>
                     <Checkbox
                       checked={formData.permissions.canViewClientData}
@@ -437,7 +438,7 @@ export default function TeamManagement() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Settings className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm">Manage team members</span>
+                      <span className="text-sm">{t('team.permissions.manageTeam')}</span>
                     </div>
                     <Checkbox
                       checked={formData.permissions.canManageTeam}
@@ -454,10 +455,9 @@ export default function TeamManagement() {
                 <div className="flex gap-3">
                   <Mail className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400" />
                   <div className="text-sm text-gray-300">
-                    <p className="mb-1 font-medium text-blue-400">Verification Required</p>
+                    <p className="mb-1 font-medium text-blue-400">{t('team.addMemberDialog.verificationRequired')}</p>
                     <p>
-                      The team member will receive an email with instructions to set up their
-                      account and verify their identity with a 6-digit code.
+                      {t('team.addMemberDialog.verificationDescription')}
                     </p>
                   </div>
                 </div>
@@ -470,7 +470,7 @@ export default function TeamManagement() {
                   onClick={() => setShowAddMember(false)}
                   className="border-gray-700"
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
                 <Button
                   onClick={handleAddTeamMember}
@@ -479,7 +479,7 @@ export default function TeamManagement() {
                   }
                   className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50"
                 >
-                  {isAddingMember ? 'Sending Invitation...' : 'Send Invitation'}
+                  {isAddingMember ? t('team.addMemberDialog.sendingInvitation') : t('team.addMemberDialog.sendInvitation')}
                 </Button>
               </div>
             </div>

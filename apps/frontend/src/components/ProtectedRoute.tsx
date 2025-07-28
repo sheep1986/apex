@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useUser, useAuth } from '../hooks/auth';
 
 interface ProtectedRouteProps {
@@ -7,19 +7,10 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isLoaded, isSignedIn } = useUser();
-  const { getToken } = useAuth();
-
-  // Use test-token for development instead of real Clerk tokens
-  React.useEffect(() => {
-    if (isSignedIn) {
-      // Use test-token since backend is configured for it
-      localStorage.setItem('auth_token', 'test-token');
-      console.log('🔑 Set development authentication token (test-token)');
-    }
-  }, [isSignedIn, getToken]);
-
-  // Show loading spinner while Clerk is loading
+  const location = useLocation();
+  const { isLoaded, isSignedIn } = useAuth();
+  
+  // Show loading spinner while checking auth
   if (!isLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-black to-gray-950">
@@ -31,15 +22,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // If not signed in, redirect to landing page
+  // If not authenticated, redirect to login
   if (!isSignedIn) {
-    // Temporary: Allow test-token for development
-    const hasTestToken = localStorage.getItem('auth_token') === 'test-token';
-    if (!hasTestToken) {
-      return <Navigate to="/" replace />;
-    }
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If signed in, render the protected content
   return <>{children}</>;
 };

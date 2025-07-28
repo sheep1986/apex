@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useUser } from '../hooks/auth';
 import {
@@ -55,6 +56,7 @@ interface VapiAccountData {
 }
 
 export function UserDropdown() {
+  const { t } = useTranslation('components');
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { user } = useUser();
@@ -118,11 +120,22 @@ export function UserDropdown() {
 
   const handleSignOut = async () => {
     try {
+      // Call the signOut from auth hooks (which handles Supabase or dev auth)
       await signOut();
-      // Redirect will be handled by the ProtectedRoute component
-      // which will redirect to landing page when user is no longer signed in
+      
+      // Clear any cached data
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Force redirect to login page
+      window.location.href = '/login';
     } catch (error) {
       console.error('Sign out error:', error);
+      
+      // Force redirect even if sign out fails
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/login';
     }
   };
 
@@ -143,9 +156,9 @@ export function UserDropdown() {
     const hour = new Date().getHours();
     const firstName = userContext?.firstName || user?.firstName || 'User';
 
-    if (hour < 12) return `Good morning, ${firstName}!`;
-    if (hour < 17) return `Good afternoon, ${firstName}!`;
-    return `Good evening, ${firstName}!`;
+    if (hour < 12) return t('user_dropdown.good_morning', { name: firstName });
+    if (hour < 17) return t('user_dropdown.good_afternoon', { name: firstName });
+    return t('user_dropdown.good_evening', { name: firstName });
   };
 
   return (
@@ -159,20 +172,20 @@ export function UserDropdown() {
             isOpen && 'bg-gray-800'
           )}
         >
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8 ring-2 ring-gray-700 transition-all hover:ring-gray-500/50">
+          <div className="flex items-center space-x-2 max-w-[200px]">
+            <Avatar className="h-8 w-8 ring-2 ring-gray-700 transition-all hover:ring-gray-500/50 flex-shrink-0">
               <AvatarImage src={user?.imageUrl} alt={user?.fullName || ''} />
               <AvatarFallback className="bg-gray-600 font-medium text-white">
                 {user?.firstName?.[0] || 'U'}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden flex-col items-start md:flex">
-              <span className="text-sm font-medium text-white">{user?.firstName || 'User'}</span>
-              <span className="text-xs text-gray-400">{userContext?.role || 'User'}</span>
+            <div className="hidden flex-col items-start lg:flex min-w-0 flex-1">
+              <span className="text-sm font-medium text-white truncate max-w-[100px]">{user?.firstName || 'User'}</span>
+              <span className="text-xs text-gray-400 truncate max-w-[100px]">{userContext?.role || 'User'}</span>
             </div>
             <ChevronDown
               className={cn(
-                'h-4 w-4 text-gray-400 transition-transform duration-200',
+                'h-4 w-4 text-gray-400 transition-transform duration-200 flex-shrink-0',
                 isOpen && 'rotate-180'
               )}
             />
@@ -215,7 +228,7 @@ export function UserDropdown() {
         {/* Account Stats */}
         <div className="border-b border-gray-700 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-sm font-medium text-white">Account Overview</h4>
+            <h4 className="text-sm font-medium text-white">{t('user_dropdown.account_overview')}</h4>
             <Button
               variant="ghost"
               size="sm"
@@ -228,7 +241,7 @@ export function UserDropdown() {
               ) : (
                 <RefreshCw className="h-3 w-3" />
               )}
-              Sync
+              {t('user_dropdown.sync')}
             </Button>
           </div>
 
@@ -238,7 +251,7 @@ export function UserDropdown() {
               <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-400">Total Credits</p>
+                    <p className="text-xs text-gray-400">{t('user_dropdown.total_credits')}</p>
                     <p className="text-lg font-bold text-gray-400">
                       {vapiData.credits > 0 ? vapiData.credits.toLocaleString() : 'N/A'}
                     </p>
@@ -253,7 +266,7 @@ export function UserDropdown() {
               <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-400">Total Calls</p>
+                    <p className="text-xs text-gray-400">{t('user_dropdown.total_calls')}</p>
                     <p className="text-lg font-bold text-blue-400">
                       {vapiData.totalCalls > 0 ? vapiData.totalCalls.toLocaleString() : 'N/A'}
                     </p>
@@ -269,25 +282,25 @@ export function UserDropdown() {
             <div className="flex items-center space-x-2">
               {getStatusIcon()}
               <span className="text-gray-400">
-                VAPI Status:{' '}
+                {t('user_dropdown.vapi_status')}:{' '}
                 {vapiData.status === 'connected'
-                  ? 'Connected'
+                  ? t('user_dropdown.connected')
                   : vapiData.status === 'syncing'
-                    ? 'Syncing...'
+                    ? t('user_dropdown.syncing')
                     : vapiData.status === 'error'
-                      ? 'Connection Error'
-                      : 'Disconnected'}
+                      ? t('user_dropdown.connection_error')
+                      : t('user_dropdown.disconnected')}
               </span>
             </div>
             <span className="text-gray-500">
-              Last sync: {vapiData.lastSync.toLocaleTimeString()}
+              {t('user_dropdown.last_sync')}: {vapiData.lastSync.toLocaleTimeString()}
             </span>
           </div>
 
           {/* Connected Accounts */}
           {vapiData.accounts.length > 0 && (
             <div className="mt-3">
-              <p className="mb-2 text-xs text-gray-400">Connected VAPI Accounts</p>
+              <p className="mb-2 text-xs text-gray-400">{t('user_dropdown.connected_accounts')}</p>
               <div className="space-y-1">
                 {vapiData.accounts.map((account) => (
                   <div key={account.id} className="flex items-center justify-between text-xs">
@@ -307,16 +320,6 @@ export function UserDropdown() {
         {/* Menu Items */}
         <div className="p-2">
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              className="cursor-pointer hover:bg-gray-800/100 focus:bg-gray-800/100"
-              onClick={() => {
-                navigate('/profile-settings');
-                setIsOpen(false);
-              }}
-            >
-              <User className="mr-3 h-4 w-4 text-gray-400" />
-              <span className="text-gray-200">Profile Settings</span>
-            </DropdownMenuItem>
 
             <DropdownMenuItem
               className="cursor-pointer hover:bg-gray-800/100 focus:bg-gray-800/100"
@@ -326,7 +329,7 @@ export function UserDropdown() {
               }}
             >
               <Key className="mr-3 h-4 w-4 text-gray-400" />
-              <span className="text-gray-200">API Keys</span>
+              <span className="text-gray-200">{t('user_dropdown.api_keys')}</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
@@ -337,7 +340,7 @@ export function UserDropdown() {
               }}
             >
               <CreditCard className="mr-3 h-4 w-4 text-gray-400" />
-              <span className="text-gray-200">Billing & Credits</span>
+              <span className="text-gray-200">{t('user_dropdown.billing_credits')}</span>
             </DropdownMenuItem>
 
             {userContext?.role === 'platform_owner' && (
@@ -350,7 +353,7 @@ export function UserDropdown() {
                   }}
                 >
                   <Crown className="mr-3 h-4 w-4 text-yellow-400" />
-                  <span className="text-gray-200">Platform Admin</span>
+                  <span className="text-gray-200">{t('user_dropdown.platform_admin')}</span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -361,7 +364,7 @@ export function UserDropdown() {
                   }}
                 >
                   <Shield className="mr-3 h-4 w-4 text-gray-400" />
-                  <span className="text-gray-200">Security & Health</span>
+                  <span className="text-gray-200">{t('user_dropdown.security_health')}</span>
                 </DropdownMenuItem>
               </>
             )}
@@ -374,7 +377,7 @@ export function UserDropdown() {
               }}
             >
               <Settings className="mr-3 h-4 w-4 text-gray-400" />
-              <span className="text-gray-200">Settings</span>
+              <span className="text-gray-200">{t('user_dropdown.settings')}</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 
@@ -385,14 +388,14 @@ export function UserDropdown() {
             onClick={handleSignOut}
           >
             <LogOut className="mr-3 h-4 w-4" />
-            <span>Sign Out</span>
+            <span>{t('user_dropdown.sign_out')}</span>
           </DropdownMenuItem>
         </div>
 
         {/* Footer */}
         <div className="border-t border-gray-700 bg-gray-800/50 p-3">
           <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>Apex AI Platform</span>
+            <span>{t('user_dropdown.apex_platform')}</span>
             <Button
               variant="ghost"
               size="sm"
@@ -400,7 +403,7 @@ export function UserDropdown() {
               onClick={() => window.open('https://docs.apex.ai', '_blank')}
             >
               <ExternalLink className="mr-1 h-3 w-3" />
-              Docs
+              {t('user_dropdown.docs')}
             </Button>
           </div>
         </div>

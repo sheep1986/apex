@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -76,22 +77,6 @@ import { useUserContext } from '../services/MinimalUserProvider';
 import { useUser } from '../hooks/auth';
 
 // Sample data - in real app this would come from API
-const recentCallsData = [
-  { name: 'Mon', calls: 24, successful: 18, inbound: 8, outbound: 16 },
-  { name: 'Tue', calls: 32, successful: 28, inbound: 10, outbound: 22 },
-  { name: 'Wed', calls: 28, successful: 22, inbound: 12, outbound: 16 },
-  { name: 'Thu', calls: 45, successful: 38, inbound: 15, outbound: 30 },
-  { name: 'Fri', calls: 38, successful: 31, inbound: 14, outbound: 24 },
-  { name: 'Sat', calls: 22, successful: 19, inbound: 7, outbound: 15 },
-  { name: 'Sun', calls: 15, successful: 12, inbound: 5, outbound: 10 },
-];
-
-const callOutcomesData = [
-  { name: 'Connected', value: 68, color: '#10b981' },
-  { name: 'Voicemail', value: 22, color: '#f59e0b' },
-  { name: 'Busy', value: 7, color: '#6b7280' },
-  { name: 'Failed', value: 3, color: '#ef4444' },
-];
 
 const voiceAgentPerformance = [
   { name: 'Sales Pro', successRate: 82, calls: 145, avgCost: 0.12 },
@@ -107,15 +92,6 @@ const campaignPerformance = [
   { name: 'Real Estate', successRate: 73, totalCalls: 356, avgCost: 0.12, leads: 93 },
 ];
 
-const callVolumeData = [
-  { date: 'Mon', calls: 320 },
-  { date: 'Tue', calls: 450 },
-  { date: 'Wed', calls: 380 },
-  { date: 'Thu', calls: 520 },
-  { date: 'Fri', calls: 480 },
-  { date: 'Sat', calls: 350 },
-  { date: 'Sun', calls: 290 },
-];
 
 const conversionData = [
   { stage: 'Lead Generation', value: 100 },
@@ -162,6 +138,35 @@ const recentCalls = [
 export default function Dashboard() {
   console.log('Dashboard component rendering...');
 
+  const { t } = useTranslation('dashboard');
+  
+  // Chart data that depends on translations
+  const recentCallsData = [
+    { name: t('chart_labels.monday'), calls: 24, successful: 18, inbound: 8, outbound: 16 },
+    { name: t('chart_labels.tuesday'), calls: 32, successful: 28, inbound: 10, outbound: 22 },
+    { name: t('chart_labels.wednesday'), calls: 28, successful: 22, inbound: 12, outbound: 16 },
+    { name: t('chart_labels.thursday'), calls: 45, successful: 38, inbound: 15, outbound: 30 },
+    { name: t('chart_labels.friday'), calls: 38, successful: 31, inbound: 14, outbound: 24 },
+    { name: t('chart_labels.saturday'), calls: 22, successful: 19, inbound: 7, outbound: 15 },
+    { name: t('chart_labels.sunday'), calls: 15, successful: 12, inbound: 5, outbound: 10 },
+  ];
+
+  const callOutcomesData = [
+    { name: t('chart_labels.connected'), value: 68, color: '#10b981' },
+    { name: t('chart_labels.voicemail'), value: 22, color: '#f59e0b' },
+    { name: t('chart_labels.busy'), value: 7, color: '#6b7280' },
+    { name: t('chart_labels.failed'), value: 3, color: '#ef4444' },
+  ];
+
+  const callVolumeData = [
+    { date: t('chart_labels.monday'), calls: 320 },
+    { date: t('chart_labels.tuesday'), calls: 450 },
+    { date: t('chart_labels.wednesday'), calls: 380 },
+    { date: t('chart_labels.thursday'), calls: 520 },
+    { date: t('chart_labels.friday'), calls: 480 },
+    { date: t('chart_labels.saturday'), calls: 350 },
+    { date: t('chart_labels.sunday'), calls: 290 },
+  ];
   const navigate = useNavigate();
   const { userContext } = useUserContext();
   const { user } = useUser();
@@ -204,35 +209,35 @@ export default function Dashboard() {
 
   const handleExportData = (format: 'csv' | 'pdf') => {
     toast({
-      title: 'Export Started',
-      description: `Exporting data as ${format.toUpperCase()}...`,
+      title: t('notifications.export_started'),
+      description: t('notifications.exporting_data_as', { format: format.toUpperCase() }),
     });
   };
 
   const stats = [
     {
-      title: 'Total Calls',
+      title: t('stats.total_calls'),
       value: '12,543',
       change: '+12.5%',
       icon: Phone,
       color: 'purple',
     },
     {
-      title: 'Active Campaigns',
+      title: t('stats.active_campaigns'),
       value: '24',
       change: '+3',
       icon: Target,
       color: 'emerald',
     },
     {
-      title: 'Conversion Rate',
+      title: t('stats.conversion_rate'),
       value: '32.8%',
       change: '+5.2%',
       icon: TrendingUp,
       color: 'pink',
     },
     {
-      title: 'Total Revenue',
+      title: t('stats.revenue'),
       value: '$45,231',
       change: '+18.7%',
       icon: DollarSign,
@@ -242,20 +247,20 @@ export default function Dashboard() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('welcome.good_morning');
+    if (hour < 18) return t('welcome.good_afternoon');
+    return t('welcome.good_evening');
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-black px-4">
-      <div className="mx-auto mt-8 w-full max-w-7xl space-y-6">
+    <div className="min-h-screen w-full overflow-x-hidden bg-black">
+      <div className="w-full mt-8 space-y-6 px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
           <p className="mt-2 text-sm text-gray-400">
-            {getGreeting()}, {userContext?.firstName || user?.firstName || 'there'}! • {currentTime.toLocaleDateString('en-US', {
+            {getGreeting()}, {userContext?.firstName || user?.firstName || t('welcome.default_name')}! • {currentTime.toLocaleDateString('en-US', {
               weekday: 'long',
               year: 'numeric',
               month: 'long',
@@ -269,7 +274,7 @@ export default function Dashboard() {
             className="bg-emerald-600 font-medium text-white transition-all duration-200 hover:bg-emerald-700"
           >
             <Plus className="mr-2 h-4 w-4" />
-            New Campaign
+            {t('quick_actions.create_campaign')}
           </Button>
         </div>
       </div>
@@ -294,7 +299,7 @@ export default function Dashboard() {
                     >
                       {stat.change}
                     </span>
-                    <span className="text-xs text-gray-500">from last week</span>
+                    <span className="text-xs text-gray-500">{t('stats.weekly_growth')}</span>
                   </div>
                 </div>
                 <div className={`rounded-lg border p-3 ${ 
@@ -326,9 +331,9 @@ export default function Dashboard() {
         {/* Call Volume Chart */}
         <Card className="border-gray-800 bg-gray-900 transition-all duration-200 hover:border-gray-600 hover:bg-gray-800/50">
           <CardHeader className="border-b border-gray-800/30 p-4">
-            <CardTitle className="text-lg font-semibold text-white">Call Volume</CardTitle>
+            <CardTitle className="text-lg font-semibold text-white">{t('charts.call_volume')}</CardTitle>
             <CardDescription className="text-sm text-gray-400">
-              Daily call volume over the last 7 days
+              {t('charts.last_7_days')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -369,9 +374,9 @@ export default function Dashboard() {
         {/* Campaign Performance */}
         <Card className="border-gray-800 bg-gray-900 transition-all duration-200 hover:border-gray-600 hover:bg-gray-800/50">
           <CardHeader className="border-b border-gray-800/30 p-4">
-            <CardTitle className="text-lg font-semibold text-white">Campaign Performance</CardTitle>
+            <CardTitle className="text-lg font-semibold text-white">{t('charts.campaign_performance')}</CardTitle>
             <CardDescription className="text-sm text-gray-400">
-              Success rate by campaign
+              {t('charts.success_rate_by_campaign')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -411,9 +416,9 @@ export default function Dashboard() {
         <CardHeader className="border-b border-gray-800/30 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-lg font-semibold text-white">Recent Calls</CardTitle>
+              <CardTitle className="text-lg font-semibold text-white">{t('calls.title')}</CardTitle>
               <CardDescription className="text-sm text-gray-400">
-                Latest call activities
+                {t('recent_activity.title')}
               </CardDescription>
             </div>
             <Button
@@ -422,7 +427,7 @@ export default function Dashboard() {
               onClick={() => navigate('/all-calls')}
               className="text-gray-400 transition-all duration-200 hover:bg-gray-800/50 hover:text-white"
             >
-              View All
+              {t('recent_activity.view_all')}
             </Button>
           </div>
         </CardHeader>
@@ -470,7 +475,9 @@ export default function Dashboard() {
                             : 'text-gray-400'
                       }`}
                     >
-                      {call.status}
+                      {call.status === 'completed' ? t('calls.completed') : 
+                       call.status === 'in-progress' ? t('calls.in_progress') : 
+                       call.status === 'missed' ? t('calls.missed') : call.status}
                     </p>
                   </div>
                   <ChevronRight className="h-3 w-3 text-gray-500 transition-all duration-200 group-hover:text-gray-300" />

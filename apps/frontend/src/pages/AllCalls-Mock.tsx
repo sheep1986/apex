@@ -454,8 +454,8 @@ export default function AllCalls() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 p-6">
-        <div className="mx-auto max-w-7xl">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950">
+        <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex h-96 items-center justify-center">
             <div className="text-center">
               <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-emerald-500" />

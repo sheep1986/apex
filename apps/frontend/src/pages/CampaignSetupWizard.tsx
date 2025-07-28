@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useBlocker } from 'react-router-dom';
 import { vapiOutboundService } from '../services/vapi-outbound.service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Target,
   Phone,
@@ -171,6 +179,10 @@ export default function CampaignSetupWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [userHasInteracted, setUserHasInteracted] = useState(false);
 
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
@@ -198,6 +210,128 @@ export default function CampaignSetupWizard() {
     immediateStart: true,
     campaignType: '' as 'b2b' | 'b2c' | '',
   });
+
+  // Draft Management Functions
+  const DRAFT_STORAGE_KEY = 'campaign-wizard-draft';
+
+  const isDraftPresent = () => {
+    return localStorage.getItem(DRAFT_STORAGE_KEY) !== null;
+  };
+
+  const hasUnsavedChanges = () => {
+    const hasChanges = (
+      campaignData.name.trim() !== '' ||
+      campaignData.objective.trim() !== '' ||
+      campaignData.description.trim() !== '' ||
+      campaignData.phoneNumber.trim() !== '' ||
+      campaignData.voiceAgent.trim() !== '' ||
+      campaignData.leads.length > 0 ||
+      campaignData.csvFileName.trim() !== '' ||
+      campaignData.campaignType !== '' ||
+      currentStep > 1 ||
+      userHasInteracted ||
+      // Add this temporary test - if user has interacted with the form at all
+      Object.keys(errors).length > 0
+    );
+    
+    console.log('🔍 Draft check:', {
+      name: campaignData.name.trim(),
+      objective: campaignData.objective.trim(),
+      description: campaignData.description.trim(),
+      phoneNumber: campaignData.phoneNumber.trim(),
+      voiceAgent: campaignData.voiceAgent.trim(),
+      leadsCount: campaignData.leads.length,
+      csvFileName: campaignData.csvFileName.trim(),
+      campaignType: campaignData.campaignType,
+      currentStep,
+      hasChanges
+    });
+    
+    return hasChanges;
+  };
+
+  const saveDraft = async () => {
+    if (!hasUnsavedChanges()) return;
+    
+    setIsDraftSaving(true);
+    try {
+      const draftData = {
+        campaignData,
+        currentStep,
+        timestamp: new Date().toISOString(),
+        version: '1.0'
+      };
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
+      console.log('Draft saved successfully');
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+    } finally {
+      setIsDraftSaving(false);
+    }
+  };
+
+  const loadDraft = () => {
+    try {
+      const draftJson = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (draftJson) {
+        const draft = JSON.parse(draftJson);
+        setCampaignData(draft.campaignData);
+        setCurrentStep(draft.currentStep);
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+    return false;
+  };
+
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  };
+
+  const handleExitAttempt = (path: string) => {
+    console.log('🚪 Exit attempt to:', path);
+    const hasChanges = hasUnsavedChanges();
+    console.log('🚪 Has unsaved changes:', hasChanges);
+    
+    if (hasChanges) {
+      console.log('🚪 Showing exit dialog');
+      setPendingNavigation(path);
+      setShowExitDialog(true);
+    } else {
+      console.log('🚪 No changes, navigating directly');
+      navigate(path);
+    }
+  };
+
+  const handleSaveAndExit = async () => {
+    await saveDraft();
+    setShowExitDialog(false);
+    if (pendingNavigation) {
+      // Proceed with the blocked navigation
+      if (blocker.state === 'blocked') {
+        blocker.proceed();
+      } else {
+        navigate(pendingNavigation);
+      }
+      setPendingNavigation(null);
+    }
+  };
+
+  const handleExitWithoutSaving = () => {
+    clearDraft();
+    setShowExitDialog(false);
+    if (pendingNavigation) {
+      // Proceed with the blocked navigation
+      if (blocker.state === 'blocked') {
+        blocker.proceed();
+      } else {
+        navigate(pendingNavigation);
+      }
+      setPendingNavigation(null);
+    }
+  };
 
   // VAPI Data State
   const [voiceAgents, setVoiceAgents] = useState<any[]>([]);
@@ -271,6 +405,81 @@ export default function CampaignSetupWizard() {
     };
 
     loadVAPIData();
+  }, []);
+
+  // Load draft on component mount
+  useEffect(() => {
+    if (isDraftPresent()) {
+      loadDraft();
+    }
+  }, []);
+
+  // Auto-save draft when campaign data changes
+  useEffect(() => {
+    if (hasUnsavedChanges()) {
+      const timeoutId = setTimeout(() => {
+        saveDraft();
+      }, 2000); // Auto-save after 2 seconds of inactivity
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [campaignData, currentStep]);
+
+  // Handle browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Do you want to save your progress as a draft?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [campaignData, currentStep]);
+
+  // Block React Router navigation when there are unsaved changes
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) => {
+      console.log('🚧 Router blocker triggered:', { 
+        currentLocation: currentLocation.pathname, 
+        nextLocation: nextLocation.pathname,
+        hasChanges: hasUnsavedChanges()
+      });
+      const shouldBlock = hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname;
+      console.log('🚧 Should block navigation:', shouldBlock);
+      
+      return shouldBlock;
+    }
+  );
+
+  // Handle the blocked navigation
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      console.log('🚧 Navigation blocked, showing dialog');
+      setPendingNavigation(blocker.location?.pathname || '/campaigns');
+      setShowExitDialog(true);
+    }
+  }, [blocker.state]);
+
+  // Add global event listeners to detect user interaction
+  useEffect(() => {
+    const handleInteraction = () => {
+      console.log('👤 User interaction detected');
+      setUserHasInteracted(true);
+    };
+
+    // Listen for any input, click, or keyboard events on the page
+    document.addEventListener('input', handleInteraction);
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('keydown', handleInteraction);
+
+    return () => {
+      document.removeEventListener('input', handleInteraction);
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+    };
   }, []);
 
   const validateStep = (step: number): boolean => {
@@ -1512,20 +1721,31 @@ export default function CampaignSetupWizard() {
   };
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+    <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Sparkles className="h-8 w-8 text-emerald-500" />
               <div>
-                <p className="text-gray-400">Create your AI calling campaign step by step</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-gray-400">Create your AI calling campaign step by step</p>
+                  {isDraftSaving && (
+                    <div className="flex items-center gap-1 text-xs text-emerald-400">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                      Saving draft...
+                    </div>
+                  )}
+                  {/* Debug: Show current state */}
+                  <div className="text-xs text-gray-500">
+                    Step: {currentStep} | Changes: {hasUnsavedChanges() ? 'Yes' : 'No'} | Blocker: {blocker.state}
+                  </div>
+                </div>
               </div>
             </div>
             <Button
               variant="outline"
-              onClick={() => navigate('/campaigns')}
+              onClick={() => handleExitAttempt('/campaigns')}
               className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
             >
               Cancel
@@ -1535,6 +1755,16 @@ export default function CampaignSetupWizard() {
           {/* Progress Bar */}
           <Progress value={progressPercentage} className="h-2 bg-gray-800" />
         </div>
+
+        {/* Draft Notification */}
+        {isDraftPresent() && hasUnsavedChanges() && (
+          <Alert className="border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Your draft has been automatically loaded. You can continue where you left off.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Steps Navigation */}
         <div className="space-y-6">
@@ -1622,6 +1852,7 @@ export default function CampaignSetupWizard() {
                       // Simulate campaign launch
                       setTimeout(() => {
                         setIsLoading(false);
+                        clearDraft(); // Clear draft on successful campaign creation
                         navigate('/campaigns');
                       }, 2000);
                     }
@@ -1645,7 +1876,51 @@ export default function CampaignSetupWizard() {
             </div>
           </div>
         </Card>
-      </div>
+
+        {/* Exit Confirmation Dialog */}
+        <Dialog 
+          open={showExitDialog} 
+          onOpenChange={(open) => {
+            setShowExitDialog(open);
+            if (!open && blocker.state === 'blocked') {
+              // User cancelled the dialog, reset the blocker
+              blocker.reset();
+              setPendingNavigation(null);
+            }
+          }}
+        >
+          <DialogContent className="border-gray-800 bg-gray-900 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-white">Save Your Progress?</DialogTitle>
+              <DialogDescription className="text-gray-400">
+                You have unsaved changes in your campaign setup. Would you like to save your progress as a draft before leaving?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExitWithoutSaving}
+                className="border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700"
+              >
+                Exit Without Saving
+              </Button>
+              <Button
+                onClick={handleSaveAndExit}
+                disabled={isDraftSaving}
+                className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700"
+              >
+                {isDraftSaving ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Draft & Exit'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }

@@ -133,7 +133,7 @@ export default function CampaignLauncher() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
+    <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
       {/* Campaign Header */}
       <div className="flex items-center justify-between">
         <div>

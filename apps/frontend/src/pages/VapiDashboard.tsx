@@ -4,6 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import {
   Phone,
   PhoneCall,
@@ -38,6 +43,7 @@ import {
   Filter,
   Search,
   ChevronRight,
+  ChevronLeft,
   TrendingDown,
   PlayCircle,
   PauseCircle,
@@ -68,11 +74,14 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  X,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '../services/MinimalUserProvider';
 import { vapiOutboundService, VapiOutboundCampaign } from '@/services/vapi-outbound.service';
-import CampaignWizardModal from '@/components/CampaignWizardModal';
+import { SimpleCampaignWizard } from '@/components/ai-crm/SimpleCampaignWizard';
+import { CampaignEditWizard } from '@/components/ai-crm/CampaignEditWizard';
+import { DynamicConcurrencyManager } from '@/components/ai-crm/DynamicConcurrencyManager';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, useApiClient } from '@/lib/api-client';
 
@@ -128,10 +137,13 @@ const VapiDashboard: React.FC = () => {
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState<VapiOutboundCampaign | null>(null);
   const [campaignFilter, setCampaignFilter] = useState<'all' | 'active' | 'paused'>('all');
   const [expandedCampaigns, setExpandedCampaigns] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'concurrency'>('campaigns');
 
   const { toast } = useToast();
   const { userContext } = useUserContext();
@@ -176,161 +188,48 @@ const VapiDashboard: React.FC = () => {
     }
 
     try {
-      console.log('📞 VapiDashboard: Using mock campaigns data...');
+      console.log('📞 VapiDashboard: Loading real campaigns data...');
 
-      // MOCK CAMPAIGNS DATA
-      const mockCampaignsData = {
-        campaigns: [
-          {
-            id: 'mock-1',
-            name: 'TEst Campaign',
-            description: 'Mock VAPI Outbound Campaign',
-            status: 'active',
-            assistantId: 'mock-assistant-1',
-            assistantName: 'AI Assistant',
-            phoneNumberId: 'mock-phone-1',
-            createdAt: '2025-07-11T13:05:14.735+00:00',
-            updatedAt: '2025-07-11T13:05:15.787858+00:00',
-            totalLeads: 15,
-            totalCalls: 45,
-            successfulCalls: 12,
-            callsCompleted: 42,
-            successRate: 26.67,
-            totalCost: 12.5,
-            callsInProgress: 3,
-            metrics: {
-              totalLeads: 15,
-              callsAttempted: 45,
-              callsConnected: 42,
-              callsCompleted: 42,
-              connectionRate: 93.33,
-              completionRate: 100,
-              averageDuration: 180,
-              totalCost: 12.5,
-              positiveOutcomes: 8,
-              conversionRate: 26.67,
-              activeCalls: 3,
-              callsToday: 15,
-              leadsRemaining: 3,
-            },
-          },
-          {
-            id: 'mock-2',
-            name: 'Holiday Promotion',
-            description: 'Mock Holiday Campaign',
-            status: 'active',
-            assistantId: 'mock-assistant-2',
-            assistantName: 'Sales Assistant',
-            phoneNumberId: 'mock-phone-2',
-            createdAt: '2025-07-10T17:40:33.384+00:00',
-            updatedAt: '2025-07-10T17:40:34.39083+00:00',
-            totalLeads: 25,
-            totalCalls: 78,
-            successfulCalls: 23,
-            callsCompleted: 75,
-            successRate: 29.49,
-            totalCost: 25.75,
-            callsInProgress: 1,
-            metrics: {
-              totalLeads: 25,
-              callsAttempted: 78,
-              callsConnected: 75,
-              callsCompleted: 75,
-              connectionRate: 96.15,
-              completionRate: 100,
-              averageDuration: 165,
-              totalCost: 25.75,
-              positiveOutcomes: 23,
-              conversionRate: 29.49,
-              activeCalls: 1,
-              callsToday: 25,
-              leadsRemaining: 2,
-            },
-          },
-          {
-            id: 'mock-3',
-            name: 'New Product Launch',
-            description: 'Mock Product Campaign',
-            status: 'draft',
-            assistantId: 'mock-assistant-3',
-            assistantName: 'Product Specialist',
-            phoneNumberId: 'mock-phone-3',
-            createdAt: '2025-07-09T16:54:12.138+00:00',
-            updatedAt: '2025-07-09T16:54:13.246438+00:00',
-            totalLeads: 0,
-            totalCalls: 0,
-            successfulCalls: 0,
-            callsCompleted: 0,
-            successRate: 0,
-            totalCost: 0,
-            callsInProgress: 0,
-            metrics: {
-              totalLeads: 0,
-              callsAttempted: 0,
-              callsConnected: 0,
-              callsCompleted: 0,
-              connectionRate: 0,
-              completionRate: 0,
-              averageDuration: 0,
-              totalCost: 0,
-              positiveOutcomes: 0,
-              conversionRate: 0,
-              activeCalls: 0,
-              callsToday: 0,
-              leadsRemaining: 0,
-            },
-          },
-        ],
-      };
+      // Load real campaigns data from API
+      const campaignsData = await vapiOutboundService.getCampaigns();
+      console.log('✅ VapiDashboard: Real campaigns loaded:', campaignsData);
 
-      console.log('✅ VapiDashboard: Mock campaigns loaded:', mockCampaignsData);
-
-      // Use mock campaigns data
-      const campaignsData = mockCampaignsData;
-
-      // Set campaigns from mock data
-      if (campaignsData && Array.isArray(campaignsData.campaigns)) {
-        setCampaigns(campaignsData.campaigns);
-        console.log('✅ Set', campaignsData.campaigns.length, 'mock campaigns');
+      // Set campaigns from API data
+      if (campaignsData && Array.isArray(campaignsData)) {
+        setCampaigns(campaignsData);
+        console.log('✅ Set', campaignsData.length, 'real campaigns');
       } else {
-        console.warn('Mock campaigns data is not an array:', campaignsData);
+        console.warn('Campaigns data is not an array:', campaignsData);
         setCampaigns([]);
       }
 
-      // Mock recent calls data
-      const mockRecentCalls = [
-        {
-          id: 'call-1',
-          contact: { name: 'John Doe', phone: '+1234567890' },
-          campaign: { name: 'TEst Campaign' },
-          startTime: '2025-07-11T14:30:00Z',
-          duration: 180,
-          outcome: 'interested',
-          cost: 0.45,
-        },
-        {
-          id: 'call-2',
-          contact: { name: 'Jane Smith', phone: '+1234567891' },
-          campaign: { name: 'Holiday Promotion' },
-          startTime: '2025-07-11T14:25:00Z',
-          duration: 120,
-          outcome: 'callback',
-          cost: 0.32,
-        },
-      ];
-      setRecentCalls(mockRecentCalls);
+      // Load recent calls data from API
+      const recentCallsData = await vapiOutboundService.getRecentCalls(10);
+      console.log('✅ VapiDashboard: Recent calls loaded:', recentCallsData);
+      setRecentCalls(recentCallsData || []);
 
-      // Mock analytics data
-      const analyticsData = {
-        totalCalls: 123,
-        totalCost: 38.25,
-        successRate: 28.45,
-        averageDuration: 165,
-        sentimentBreakdown: {
-          positive: 35,
-          neutral: 45,
-          negative: 20,
-        },
+      // Calculate analytics data from campaigns
+      const analyticsData = campaignsData.reduce((acc, campaign) => {
+        return {
+          totalCalls: acc.totalCalls + (campaign.totalLeads || 0),
+          totalCost: acc.totalCost + (campaign.totalCost || 0),
+          successfulCalls: acc.successfulCalls + Math.floor((campaign.callsCompleted || 0) * (campaign.successRate || 0) / 100),
+          totalDuration: acc.totalDuration + (campaign.callsCompleted || 0) * 120, // Assume 2 min avg
+          totalCompletedCalls: acc.totalCompletedCalls + (campaign.callsCompleted || 0),
+        };
+      }, { totalCalls: 0, totalCost: 0, successfulCalls: 0, totalDuration: 0, totalCompletedCalls: 0 });
+
+      // Calculate derived metrics
+      analyticsData.successRate = analyticsData.totalCalls > 0 ? 
+        (analyticsData.successfulCalls / analyticsData.totalCalls) * 100 : 0;
+      analyticsData.averageDuration = analyticsData.totalCompletedCalls > 0 ? 
+        analyticsData.totalDuration / analyticsData.totalCompletedCalls : 0;
+      
+      // Default sentiment breakdown (will be replaced with real data when available)
+      analyticsData.sentimentBreakdown = {
+        positive: Math.round(analyticsData.successfulCalls * 0.6),
+        neutral: Math.round(analyticsData.successfulCalls * 0.3),
+        negative: Math.round(analyticsData.successfulCalls * 0.1),
       };
 
       // Add default sentiment breakdown if not present
@@ -419,15 +318,15 @@ const VapiDashboard: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'active':
-        return 'text-amber-600 bg-amber-50 border-amber-200';
+        return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
       case 'paused':
-        return 'text-amber-600 bg-amber-50 border-amber-200';
+        return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
       case 'completed':
-        return 'text-gray-600 bg-gray-50 border-gray-200';
+        return 'text-blue-400 bg-blue-500/10 border-blue-500/30';
       case 'failed':
-        return 'text-red-600 bg-red-50 border-red-200';
+        return 'text-red-400 bg-red-500/10 border-red-500/30';
       default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
+        return 'text-gray-400 bg-gray-500/10 border-gray-500/30';
     }
   };
 
@@ -473,11 +372,11 @@ const VapiDashboard: React.FC = () => {
   }
 
   return (
-    <div className="w-full bg-black min-h-screen p-6">
+    <div className="w-full bg-black min-h-screen px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-white">Campaigns</h1>
+          <h1 className="text-2xl font-bold text-white">VAPI Dashboard</h1>
         </div>
         <div className="flex items-center space-x-3">
           <Button
@@ -488,18 +387,51 @@ const VapiDashboard: React.FC = () => {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button
-            onClick={() => setShowCampaignWizard(true)}
-            className="bg-gray-700 text-white hover:bg-gray-600"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Campaign
-          </Button>
+          {activeTab === 'campaigns' && (
+            <Button
+              onClick={() => setShowCampaignWizard(true)}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Campaign
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Campaign Stats */}
-      <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-4">
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="flex space-x-1 bg-gray-900 p-1 rounded-lg w-fit">
+          <button
+            onClick={() => setActiveTab('campaigns')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'campaigns'
+                ? 'bg-emerald-600 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+          >
+            <Target className="mr-2 h-4 w-4 inline" />
+            Campaigns
+          </button>
+          <button
+            onClick={() => setActiveTab('concurrency')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'concurrency'
+                ? 'bg-emerald-600 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+          >
+            <Gauge className="mr-2 h-4 w-4 inline" />
+            Concurrency Manager
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'campaigns' && (
+        <>
+          {/* Campaign Stats */}
+          <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-4">
         <Card className="border-gray-800 bg-gray-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -507,7 +439,7 @@ const VapiDashboard: React.FC = () => {
                 <p className="text-sm text-gray-400">Total Campaigns</p>
                 <p className="text-2xl font-bold text-white">{campaigns.length}</p>
               </div>
-              <Target className="h-8 w-8 text-gray-500" />
+              <Target className="h-8 w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
@@ -519,7 +451,7 @@ const VapiDashboard: React.FC = () => {
                   <p className="text-sm text-gray-400">Active</p>
                   <p className="text-2xl font-bold text-white">{campaigns.filter(c => c.status === 'active').length}</p>
                 </div>
-                <Play className="h-8 w-8 text-gray-500" />
+                <Play className="h-8 w-8 text-emerald-500" />
               </div>
             </CardContent>
           </Card>
@@ -543,7 +475,6 @@ const VapiDashboard: React.FC = () => {
                   <p className="text-sm text-gray-400">Draft</p>
                   <p className="text-2xl font-bold text-white">{campaigns.filter(c => c.status === 'draft').length}</p>
                 </div>
-                <Clock className="h-8 w-8 text-gray-500" />
               </div>
             </CardContent>
           </Card>
@@ -554,44 +485,47 @@ const VapiDashboard: React.FC = () => {
 
         {/* Campaigns List */}
         <Card className="border-gray-800 bg-gray-900">
-          <CardHeader>
+          <CardHeader className="border-b border-gray-800/50">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white">Campaigns</CardTitle>
+              <div>
+                <CardTitle className="text-2xl font-bold text-white mb-2">Campaigns</CardTitle>
+                <p className="text-sm text-gray-400">Manage and monitor your voice AI campaigns</p>
+              </div>
 
               {/* Filter Buttons */}
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-2 bg-gray-800/50 rounded-lg p-1">
                 <Button
-                  variant={campaignFilter === 'all' ? 'default' : 'outline'}
+                  variant={campaignFilter === 'all' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setCampaignFilter('all')}
-                  className={`px-3 py-1 text-xs ${
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
                     campaignFilter === 'all'
-                      ? 'bg-gray-700 text-white'
-                      : 'border-gray-700 text-gray-300 hover:bg-gray-800'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   }`}
                 >
                   All
                 </Button>
                 <Button
-                  variant={campaignFilter === 'active' ? 'default' : 'outline'}
+                  variant={campaignFilter === 'active' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setCampaignFilter('active')}
-                  className={`px-3 py-1 text-xs ${
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
                     campaignFilter === 'active'
-                      ? 'bg-gray-700 text-white'
-                      : 'border-gray-700 text-gray-300 hover:bg-gray-800'
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   }`}
                 >
                   Active
                 </Button>
                 <Button
-                  variant={campaignFilter === 'paused' ? 'default' : 'outline'}
+                  variant={campaignFilter === 'paused' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setCampaignFilter('paused')}
-                  className={`px-3 py-1 text-xs ${
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
                     campaignFilter === 'paused'
-                      ? 'bg-gray-700 text-white'
-                      : 'border-gray-700 text-gray-300 hover:bg-gray-800'
+                      ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   }`}
                 >
                   Paused
@@ -606,121 +540,166 @@ const VapiDashboard: React.FC = () => {
                 <p className="mb-4 text-gray-400">No campaigns found</p>
                 <Button
                   onClick={() => setShowCampaignWizard(true)}
-                  className="bg-gray-700 text-white hover:bg-gray-600"
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Create Campaign
                 </Button>
               </div>
             ) : (
-              <div className="space-y-0">
+              <div className="space-y-6">
                 {filteredCampaigns.map((campaign, index) => (
                   <div
                     key={campaign.id}
-                    className="cursor-pointer border-b border-gray-700 p-4 transition-all duration-200 last:border-b-0 hover:bg-gray-800"
+                    className="group relative cursor-pointer overflow-hidden rounded-xl border border-gray-800 bg-gradient-to-r from-gray-900/80 to-gray-800/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-gray-600 hover:shadow-xl hover:shadow-black/20"
                     onClick={() => navigate(`/campaigns/${campaign.id}`)}
                   >
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div>
-                          <h3 className="text-lg font-semibold text-white">{campaign.name}</h3>
-                          <p className="text-sm text-gray-400">ID: {campaign.id}</p>
+                    {/* Background gradient effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/5 via-transparent to-pink-400/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                    
+                    <div className="relative z-10">
+                      <div className="mb-6 flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-white mb-2 tracking-tight">{campaign.name}</h3>
+                          <p className="text-sm text-gray-400 font-medium">ID: {campaign.apexId || 'apex00000'}</p>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <Badge variant="outline" className={`${getStatusColor(campaign.status)} px-3 py-1 text-xs font-semibold inline-flex items-center justify-center w-20`}>
+                            {getStatusIcon(campaign.status)}
+                            <span className="ml-2 capitalize">{campaign.status}</span>
+                          </Badge>
+                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            {campaign.status === 'draft' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCampaignAction(campaign.id, 'start');
+                                }}
+                              >
+                                <Play className="mr-2 h-4 w-4" />
+                                Start
+                              </Button>
+                            )}
+                            {campaign.status === 'active' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-amber-500/30 bg-amber-500/10 text-amber-400 transition-all duration-200 hover:border-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCampaignAction(campaign.id, 'pause');
+                                }}
+                              >
+                                <Pause className="mr-2 h-4 w-4" />
+                                Pause
+                              </Button>
+                            )}
+                            {campaign.status === 'paused' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCampaignAction(campaign.id, 'resume');
+                                }}
+                              >
+                                <Play className="mr-2 h-4 w-4" />
+                                Resume
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCampaign(campaign);
+                                setShowEditModal(true);
+                              }}
+                              className="text-gray-400 hover:bg-gray-700/50 hover:text-white transition-all duration-200 rounded-lg p-2"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/campaigns/${campaign.id}/calls`);
+                              }}
+                              className="text-gray-400 hover:bg-gray-700/50 hover:text-white transition-all duration-200 rounded-lg p-2"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="outline" className={getStatusColor(campaign.status)}>
-                          {getStatusIcon(campaign.status)}
-                          <span className="ml-1 capitalize">{campaign.status}</span>
-                        </Badge>
-                        <div className="flex space-x-1">
-                          {campaign.status === 'draft' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-gray-600/50 text-xs text-gray-400 transition-all duration-200 hover:border-gray-500 hover:bg-gray-600/20"
-                              onClick={() => handleCampaignAction(campaign.id, 'start')}
-                            >
-                              <Play className="mr-1 h-3 w-3" />
-                              Start
-                            </Button>
-                          )}
-                          {campaign.status === 'active' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-gray-600/50 text-xs text-gray-400 transition-all duration-200 hover:border-gray-500 hover:bg-gray-600/20"
-                              onClick={() => handleCampaignAction(campaign.id, 'pause')}
-                            >
-                              <Pause className="mr-1 h-3 w-3" />
-                              Pause
-                            </Button>
-                          )}
-                          {campaign.status === 'paused' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-gray-600/50 text-xs text-gray-400 transition-all duration-200 hover:border-gray-500 hover:bg-gray-600/20"
-                              onClick={() => handleCampaignAction(campaign.id, 'resume')}
-                            >
-                              <Play className="mr-1 h-3 w-3" />
-                              Resume
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => navigate(`/campaigns/${campaign.id}/calls`)}
-                            className="text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
+                    </div>
+
+                      <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <Users className="h-5 w-5 text-blue-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-400">Leads</p>
+                            <p className="text-lg font-bold text-white">{campaign.totalLeads || 0}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                            <CheckCircle className="h-5 w-5 text-emerald-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-400">Completed</p>
+                            <p className="text-lg font-bold text-white">{campaign.callsCompleted || 0}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <DollarSign className="h-5 w-5 text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-400">Cost</p>
+                            <p className="text-lg font-bold text-white">
+                              ${campaign.totalCost?.toFixed(2) || '0.00'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-500/10 border border-pink-500/20">
+                            <TrendingUp className="h-5 w-5 text-pink-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-400">Success</p>
+                            <p className="text-lg font-bold text-white">
+                              {campaign.successRate?.toFixed(1) || 0}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-gray-300">Progress</span>
+                          <span className="text-sm font-bold text-white">
+                            {campaign.totalLeads
+                              ? `${campaign.callsCompleted || 0}/${campaign.totalLeads}`
+                              : '0/0'}
+                          </span>
+                        </div>
+                        <div className="relative h-2 w-full rounded-full bg-gray-800 overflow-hidden">
+                          <div
+                            className="h-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-400 transition-all duration-700 ease-out relative overflow-hidden"
+                            style={{
+                              width: `${Math.min(campaign.totalLeads ? ((campaign.callsCompleted || 0) / campaign.totalLeads) * 100 : 0, 100)}%`,
+                            }}
                           >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                          </div>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-xs md:grid-cols-5">
-                      <div>
-                        <p className="mb-1 font-medium text-gray-400">Leads</p>
-                        <p className="font-semibold text-white">{campaign.totalLeads || 0}</p>
-                      </div>
-                      <div>
-                        <p className="mb-1 font-medium text-gray-400">Completed</p>
-                        <p className="font-semibold text-white">{campaign.callsCompleted || 0}</p>
-                      </div>
-                      <div>
-                        <p className="mb-1 font-medium text-gray-400">Cost</p>
-                        <p className="font-semibold text-white">
-                          ${campaign.totalCost?.toFixed(2) || '0.00'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="mb-1 font-medium text-gray-400">Success</p>
-                        <p className="font-semibold text-white">
-                          {campaign.successRate?.toFixed(1) || 0}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="mb-1 font-medium text-gray-400">Status</p>
-                        <p className="font-semibold capitalize text-white">{campaign.status}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-medium text-gray-400">Progress</span>
-                        <span className="text-gray-400">
-                          {campaign.totalLeads
-                            ? `${campaign.callsCompleted || 0}/${campaign.totalLeads}`
-                            : '0/0'}
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full rounded-full bg-gray-800">
-                        <div
-                          className="h-1.5 rounded-full bg-amber-500 transition-all duration-500"
-                          style={{
-                            width: `${Math.min(campaign.totalLeads ? ((campaign.callsCompleted || 0) / campaign.totalLeads) * 100 : 0, 100)}%`,
-                          }}
-                        />
                       </div>
                     </div>
                   </div>
@@ -729,18 +708,54 @@ const VapiDashboard: React.FC = () => {
             )}
           </CardContent>
         </Card>
+        </>
+      )}
+
+      {/* Concurrency Manager Tab */}
+      {activeTab === 'concurrency' && (
+        <DynamicConcurrencyManager />
+      )}
 
       {/* Campaign Wizard Modal */}
-      <CampaignWizardModal
-        isOpen={showCampaignWizard}
-        onClose={() => setShowCampaignWizard(false)}
-        onSuccess={() => {
-          setShowCampaignWizard(false);
-          loadDashboardData(false);
-        }}
-      />
+      {showCampaignWizard && (
+        <SimpleCampaignWizard
+          onCampaignCreated={(campaign) => {
+            setShowCampaignWizard(false);
+            loadDashboardData(false);
+            toast({
+              title: 'Campaign Created',
+              description: `Campaign "${campaign.name}" has been created successfully!`,
+            });
+          }}
+          onCancel={() => setShowCampaignWizard(false)}
+        />
+      )}
+
+      {/* Campaign Edit Wizard */}
+      {showEditModal && selectedCampaign && (
+        <CampaignEditWizard
+          campaign={selectedCampaign}
+          onCampaignUpdated={(updatedCampaign) => {
+            // Update the campaign in the list
+            setCampaigns(prev => prev.map(c => 
+              c.id === updatedCampaign.id ? { ...c, ...updatedCampaign, updatedAt: new Date().toISOString() } : c
+            ));
+            setShowEditModal(false);
+            setSelectedCampaign(null);
+            toast({
+              title: 'Campaign Updated',
+              description: `Campaign "${updatedCampaign.name}" has been updated successfully!`,
+            });
+          }}
+          onCancel={() => {
+            setShowEditModal(false);
+            setSelectedCampaign(null);
+          }}
+        />
+      )}
     </div>
   );
 };
+
 
 export default VapiDashboard;

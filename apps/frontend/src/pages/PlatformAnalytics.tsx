@@ -195,7 +195,7 @@ export default function PlatformAnalytics() {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+      <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header with Admin Badge */}
         <div className="mb-8 flex items-center justify-between">
           <div>

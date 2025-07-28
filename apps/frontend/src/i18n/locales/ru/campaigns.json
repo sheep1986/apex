@@ -1,0 +1,33 @@
+{
+  "title": "Кампании",
+  "create_campaign": "Создать кампанию",
+  "campaign_wizard": "Мастер кампаний",
+  "campaign_settings": "Настройки кампании",
+  "campaign_name": "Название кампании",
+  "status": {
+    "active": "Активная",
+    "paused": "Приостановлена",
+    "completed": "Завершена",
+    "draft": "Черновик"
+  },
+  "analytics": {
+    "calls_made": "Сделано звонков",
+    "success_rate": "Показатель успеха",
+    "leads_qualified": "Квалифицировано лидов",
+    "cost_per_lead": "Стоимость за лид",
+    "total_cost": "Общая стоимость",
+    "duration": "Продолжительность",
+    "contacts_called": "Обзвонено контактов",
+    "avg_call_duration": "Средняя продолжительность звонка"
+  },
+  "actions": {
+    "start": "Запустить",
+    "pause": "Приостановить",
+    "resume": "Продолжить",
+    "stop": "Остановить",
+    "edit": "Редактировать",
+    "duplicate": "Дублировать",
+    "archive": "Архивировать",
+    "view_details": "Посмотреть детали"
+  }
+}

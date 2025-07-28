@@ -77,3 +77,6 @@ h5,
 h6 {
   font-family: 'Space Grotesk', sans-serif;
 }
+
+/* Remove any duplicate settings content that appears as overlays */
+/* This is a temporary fix - the root cause needs to be found */

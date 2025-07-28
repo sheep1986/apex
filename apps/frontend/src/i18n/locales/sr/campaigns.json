@@ -1,0 +1,33 @@
+{
+  "title": "Кампање",
+  "create_campaign": "Креирај кампању",
+  "campaign_wizard": "Чаробнак за кампање",
+  "campaign_settings": "Подешавања кампање",
+  "campaign_name": "Назив кампање",
+  "status": {
+    "active": "Активна",
+    "paused": "Паузирана",
+    "completed": "Завршена",
+    "draft": "Нацрт"
+  },
+  "analytics": {
+    "calls_made": "Обављени позиви",
+    "success_rate": "Стопа успеха",
+    "leads_qualified": "Квалификовани лидови",
+    "cost_per_lead": "Цена по лиду",
+    "total_cost": "Укупна цена",
+    "duration": "Трајање",
+    "contacts_called": "Позвани контакти",
+    "avg_call_duration": "Просечно трајање позива"
+  },
+  "actions": {
+    "start": "Покрени",
+    "pause": "Паузирај",
+    "resume": "Настави",
+    "stop": "Заустави",
+    "edit": "Уреди",
+    "duplicate": "Дуплирај",
+    "archive": "Архивирај",
+    "view_details": "Прикажи детаље"
+  }
+}

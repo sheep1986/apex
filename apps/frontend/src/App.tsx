@@ -18,19 +18,13 @@ import VapiDashboard from './pages/VapiDashboard';
 import { Analytics } from './pages/Analytics';
 import { Clients } from './pages/Clients';
 import { LiveCalls } from './pages/LiveCalls';
-import AIIntelligence from './pages/AIIntelligence';
 import PlatformOwnerDashboard from './pages/PlatformOwnerDashboard';
 import Billing from './pages/Billing';
 import CRM from './pages/CRM';
 import { Team } from './pages/Team';
 import CostAnalytics from './pages/CostAnalytics';
-import ABTesting from './pages/ABTesting';
-import CampaignDNA from './pages/CampaignDNA';
 import AddUser from './pages/AddUser';
-import ClerkTest from './pages/ClerkTest';
 import Settings from './pages/Settings';
-import SettingsSimple from './pages/Settings-Simple';
-import ProfileSettings from './pages/ProfileSettings';
 import TeamManagement from './pages/TeamManagement';
 import CampaignDetails from './pages/CampaignDetails';
 import AIAssistants from './pages/AIAssistants';
@@ -38,6 +32,10 @@ import LeadImport from './pages/LeadImport';
 import CampaignLauncher from './pages/CampaignLauncher';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
+import { LoginPage } from './components/auth/LoginPage';
+import { SignUpPage } from './components/auth/SignUpPage';
+import { EnhancedLoginPage } from './components/auth/EnhancedLoginPage';
+import { EnhancedSignUpPage } from './components/auth/EnhancedSignUpPage';
 import Messaging from './pages/Messaging';
 import LeadDetails from './pages/LeadDetails';
 import CampaignSetupWizard from './pages/CampaignSetupWizard';
@@ -46,18 +44,24 @@ import SystemHealth from './pages/SystemHealth';
 import AllCalls from './pages/AllCalls';
 import Notifications from './pages/Notifications';
 import { Organizations } from './pages/Organizations';
+import OrganizationSettings from './pages/OrganizationSettings';
 import OrganizationSetupWizard from './pages/OrganizationSetupWizard';
+import OrganizationManagement from './pages/OrganizationManagement';
 import PlatformAnalytics from './pages/PlatformAnalytics';
 import ApiKeys from './pages/ApiKeys';
+import { TestPage } from './pages/TestPage';
 import OutboundCalls from './pages/OutboundCalls';
 import CallDetails from './pages/CallDetails';
 import CampaignCalls from './pages/CampaignCalls';
 import LeadPage from './pages/LeadPage';
 import AgencyDashboard from './pages/AgencyDashboard';
-import ClientOnboarding from './pages/ClientOnboarding';
+import AcceptInvitation from './pages/AcceptInvitation';
+import ForceLogout from './pages/ForceLogout';
+import DebugAuth from './pages/DebugAuth';
+import TestAuth from './pages/TestAuth';
 import { RoleBasedRedirect } from './components/RoleBasedRedirect';
+import { DebugSupabaseSession } from './pages/DebugSupabaseSession';
 import { RoleBasedRoute } from './components/RoleBasedRoute';
-import { DevRoleSwitcher } from './components/DevRoleSwitcher';
 import { ContactsProvider } from './contexts/ContactsContext';
 
 function App() {
@@ -66,7 +70,14 @@ function App() {
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<EnhancedLoginPage />} />
+          <Route path="/signup" element={<EnhancedSignUpPage />} />
+          <Route path="/accept-invitation" element={<AcceptInvitation />} />
+          <Route path="/force-logout" element={<ForceLogout />} />
+          <Route path="/debug-auth" element={<DebugAuth />} />
+          <Route path="/test-auth" element={<TestAuth />} />
+          <Route path="/test" element={<TestPage />} />
+          <Route path="/debug-supabase" element={<DebugSupabaseSession />} />
           <Route
             path="/portal"
             element={
@@ -93,9 +104,6 @@ function App() {
             <Route path="/campaigns/:id" element={<CampaignDetails />} />
             <Route path="/campaigns/:campaignId/calls" element={<CampaignCalls />} />
             <Route path="/calls/:callId" element={<CallDetails />} />
-            <Route path="/ai-intelligence" element={<AIIntelligence />} />
-            <Route path="/ab-testing" element={<ABTesting />} />
-            <Route path="/campaign-dna" element={<CampaignDNA />} />
             <Route path="/leads/:leadId" element={<LeadPage />} />
             <Route path="/all-calls" element={<AllCalls />} />
             <Route path="/live-calls" element={<LiveCalls />} />
@@ -105,8 +113,14 @@ function App() {
             <Route path="/phone-numbers" element={<PhoneNumbers />} />
             <Route path="/messaging" element={<Messaging />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/settings-simple" element={<SettingsSimple />} />
-            <Route path="/profile-settings" element={<ProfileSettings />} />
+            <Route
+              path="/organization-settings"
+              element={
+                <RoleBasedRoute allowedRoles={['client_admin', 'platform_owner']} redirectTo="/dashboard">
+                  <OrganizationSettings />
+                </RoleBasedRoute>
+              }
+            />
             <Route path="/api-keys" element={<ApiKeys />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/notifications" element={<Notifications />} />
@@ -133,6 +147,14 @@ function App() {
               element={
                 <RoleBasedRoute allowedRoles={['platform_owner']} redirectTo="/dashboard">
                   <Organizations />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/organizations/:id"
+              element={
+                <RoleBasedRoute allowedRoles={['platform_owner', 'client_admin']} redirectTo="/dashboard">
+                  <OrganizationManagement />
                 </RoleBasedRoute>
               }
             />
@@ -203,39 +225,6 @@ function App() {
                 </RoleBasedRoute>
               }
             />
-            <Route
-              path="/agency-analytics"
-              element={
-                <RoleBasedRoute
-                  allowedRoles={['agency_owner', 'agency_admin']}
-                  redirectTo="/dashboard"
-                >
-                  <Analytics />
-                </RoleBasedRoute>
-              }
-            />
-            <Route
-              path="/client-onboarding"
-              element={
-                <RoleBasedRoute
-                  allowedRoles={['agency_owner', 'agency_admin']}
-                  redirectTo="/dashboard"
-                >
-                  <ClientOnboarding />
-                </RoleBasedRoute>
-              }
-            />
-            <Route
-              path="/white-label"
-              element={
-                <RoleBasedRoute
-                  allowedRoles={['agency_owner', 'agency_admin']}
-                  redirectTo="/dashboard"
-                >
-                  <Settings />
-                </RoleBasedRoute>
-              }
-            />
             <Route path="/audit-logs" element={<AuditLogs />} />
             <Route path="/system-health" element={<SystemHealth />} />
 
@@ -254,7 +243,6 @@ function App() {
           </Route>
         </Routes>
         <Toaster />
-        <DevRoleSwitcher />
       </ErrorBoundary>
     </ContactsProvider>
   );

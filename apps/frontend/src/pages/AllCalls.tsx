@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Filter,
@@ -107,6 +108,7 @@ const sentimentColors = {
 
 export default function AllCalls() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['common']);
   const [showCallDetails, setShowCallDetails] = useState(false);
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
   const { getToken } = useAuth();
@@ -172,8 +174,8 @@ export default function AllCalls() {
     } catch (error) {
       console.error('❌ Error fetching calls:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to load call data. Please check your connection.',
+        title: t('error'),
+        description: t('calls.fetchError'),
         variant: 'destructive',
       });
       setCalls([]);
@@ -232,8 +234,8 @@ export default function AllCalls() {
         document.body.removeChild(a);
 
         toast({
-          title: 'Success',
-          description: 'Call data exported successfully',
+          title: t('success'),
+          description: t('calls.exportSuccess'),
         });
       } else {
         throw new Error('Export failed');
@@ -241,8 +243,8 @@ export default function AllCalls() {
     } catch (error) {
       console.error('❌ Error exporting calls:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to export call data. Please try again.',
+        title: t('error'),
+        description: t('calls.exportError'),
         variant: 'destructive',
       });
     }
@@ -296,7 +298,7 @@ export default function AllCalls() {
         <div className="flex items-center justify-between">
         </div>
         <div className="flex h-64 items-center justify-center">
-          <div className="text-zinc-400">Loading call data...</div>
+          <div className="text-zinc-400">{t('calls.loadingData')}</div>
         </div>
       </div>
     );
@@ -307,16 +309,16 @@ export default function AllCalls() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-zinc-400">Complete call history and analytics</p>
+          <p className="text-zinc-400">{t('calls.description')}</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={fetchCalls} variant="outline" size="sm">
             <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
+            {t('refresh')}
           </Button>
           <Button onClick={exportToCSV} variant="outline" size="sm">
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            {t('calls.exportCSV')}
           </Button>
         </div>
       </div>
@@ -327,7 +329,7 @@ export default function AllCalls() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-zinc-400">Total Calls</p>
+                <p className="text-sm font-medium text-zinc-400">{t('calls.totalCalls')}</p>
                 <p className="text-2xl font-bold text-white">
                   {metrics.totalCalls.toLocaleString()}
                 </p>
@@ -341,11 +343,11 @@ export default function AllCalls() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-zinc-400">Connected</p>
+                <p className="text-sm font-medium text-zinc-400">{t('calls.connected')}</p>
                 <p className="text-2xl font-bold text-white">
                   {metrics.connectedCalls.toLocaleString()}
                 </p>
-                <p className="text-xs text-zinc-500">{metrics.connectionRate.toFixed(1)}% rate</p>
+                <p className="text-xs text-zinc-500">{t('calls.connectionRate', { rate: metrics.connectionRate.toFixed(1) })}</p>
               </div>
               <PhoneCall className="h-8 w-8 text-green-500" />
             </div>
@@ -356,15 +358,14 @@ export default function AllCalls() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-zinc-400">Total Duration</p>
+                <p className="text-sm font-medium text-zinc-400">{t('calls.totalDuration')}</p>
                 <p className="text-2xl font-bold text-white">
                   {formatDuration(metrics.totalDuration)}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  Avg: {formatDuration(metrics.averageDuration)}
+                  {t('calls.averageDuration', { duration: formatDuration(metrics.averageDuration) })}
                 </p>
               </div>
-              <Clock className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
@@ -373,9 +374,9 @@ export default function AllCalls() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-zinc-400">Total Cost</p>
+                <p className="text-sm font-medium text-zinc-400">{t('calls.totalCost')}</p>
                 <p className="text-2xl font-bold text-white">{formatCost(metrics.totalCost)}</p>
-                <p className="text-xs text-zinc-500">{metrics.positiveRate.toFixed(1)}% positive</p>
+                <p className="text-xs text-zinc-500">{t('calls.positiveRate', { rate: metrics.positiveRate.toFixed(1) })}</p>
               </div>
               <DollarSign className="h-8 w-8 text-yellow-500" />
             </div>
@@ -391,7 +392,7 @@ export default function AllCalls() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-zinc-400" />
                 <Input
-                  placeholder="Search calls..."
+                  placeholder={t('calls.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="border-zinc-700 bg-zinc-800 pl-10 text-white"
@@ -404,13 +405,13 @@ export default function AllCalls() {
               onValueChange={(value) => setFilters({ ...filters, type: value })}
             >
               <SelectTrigger className="w-32 border-zinc-700 bg-zinc-800 text-white">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={t('filters.type')} />
               </SelectTrigger>
               <SelectContent className="border-zinc-700 bg-zinc-800">
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="inbound">Inbound</SelectItem>
-                <SelectItem value="outbound">Outbound</SelectItem>
-                <SelectItem value="missed">Missed</SelectItem>
+                <SelectItem value="all">{t('callTypes.all')}</SelectItem>
+                <SelectItem value="inbound">{t('callTypes.inbound')}</SelectItem>
+                <SelectItem value="outbound">{t('callTypes.outbound')}</SelectItem>
+                <SelectItem value="missed">{t('callTypes.missed')}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -419,17 +420,17 @@ export default function AllCalls() {
               onValueChange={(value) => setFilters({ ...filters, outcome: value })}
             >
               <SelectTrigger className="w-40 border-zinc-700 bg-zinc-800 text-white">
-                <SelectValue placeholder="Outcome" />
+                <SelectValue placeholder={t('filters.outcome')} />
               </SelectTrigger>
               <SelectContent className="border-zinc-700 bg-zinc-800">
-                <SelectItem value="all">All Outcomes</SelectItem>
-                <SelectItem value="connected">Connected</SelectItem>
-                <SelectItem value="interested">Interested</SelectItem>
-                <SelectItem value="callback">Callback</SelectItem>
-                <SelectItem value="voicemail">Voicemail</SelectItem>
-                <SelectItem value="no_answer">No Answer</SelectItem>
-                <SelectItem value="busy">Busy</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="all">{t('callOutcomes.all')}</SelectItem>
+                <SelectItem value="connected">{t('callOutcomes.connected')}</SelectItem>
+                <SelectItem value="interested">{t('callOutcomes.interested')}</SelectItem>
+                <SelectItem value="callback">{t('callOutcomes.callback')}</SelectItem>
+                <SelectItem value="voicemail">{t('callOutcomes.voicemail')}</SelectItem>
+                <SelectItem value="no_answer">{t('callOutcomes.no_answer')}</SelectItem>
+                <SelectItem value="busy">{t('callOutcomes.busy')}</SelectItem>
+                <SelectItem value="failed">{t('callOutcomes.failed')}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -438,13 +439,13 @@ export default function AllCalls() {
               onValueChange={(value) => setFilters({ ...filters, sentiment: value })}
             >
               <SelectTrigger className="w-32 border-zinc-700 bg-zinc-800 text-white">
-                <SelectValue placeholder="Sentiment" />
+                <SelectValue placeholder={t('filters.sentiment')} />
               </SelectTrigger>
               <SelectContent className="border-zinc-700 bg-zinc-800">
-                <SelectItem value="all">All Sentiment</SelectItem>
-                <SelectItem value="positive">Positive</SelectItem>
-                <SelectItem value="neutral">Neutral</SelectItem>
-                <SelectItem value="negative">Negative</SelectItem>
+                <SelectItem value="all">{t('sentiments.all')}</SelectItem>
+                <SelectItem value="positive">{t('sentiments.positive')}</SelectItem>
+                <SelectItem value="neutral">{t('sentiments.neutral')}</SelectItem>
+                <SelectItem value="negative">{t('sentiments.negative')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -454,14 +455,14 @@ export default function AllCalls() {
       {/* Calls Table */}
       <Card className="border-zinc-800 bg-zinc-900">
         <CardHeader>
-          <CardTitle className="text-white">Call Records ({filteredCalls.length})</CardTitle>
+          <CardTitle className="text-white">{t('calls.callRecords', { count: filteredCalls.length })}</CardTitle>
         </CardHeader>
         <CardContent>
           {filteredCalls.length === 0 ? (
             <div className="py-12 text-center">
               <Phone className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-              <p className="text-zinc-400">No calls found</p>
-              <p className="text-sm text-zinc-500">Try adjusting your search criteria</p>
+              <p className="text-zinc-400">{t('calls.noCallsFound')}</p>
+              <p className="text-sm text-zinc-500">{t('calls.tryAdjustingCriteria')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -485,17 +486,17 @@ export default function AllCalls() {
                       <div className="flex items-center space-x-2">
                         <p className="font-medium text-white">{call.contact.name}</p>
                         <Badge className={`${outcomeColors[call.outcome]} text-white`}>
-                          {call.outcome.replace('_', ' ')}
+                          {t(`callOutcomes.${call.outcome}`)}
                         </Badge>
                         <Badge className={`${sentimentColors[call.sentiment]} text-white`}>
-                          {call.sentiment}
+                          {t(`sentiments.${call.sentiment}`)}
                         </Badge>
                       </div>
                       <div className="mt-1 flex items-center space-x-4 text-sm text-zinc-400">
                         <span>{call.contact.phone}</span>
                         {call.contact.company && <span>{call.contact.company}</span>}
                         <span>
-                          {call.agent.name} ({call.agent.type})
+                          {call.agent.name} ({t(`agentTypes.${call.agent.type}`)})
                         </span>
                         {call.campaign && <span>{call.campaign.name}</span>}
                       </div>
@@ -528,7 +529,7 @@ export default function AllCalls() {
                           className="text-zinc-300 hover:text-white"
                         >
                           <FileText className="mr-2 h-4 w-4" />
-                          View Details
+                          {t('calls.viewDetails')}
                         </DropdownMenuItem>
                         {call.recording && (
                           <DropdownMenuItem
@@ -536,7 +537,7 @@ export default function AllCalls() {
                             className="text-zinc-300 hover:text-white"
                           >
                             <Play className="mr-2 h-4 w-4" />
-                            Play Recording
+                            {t('calls.playRecording')}
                           </DropdownMenuItem>
                         )}
                         {call.transcript && (
@@ -545,7 +546,7 @@ export default function AllCalls() {
                             className="text-zinc-300 hover:text-white"
                           >
                             <FileText className="mr-2 h-4 w-4" />
-                            View Transcript
+                            {t('calls.viewTranscript')}
                           </DropdownMenuItem>
                         )}
                         {call.leadId && (
@@ -554,7 +555,7 @@ export default function AllCalls() {
                             className="text-zinc-300 hover:text-white"
                           >
                             <Users className="mr-2 h-4 w-4" />
-                            View Lead
+                            {t('calls.viewLead')}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -570,7 +571,7 @@ export default function AllCalls() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-zinc-400">Show</span>
+          <span className="text-sm text-zinc-400">{t('calls.show')}</span>
           <Select
             value={pageSize.toString()}
             onValueChange={(value) => setPageSize(parseInt(value))}
@@ -584,7 +585,7 @@ export default function AllCalls() {
               <SelectItem value="100">100</SelectItem>
             </SelectContent>
           </Select>
-          <span className="text-sm text-zinc-400">per page</span>
+          <span className="text-sm text-zinc-400">{t('calls.perPage')}</span>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -596,7 +597,7 @@ export default function AllCalls() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-zinc-400">Page {currentPage}</span>
+          <span className="text-sm text-zinc-400">{t('calls.page', { number: currentPage })}</span>
           <Button
             variant="outline"
             size="sm"

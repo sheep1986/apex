@@ -126,8 +126,8 @@ export function Landing() {
         navigate('/dashboard');
       }
     } else {
-      // In dev mode, redirect to dashboard since auth is automatic
-      navigate('/dashboard');
+      // Redirect to signup page for new users
+      navigate('/signup');
     }
   };
 
@@ -167,12 +167,12 @@ export function Landing() {
                 <>
                   <button
                     className="text-slate-300 transition-colors hover:text-blue-400"
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate('/login')}
                   >
                     Sign In
                   </button>
                   <button
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate('/signup')}
                     className="rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-2 font-medium text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
                   >
                     Start Free Trial

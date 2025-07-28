@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -397,6 +398,7 @@ const priorityConfig = {
 
 export default function CRM() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['crm', 'common']);
 
   // Mock call data for demonstration
   const getMockCallData = (contact: Contact) => {
@@ -2021,7 +2023,6 @@ export default function CRM() {
       case 'company':
         return (
           <div className="flex items-center">
-            <Building className="mr-1 h-3 w-3 text-gray-400" />
             <div className="text-xs font-medium text-white">{contact.company}</div>
           </div>
         );
@@ -2342,17 +2343,18 @@ export default function CRM() {
     );
   };
 
+
   return (
     <React.Fragment>
       {styleTag}
-      <div className="h-screen w-full overflow-hidden bg-black px-4">
-        <div className="mx-auto h-full w-full max-w-7xl flex flex-col pt-8">
+      <div className="h-full w-full bg-black overflow-hidden flex flex-col">
+        <div className="flex-1 flex flex-col px-6 py-6 overflow-hidden">
         {/* Sticky Header Section */}
-        <div className="sticky top-0 z-50 bg-black pb-4">
+        <div className="bg-black pb-4 flex-shrink-0">
         {/* Controls row */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <div className="mb-4 max-w-full">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -2404,7 +2406,7 @@ export default function CRM() {
                 className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
               >
                 <Download className="mr-2 h-4 w-4" />
-                Export
+                {t('common:export')}
               </Button>
               <SolidDropdown
                 trigger={
@@ -2421,11 +2423,11 @@ export default function CRM() {
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 }
-                title="View Mode"
-                options={['Table View', 'Tile View']}
+                title={t('common:table.table_view')}
+                options={[t('common:table.table_view'), t('common:table.tile_view')]}
                 onOptionSelect={(option) => {
-                  if (option === 'Table View') setViewMode('table');
-                  if (option === 'Tile View') setViewMode('tile');
+                  if (option === t('common:table.table_view')) setViewMode('table');
+                  if (option === t('common:table.tile_view')) setViewMode('tile');
                 }}
               />
               <SolidDropdown
@@ -2436,12 +2438,12 @@ export default function CRM() {
                     className="border-amber-600 text-xs text-amber-400 transition-all hover:bg-amber-600 hover:text-white"
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Lead
+                    {t('crm:lead.new_lead')}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 }
-                title="Create leads"
-                options={['Import leads', 'Single lead']}
+                title={t('crm:sections.leads')}
+                options={[t('crm:import_export.import_leads'), t('crm:lead.new_lead')]}
               />
               <Button
                 variant="outline"
@@ -2450,7 +2452,7 @@ export default function CRM() {
                 onClick={() => setShowAddColumnsModal(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Columns
+                {t('common:actions.add')} {t('common:table.columns')}
               </Button>
               {hiddenColumns.length > 0 && (
                 <SolidDropdown
@@ -2461,13 +2463,13 @@ export default function CRM() {
                       className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
                     >
                       <Eye className="mr-2 h-4 w-4" />
-                      Show Columns ({hiddenColumns.length})
+                      {t('common:actions.view_details')} {t('common:table.columns')} ({hiddenColumns.length})
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   }
-                  title="Show Columns"
+                  title={`${t('common:actions.view_details')} ${t('common:table.columns')}`}
                   options={hiddenColumns.map(
-                    (col) => `Show ${columnConfig[col as keyof typeof columnConfig]?.title || col}`
+                    (col) => `${t('common:actions.view_details')} ${columnConfig[col as keyof typeof columnConfig]?.title || col}`
                   )}
                   onOptionSelect={(option) => {
                     const columnKey = hiddenColumns.find((col) =>
@@ -2481,10 +2483,11 @@ export default function CRM() {
           </div>
 
         </div>
+        </div>
 
         {/* Total Records row */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="text-sm text-gray-400">Total Records {contacts.length}</div>
+        <div className="mb-6 flex items-center justify-between flex-shrink-0">
+          <div className="text-sm text-gray-400">{t('common:data_states.showing_total', { total: contacts.length })}</div>
           <div className="flex items-center gap-2">
             <button className="p-1 text-gray-300 transition-all hover:text-gray-400">
               <ChevronLeft className="h-4 w-4" />
@@ -2497,8 +2500,7 @@ export default function CRM() {
         </div>
 
         {/* Divider */}
-        <div className="mb-8 border-b border-gray-700"></div>
-        </div>
+        <div className="mb-4 border-b border-gray-700 flex-shrink-0"></div>
 
         {/* Action Bar */}
         {selectedContacts.length > 0 && (
@@ -2756,11 +2758,11 @@ export default function CRM() {
           </div>
 
           {/* Table Container */}
-          <div className="flex flex-1 flex-col overflow-hidden transition-all duration-300 ease-in-out">
+          <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out min-h-0">
             {viewMode === 'table' ? (
-              <div className="flex flex-1 flex-col overflow-hidden">
-                <div className="table-scroll-container flex-1 overflow-auto bg-gradient-to-b from-black to-gray-950">
-                  <table className="w-full">
+              <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+                <div className="table-scroll-container flex-1 overflow-x-auto overflow-y-auto bg-gradient-to-b from-black to-gray-950" style={{ maxWidth: 'calc(100vw - 140px)' }}>
+                  <table className="w-full min-w-max">
                     <thead className="sticky top-0 z-40 bg-gradient-to-b from-gray-900 to-gray-800">
                       <tr>
                         <th className="sticky left-0 z-50 px-6 py-5 text-center bg-gradient-to-r from-gray-900 to-gray-800">

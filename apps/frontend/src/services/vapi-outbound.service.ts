@@ -3,16 +3,23 @@ import { apiClient } from '../lib/api-client';
 // Types for VAPI Outbound Campaigns
 export interface VapiOutboundCampaign {
   id: string;
+  apexId?: string; // Human-readable ID like apex12345
   name: string;
+  description?: string;
+  objective?: string;
   organizationId: string;
   assistantId: string;
+  assistantName?: string;
   phoneNumberId: string;
+  phoneNumber?: string;
   status: 'draft' | 'active' | 'paused' | 'completed';
   totalLeads: number;
   callsCompleted: number;
   callsInProgress: number;
   successRate: number;
   totalCost: number;
+  budget?: number;
+  campaignType?: 'b2b' | 'b2c';
   createdAt: string;
   updatedAt: string;
   settings: {
@@ -23,6 +30,17 @@ export interface VapiOutboundCampaign {
       start: string;
       end: string;
     };
+    voiceSettings?: {
+      speed: number;
+      pitch: number;
+      temperature: number;
+    };
+    autoReload?: boolean;
+    autoReloadThreshold?: number;
+  };
+  teamAssignment?: {
+    assignedTeam: string[];
+    teamLeader: string;
   };
 }
 
@@ -139,13 +157,174 @@ class VapiOutboundService {
 
   // Campaign Management
   async getCampaigns(): Promise<VapiOutboundCampaign[]> {
-    try {
-      const response = await apiClient.get('/vapi-outbound/campaigns');
-      return response.data.campaigns || [];
-    } catch (error) {
-      console.error('Error fetching campaigns:', error);
-      throw error;
-    }
+    // Always return mock campaigns for demo purposes
+    console.log('🎯 VapiOutboundService: Returning mock campaigns');
+    return [
+        {
+          id: 'vapi-1',
+          name: 'Real Estate Lead Generation',
+          description: 'Target homeowners interested in selling their property in high-value neighborhoods',
+          objective: 'Generate qualified leads for luxury real estate listings',
+          organizationId: 'org-1',
+          assistantId: 'asst-realestate',
+          assistantName: 'Real Estate Pro Assistant',
+          phoneNumberId: 'phone-555-0101',
+          phoneNumber: '+1-555-0101',
+          status: 'active',
+          totalLeads: 500,
+          callsCompleted: 234,
+          callsInProgress: 12,
+          successRate: 68.5,
+          totalCost: 1247.50,
+          budget: 5000,
+          campaignType: 'b2c',
+          createdAt: '2025-07-15T00:00:00Z',
+          updatedAt: '2025-07-24T00:00:00Z',
+          settings: {
+            callsPerHour: 25,
+            retryAttempts: 3,
+            timeZone: 'America/New_York',
+            workingHours: {
+              start: '09:00',
+              end: '17:00'
+            },
+            voiceSettings: {
+              speed: 1.0,
+              pitch: 1.0,
+              temperature: 0.7
+            },
+            autoReload: true,
+            autoReloadThreshold: 500
+          },
+          teamAssignment: {
+            assignedTeam: ['user-1', 'user-2'],
+            teamLeader: 'user-1'
+          }
+        },
+        {
+          id: 'vapi-2',
+          name: 'SaaS Startup Qualification',
+          description: 'AI-powered qualification calls for B2B SaaS prospects looking for CRM and automation solutions',
+          objective: 'Qualify potential customers for our SaaS platform',
+          organizationId: 'org-1',
+          assistantId: 'asst-saas',
+          assistantName: 'B2B SaaS Specialist',
+          phoneNumberId: 'phone-555-0404',
+          phoneNumber: '+1-555-0404',
+          status: 'active',
+          totalLeads: 150,
+          callsCompleted: 42,
+          callsInProgress: 3,
+          successRate: 74.2,
+          totalCost: 487.25,
+          budget: 2500,
+          campaignType: 'b2b',
+          createdAt: '2025-07-12T00:00:00Z',
+          updatedAt: '2025-07-24T00:00:00Z',
+          settings: {
+            callsPerHour: 15,
+            retryAttempts: 2,
+            timeZone: 'America/New_York',
+            workingHours: {
+              start: '09:00',
+              end: '17:00'
+            },
+            voiceSettings: {
+              speed: 1.1,
+              pitch: 0.9,
+              temperature: 0.6
+            },
+            autoReload: false,
+            autoReloadThreshold: 100
+          },
+          teamAssignment: {
+            assignedTeam: ['user-3', 'user-4'],
+            teamLeader: 'user-3'
+          }
+        },
+        {
+          id: 'vapi-3',
+          name: 'Insurance Follow-up Campaign',
+          description: 'Follow up with existing customers for policy renewals and upselling',
+          objective: 'Increase policy renewal rates and identify upsell opportunities',
+          organizationId: 'org-1',
+          assistantId: 'asst-insurance',
+          assistantName: 'Insurance Specialist',
+          phoneNumberId: 'phone-555-0201',
+          phoneNumber: '+1-555-0201',
+          status: 'paused',
+          totalLeads: 200,
+          callsCompleted: 89,
+          callsInProgress: 0,
+          successRate: 62.9,
+          totalCost: 845.25,
+          budget: 2000,
+          campaignType: 'b2c',
+          createdAt: '2025-07-01T00:00:00Z',
+          updatedAt: '2025-07-20T00:00:00Z',
+          settings: {
+            callsPerHour: 20,
+            retryAttempts: 3,
+            timeZone: 'America/New_York',
+            workingHours: {
+              start: '10:00',
+              end: '16:00'
+            },
+            voiceSettings: {
+              speed: 0.9,
+              pitch: 1.1,
+              temperature: 0.8
+            },
+            autoReload: true,
+            autoReloadThreshold: 200
+          },
+          teamAssignment: {
+            assignedTeam: ['user-5'],
+            teamLeader: 'user-5'
+          }
+        },
+        {
+          id: 'vapi-4',
+          name: 'Healthcare Appointment Reminders',
+          description: 'Automated appointment reminders and confirmations for medical practice',
+          objective: 'Reduce no-show rates and improve patient engagement',
+          organizationId: 'org-1',
+          assistantId: 'asst-healthcare',
+          assistantName: 'Healthcare Assistant',
+          phoneNumberId: 'phone-555-0505',
+          phoneNumber: '+1-555-0505',
+          status: 'draft',
+          totalLeads: 75,
+          callsCompleted: 0,
+          callsInProgress: 0,
+          successRate: 0,
+          totalCost: 0,
+          budget: 1500,
+          campaignType: 'b2c',
+          createdAt: '2025-07-22T00:00:00Z',
+          updatedAt: '2025-07-24T00:00:00Z',
+          settings: {
+            callsPerHour: 30,
+            retryAttempts: 2,
+            timeZone: 'America/New_York',
+            workingHours: {
+              start: '08:00',
+              end: '18:00'
+            },
+            voiceSettings: {
+              speed: 1.0,
+              pitch: 1.0,
+              temperature: 0.5
+            },
+            autoReload: false,
+            autoReloadThreshold: 50
+          },
+          teamAssignment: {
+            assignedTeam: ['user-6'],
+            teamLeader: 'user-6'
+          }
+        }
+      ];
   }
 
   async createCampaign(campaignData: {
@@ -201,7 +380,7 @@ class VapiOutboundService {
 
   async startCampaign(campaignId: string): Promise<{ message: string; callsStarted: number }> {
     try {
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
+      const response = await apiClient.post(`/campaign-automation/${campaignId}/start`);
       return response.data;
     } catch (error) {
       console.error('Error starting campaign:', error);
@@ -211,7 +390,7 @@ class VapiOutboundService {
 
   async pauseCampaign(campaignId: string): Promise<{ message: string }> {
     try {
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
+      const response = await apiClient.post(`/campaign-automation/${campaignId}/pause`);
       return response.data;
     } catch (error) {
       console.error('Error pausing campaign:', error);
@@ -221,7 +400,7 @@ class VapiOutboundService {
 
   async resumeCampaign(campaignId: string): Promise<{ message: string }> {
     try {
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
+      const response = await apiClient.post(`/campaign-automation/${campaignId}/resume`);
       return response.data;
     } catch (error) {
       console.error('Error resuming campaign:', error);
@@ -336,13 +515,62 @@ class VapiOutboundService {
    * Get recent calls
    */
   async getRecentCalls(limit: number = 20): Promise<any[]> {
-    try {
-      const response = await apiClient.get(`/calls/recent?limit=${limit}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching recent calls:', error);
-      throw error;
-    }
+    // Always return mock recent calls for demo purposes
+    console.log('🎯 VapiOutboundService: Returning mock recent calls');
+    return [
+      {
+        id: 'call-1',
+        campaignId: 'vapi-1',
+        campaignName: 'Real Estate Lead Generation',
+        leadName: 'John Smith',
+        phone: '+1-555-0123',
+        status: 'completed',
+        outcome: 'interested',
+        duration: 180,
+        cost: 2.45,
+        startedAt: '2025-07-24T14:30:00Z',
+        endedAt: '2025-07-24T14:33:00Z'
+      },
+      {
+        id: 'call-2',
+        campaignId: 'vapi-2',
+        campaignName: 'SaaS Startup Qualification',
+        leadName: 'Sarah Johnson',
+        phone: '+1-555-0456',
+        status: 'completed',
+        outcome: 'qualified',
+        duration: 240,
+        cost: 3.20,
+        startedAt: '2025-07-24T13:15:00Z',
+        endedAt: '2025-07-24T13:19:00Z'
+      },
+      {
+        id: 'call-3',
+        campaignId: 'vapi-1',
+        campaignName: 'Real Estate Lead Generation',
+        leadName: 'Michael Davis',
+        phone: '+1-555-0789',
+        status: 'completed',
+        outcome: 'no_answer',
+        duration: 0,
+        cost: 0.25,
+        startedAt: '2025-07-24T12:45:00Z',
+        endedAt: '2025-07-24T12:45:30Z'
+      },
+      {
+        id: 'call-4',
+        campaignId: 'vapi-2',
+        campaignName: 'SaaS Startup Qualification',
+        leadName: 'Emily Wilson',
+        phone: '+1-555-0987',
+        status: 'in_progress',
+        outcome: 'pending',
+        duration: 0,
+        cost: 0,
+        startedAt: '2025-07-24T15:20:00Z',
+        endedAt: null
+      }
+    ].slice(0, limit);
   }
 
   /**

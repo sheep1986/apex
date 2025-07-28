@@ -76,6 +76,7 @@ export function Organizations() {
     try {
       setLoading(true);
       const token = await getToken();
+      console.log('🔑 Fetching organizations with token:', token ? 'Token present' : 'No token');
 
       const response = await fetch('http://localhost:3001/api/organizations', {
         headers: {
@@ -85,6 +86,8 @@ export function Organizations() {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Organizations fetch failed:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -106,6 +109,8 @@ export function Organizations() {
   const createOrganization = async (orgData: Partial<Organization>) => {
     try {
       const token = await getToken();
+      console.log('🔑 Creating organization with token:', token ? 'Token present' : 'No token');
+      
       const response = await fetch('http://localhost:3001/api/organizations', {
         method: 'POST',
         headers: {
@@ -116,7 +121,9 @@ export function Organizations() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create organization');
+        const errorData = await response.json();
+        console.error('❌ Organization creation failed:', errorData);
+        throw new Error(errorData.error || 'Failed to create organization');
       }
 
       toast({
@@ -285,8 +292,8 @@ export function Organizations() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950">
+      <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -465,7 +472,12 @@ export function Organizations() {
                         <Building className="h-6 w-6 text-emerald-500" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">{org.name}</h3>
+                        <h3 
+                          className="text-lg font-semibold text-white hover:text-emerald-400 cursor-pointer transition-colors"
+                          onClick={() => navigate(`/organizations/${org.id}`)}
+                        >
+                          {org.name}
+                        </h3>
                         <p className="text-sm text-gray-400">
                           {org.contact_name || 'No contact assigned'}
                         </p>

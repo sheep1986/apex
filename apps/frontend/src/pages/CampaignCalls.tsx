@@ -186,7 +186,7 @@ const CampaignCalls: React.FC = () => {
       case 'failed':
         return <XCircle className="h-4 w-4 text-red-500" />;
       case 'in-progress':
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return null;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />;
     }
@@ -299,7 +299,7 @@ const CampaignCalls: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="mx-auto max-w-7xl p-6">
+      <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -380,7 +380,6 @@ const CampaignCalls: React.FC = () => {
                     )}
                   </p>
                 </div>
-                <Clock className="h-8 w-8 text-amber-500" />
               </div>
             </CardContent>
           </Card>

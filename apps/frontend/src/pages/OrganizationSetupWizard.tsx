@@ -222,9 +222,9 @@ export default function OrganizationSetupWizard() {
         });
         break;
       case 4:
-        if (!organizationData.vapiApiKey.trim()) newErrors.vapiApiKey = 'VAPI API Key is required';
         if (!organizationData.vapiPrivateKey.trim())
           newErrors.vapiPrivateKey = 'VAPI Private Key is required';
+        if (!organizationData.vapiApiKey.trim()) newErrors.vapiApiKey = 'VAPI Public Key is required';
         break;
       case 5:
         // Review step - all previous validations should pass
@@ -318,12 +318,13 @@ export default function OrganizationSetupWizard() {
     console.log('⏳ Loading state set to true');
 
     try {
-      // Get Clerk authentication token
-      console.log('🔑 Getting Clerk authentication token...');
+      // Get authentication token
+      console.log('🔑 Getting authentication token...');
       const token = await getToken();
+      console.log('🔐 Token received:', token ? 'Yes' : 'No');
 
       if (!token) {
-        console.error('❌ No authentication token received from Clerk');
+        console.error('❌ No authentication token received');
         throw new Error('Authentication required. Please sign in.');
       }
 
@@ -358,8 +359,8 @@ export default function OrganizationSetupWizard() {
       console.log('🚀 Submitting organization setup:', setupData);
 
       // Submit to the backend API with proper authentication
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      const apiUrl = `${API_BASE_URL}/organization-setup/setup`;
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const apiUrl = `${API_BASE_URL}/api/organization-setup/setup`;
 
       console.log('📡 Making API call to:', apiUrl);
       console.log('📋 Request headers:', {
@@ -849,7 +850,7 @@ export default function OrganizationSetupWizard() {
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-gray-300">VAPI API Key *</Label>
+                  <Label className="text-gray-300">VAPI Private Key (Bearer Token) *</Label>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -861,20 +862,6 @@ export default function OrganizationSetupWizard() {
                 </div>
                 <Input
                   type={showVapiKeys ? 'text' : 'password'}
-                  value={organizationData.vapiApiKey}
-                  onChange={(e) => updateOrganizationData({ vapiApiKey: e.target.value })}
-                  placeholder="vapi_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="border-gray-700 bg-gray-800 font-mono text-white"
-                />
-                {errors.vapiApiKey && (
-                  <p className="mt-1 text-sm text-red-400">{errors.vapiApiKey}</p>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-gray-300">VAPI Private Key *</Label>
-                <Input
-                  type={showVapiKeys ? 'text' : 'password'}
                   value={organizationData.vapiPrivateKey}
                   onChange={(e) => updateOrganizationData({ vapiPrivateKey: e.target.value })}
                   placeholder="sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -882,6 +869,20 @@ export default function OrganizationSetupWizard() {
                 />
                 {errors.vapiPrivateKey && (
                   <p className="mt-1 text-sm text-red-400">{errors.vapiPrivateKey}</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-gray-300">VAPI Public Key *</Label>
+                <Input
+                  type={showVapiKeys ? 'text' : 'password'}
+                  value={organizationData.vapiApiKey}
+                  onChange={(e) => updateOrganizationData({ vapiApiKey: e.target.value })}
+                  placeholder="vapi_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="border-gray-700 bg-gray-800 font-mono text-white"
+                />
+                {errors.vapiApiKey && (
+                  <p className="mt-1 text-sm text-red-400">{errors.vapiApiKey}</p>
                 )}
               </div>
             </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Bell,
   BellRing,
@@ -91,10 +92,10 @@ const CATEGORY_COLORS = {
     icon: 'text-blue-500',
   },
   campaigns: {
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-400',
-    border: 'border-amber-500/20',
-    icon: 'text-amber-500',
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-400',
+    border: 'border-emerald-500/20',
+    icon: 'text-emerald-500',
   },
   performance: {
     bg: 'bg-orange-500/10',
@@ -136,6 +137,7 @@ const NotificationItem = React.memo(function NotificationItem({
   onRemove,
   onAction,
 }: NotificationItemProps) {
+  const { t } = useTranslation('components');
   const [isHovered, setIsHovered] = useState(false);
   const IconComponent = NOTIFICATION_ICONS[notification.type] || Info;
   const categoryStyle = CATEGORY_COLORS[notification.category] || CATEGORY_COLORS.system;
@@ -177,7 +179,7 @@ const NotificationItem = React.memo(function NotificationItem({
 
       {/* Unread indicator */}
       {!notification.read && (
-        <div className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-amber-500" />
+        <div className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-emerald-500" />
       )}
 
       <div className="ml-4 flex items-start gap-3">
@@ -236,7 +238,7 @@ const NotificationItem = React.memo(function NotificationItem({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+                  className="h-7 px-2 text-xs text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAction();
@@ -274,12 +276,12 @@ const NotificationItem = React.memo(function NotificationItem({
                     {notification.read ? (
                       <>
                         <EyeOff className="mr-2 h-4 w-4" />
-                        Mark as Unread
+                        {t('notifications.mark_as_unread')}
                       </>
                     ) : (
                       <>
                         <Eye className="mr-2 h-4 w-4" />
-                        Mark as Read
+                        {t('notifications.mark_as_read')}
                       </>
                     )}
                   </DropdownMenuItem>
@@ -291,7 +293,7 @@ const NotificationItem = React.memo(function NotificationItem({
                     className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Remove
+                    {t('notifications.remove')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -327,6 +329,7 @@ const NotificationItem = React.memo(function NotificationItem({
 });
 
 export function NotificationBell() {
+  const { t } = useTranslation('components');
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -405,7 +408,7 @@ export function NotificationBell() {
 
           {/* Green notification dot indicator */}
           {unreadCount > 0 && (
-            <div className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-amber-500 shadow-lg"></div>
+            <div className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-emerald-500 shadow-lg"></div>
           )}
         </div>
       </DropdownMenuTrigger>
@@ -421,16 +424,19 @@ export function NotificationBell() {
             <div>
               <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
                 <Sparkles className="h-4 w-4 text-gray-400" />
-                Notifications
+                {t('notifications.title')}
               </h3>
               <p className="mt-1 text-xs text-gray-400">
                 {unreadCount > 0 ? (
                   <span className="flex items-center gap-1">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-                    {unreadCount} new notification{unreadCount !== 1 ? 's' : ''}
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                    {unreadCount === 1 
+                      ? t('notifications.new_notifications', { count: unreadCount })
+                      : t('notifications.new_notifications_plural', { count: unreadCount })
+                    }
                   </span>
                 ) : (
-                  "You're all caught up!"
+                  t('notifications.all_caught_up')
                 )}
               </p>
             </div>
@@ -444,7 +450,7 @@ export function NotificationBell() {
                   className="h-7 px-2 text-xs text-gray-300 transition-all duration-200 hover:bg-gray-800/50 hover:text-white"
                 >
                   <CheckCheck className="mr-1 h-3 w-3" />
-                  Mark All Read
+                  {t('notifications.mark_all_read')}
                 </Button>
               )}
 
@@ -467,11 +473,11 @@ export function NotificationBell() {
                     className="text-gray-300 hover:bg-white/10 hover:text-white"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Clear All
+                    {t('notifications.clear_all')}
                   </DropdownMenuItem>
                   <DropdownMenuItem className="text-gray-300 hover:bg-white/10 hover:text-white">
                     <Settings className="mr-2 h-4 w-4" />
-                    Notification Settings
+                    {t('notifications.notification_settings')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -484,7 +490,7 @@ export function NotificationBell() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 transform text-gray-500" />
             <Input
-              placeholder="Search notifications..."
+              placeholder={t('notifications.search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 border-gray-700/50 bg-gray-800/50 pl-8 text-xs text-white transition-all duration-200 placeholder:text-gray-500 focus:border-gray-600 focus:ring-0"
@@ -505,9 +511,9 @@ export function NotificationBell() {
                     : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
                 )}
               >
-                {filterOption}
+                {t(`notifications.filter_${filterOption}`)}
                 {filterOption === 'unread' && unreadCount > 0 && (
-                  <Badge className="ml-1 border-0 bg-amber-500 px-1 py-0 text-xs text-white">
+                  <Badge className="ml-1 border-0 bg-emerald-500 px-1 py-0 text-xs text-white">
                     {unreadCount}
                   </Badge>
                 )}
@@ -538,12 +544,12 @@ export function NotificationBell() {
                   <Sparkles className="absolute -right-1 -top-1 h-6 w-6 animate-pulse text-emerald-400" />
                 </div>
                 <p className="mb-2 text-lg font-medium">
-                  {searchQuery ? 'No matching notifications' : 'All clear!'}
+                  {searchQuery ? t('notifications.no_matching') : t('notifications.all_clear')}
                 </p>
                 <p className="max-w-xs text-center text-sm text-gray-600">
                   {searchQuery
-                    ? 'Try adjusting your search terms or filters'
-                    : "No new notifications right now. We'll let you know when something important happens."}
+                    ? t('notifications.try_adjusting')
+                    : t('notifications.no_new_right_now')}
                 </p>
               </div>
             )}
@@ -555,23 +561,23 @@ export function NotificationBell() {
           <div className="flex items-center justify-between text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <Activity className="h-3 w-3" />
-              <span>Last updated: {new Date().toLocaleTimeString()}</span>
+              <span>{t('notifications.last_updated')}: {new Date().toLocaleTimeString()}</span>
             </div>
             <div className="flex items-center gap-1">
-              <span>{sortedNotifications.length} shown</span>
+              <span>{sortedNotifications.length} {t('notifications.shown')}</span>
               <span>•</span>
-              <span>{notifications.length} total</span>
+              <span>{notifications.length} {t('notifications.total')}</span>
             </div>
           </div>
           <Button
             variant="ghost"
-            className="mt-3 w-full h-9 text-sm text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+            className="mt-3 w-full h-9 text-sm text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
             onClick={() => {
               setIsOpen(false);
               navigate('/notifications');
             }}
           >
-            View All Notifications
+            {t('notifications.view_all_notifications')}
           </Button>
         </div>
       </DropdownMenuContent>

@@ -506,47 +506,83 @@ export default function LeadDetails() {
 
   return (
     <div className="min-h-screen bg-gray-950">
-      {/* Header */}
-      <div className="border-b border-gray-800 bg-gray-900/50">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-500 text-lg font-semibold text-white">
-              {lead.firstName[0]}
-              {lead.lastName[0]}
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">
-                {lead.firstName} {lead.lastName}
-              </h2>
-              <p className="text-gray-400">
-                {lead.title} • {lead.company}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Badge className={statusColors[lead.status]}>
-              {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-            </Badge>
-            <Badge className={priorityColors[lead.priority]}>
-              {lead.priority.charAt(0).toUpperCase() + lead.priority.slice(1)} Priority
-            </Badge>
-            {lead.outcome && (
-              <Badge className={`${outcomeColors[lead.outcome]} text-white`}>
-                {lead.outcome.replace('_', ' ')}
-              </Badge>
-            )}
-            <Button variant="outline" size="sm" className="border-gray-700 text-gray-300">
-              <Edit3 className="h-4 w-4" />
-            </Button>
+      {/* Enhanced Header */}
+      <div className="relative border-b border-gray-800/50 bg-gradient-to-r from-gray-900 via-black to-gray-900">
+        {/* Background pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,68,68,.1)_50%,transparent_75%,transparent_100%)] bg-[length:20px_20px]" />
+        
+        <div className="relative container mx-auto px-6 py-8">
+          {/* Back button */}
+          <div className="mb-6">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate(-1)}
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400 hover:text-white hover:bg-gray-800/50 transition-all duration-200"
             >
-              <X className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to CRM
             </Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-xl font-bold text-white shadow-lg">
+                  {lead.firstName[0]}{lead.lastName[0]}
+                </div>
+                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-gray-900" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
+                  {lead.firstName} {lead.lastName}
+                </h1>
+                <div className="flex items-center gap-3 text-gray-300">
+                  <span className="font-medium">{lead.title}</span>
+                  <span className="text-gray-500">•</span>
+                  <span className="text-gray-400">{lead.company}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-sm text-gray-400">Customer ID:</span>
+                  <span className="text-sm font-mono text-cyan-400">CID{id?.padStart(4, '0') || '0623'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Badge className={`${statusColors[lead.status]} px-3 py-1 text-sm font-semibold`}>
+                  {lead.status === 'qualified' && <CheckCircle className="h-3 w-3 mr-1" />}
+                  {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                </Badge>
+                <Badge className={`${priorityColors[lead.priority]} px-3 py-1 text-sm font-semibold`}>
+                  {lead.priority.charAt(0).toUpperCase() + lead.priority.slice(1)} Priority
+                </Badge>
+                {lead.outcome && (
+                  <Badge className={`${outcomeColors[lead.outcome]} px-3 py-1 text-sm font-semibold`}>
+                    {lead.outcome.replace('_', ' ')}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-gray-600 bg-gray-800/50 text-gray-300 hover:bg-gray-700 hover:text-white transition-all duration-200"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(-1)}
+                  className="text-gray-400 hover:text-white hover:bg-gray-800/50 transition-all duration-200 p-2"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -583,50 +619,88 @@ export default function LeadDetails() {
             <TabsContent value="overview" className="space-y-6">
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Contact Information */}
-                <Card className="border-gray-800 bg-gray-900/50 lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="text-white">Contact Information</CardTitle>
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm lg:col-span-2">
+                  <CardHeader className="border-b border-gray-800/50 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <User className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <CardTitle className="text-xl font-bold text-white">Personal Details</CardTitle>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Phone className="h-4 w-4 text-gray-500" />
-                          <span>{lead.phone}</span>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                            <Phone className="h-4 w-4 text-emerald-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400 font-medium">Phone</p>
+                            <p className="text-sm font-semibold text-white">{lead.phone}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Mail className="h-4 w-4 text-gray-500" />
-                          <span>{lead.email}</span>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <Mail className="h-4 w-4 text-blue-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400 font-medium">Email</p>
+                            <p className="text-sm font-semibold text-white">{lead.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 border border-purple-500/20">
+                            <Briefcase className="h-4 w-4 text-purple-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400 font-medium">Position</p>
+                            <p className="text-sm font-semibold text-white">{lead.title}</p>
+                          </div>
                         </div>
                         {lead.website && (
-                          <div className="flex items-center gap-2 text-gray-300">
-                            <Globe className="h-4 w-4 text-gray-500" />
-                            <a
-                              href={lead.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-emerald-400 hover:text-emerald-300"
-                            >
-                              {lead.website}
-                            </a>
+                          <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                              <Globe className="h-4 w-4 text-cyan-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-400 font-medium">Website</p>
+                              <a
+                                href={lead.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
+                              >
+                                {lead.website.replace('https://', '')}
+                              </a>
+                            </div>
                           </div>
                         )}
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {lead.address && (
-                          <div className="flex items-start gap-2 text-gray-300">
-                            <MapPin className="mt-0.5 h-4 w-4 text-gray-500" />
-                            <span className="text-sm">{lead.address}</span>
+                          <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/10 border border-pink-500/20 mt-0.5">
+                              <MapPin className="h-4 w-4 text-pink-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-400 font-medium">Address</p>
+                              <p className="text-sm font-semibold text-white leading-relaxed">{lead.address}</p>
+                            </div>
                           </div>
                         )}
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Tag className="h-4 w-4 text-gray-500" />
-                          <div className="flex flex-wrap gap-1">
+                        <div className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20">
+                              <Tag className="h-4 w-4 text-amber-400" />
+                            </div>
+                            <p className="text-xs text-gray-400 font-medium">Tags</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
                             {lead.tags.map((tag, index) => (
                               <Badge
                                 key={index}
-                                variant="secondary"
-                                className="bg-gray-800 text-gray-300"
+                                className="bg-gradient-to-r from-gray-700 to-gray-600 text-gray-200 border border-gray-600/50 px-2 py-1 text-xs font-medium"
                               >
                                 {tag}
                               </Badge>
@@ -636,24 +710,53 @@ export default function LeadDetails() {
                       </div>
                     </div>
 
-                    <Separator className="bg-gray-800" />
+                    <Separator className="bg-gray-800/50 my-6" />
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm text-gray-400">Campaign</label>
-                        <p className="text-gray-300">{lead.campaign}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 border border-orange-500/20">
+                          <Target className="h-4 w-4 text-orange-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 font-medium">Campaign</p>
+                          <p className="text-sm font-semibold text-white">{lead.campaign}</p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-sm text-gray-400">Source</label>
-                        <p className="text-gray-300">{lead.source}</p>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20">
+                          <Activity className="h-4 w-4 text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 font-medium">Source</p>
+                          <p className="text-sm font-semibold text-white">{lead.source}</p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-sm text-gray-400">Last Interaction</label>
-                        <p className="text-gray-300">{lead.lastInteraction || 'Never'}</p>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <Clock className="h-4 w-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 font-medium">Last Activity</p>
+                          <p className="text-sm font-semibold text-white">Mon, Jan 15, 2024 at 1:00 AM</p>
+                          <p className="text-xs text-gray-400">Email sent</p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-sm text-gray-400">Next Follow-up</label>
-                        <p className="text-gray-300">{lead.nextFollowUp || 'Not scheduled'}</p>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                          <UserPlus className="h-4 w-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 font-medium">Lead Owner</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                              JD
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white">John Doe</p>
+                              <p className="text-xs text-gray-400">Sales Manager</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -757,39 +860,65 @@ export default function LeadDetails() {
                 <div className="space-y-6">
                   {/* Lead Score */}
                   {lead.score && (
-                    <Card className="border-gray-800 bg-gray-900/50">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-white">
-                          <Star className="h-5 w-5 text-yellow-500" />
-                          Lead Score
-                        </CardTitle>
+                    <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                      <CardHeader className="border-b border-gray-800/50 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                            <Star className="h-4 w-4 text-yellow-400" />
+                          </div>
+                          <CardTitle className="text-xl font-bold text-white">Lead Score</CardTitle>
+                        </div>
                       </CardHeader>
-                      <CardContent>
-                        <div className="text-center">
-                          <div className="mb-2 text-4xl font-bold text-white">{lead.score}</div>
-                          <Progress value={lead.score} className="h-2 bg-gray-700" />
-                          <p className="mt-2 text-sm text-gray-400">
-                            {lead.score >= 80
-                              ? 'Hot Lead'
-                              : lead.score >= 60
-                                ? 'Warm Lead'
-                                : 'Cold Lead'}
-                          </p>
+                      <CardContent className="pt-6">
+                        <div className="text-center space-y-4">
+                          <div className="relative">
+                            <div className="mb-4 text-5xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">{lead.score}</div>
+                            <div className="absolute -top-2 -right-2 h-3 w-3 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse" />
+                          </div>
+                          <div className="space-y-2">
+                            <Progress value={lead.score} className="h-3 bg-gray-800/50 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 transition-all duration-700 ease-out" style={{width: `${lead.score}%`}} />
+                            </Progress>
+                            <p className="text-sm font-semibold text-white">
+                              {lead.score >= 80
+                                ? '🔥 Hot Lead'
+                                : lead.score >= 60
+                                  ? '🌡️ Warm Lead'
+                                  : '❄️ Cold Lead'}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {lead.score >= 80
+                                ? 'High conversion probability'
+                                : lead.score >= 60
+                                  ? 'Good potential for engagement'
+                                  : 'Requires nurturing'}
+                            </p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
                   )}
 
                   {/* Quick Actions */}
-                  <Card className="border-gray-800 bg-gray-900/50">
-                    <CardHeader>
-                      <CardTitle className="text-white">Quick Actions</CardTitle>
+                  <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                    <CardHeader className="border-b border-gray-800/50 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/10 border border-pink-500/20">
+                          <Activity className="h-4 w-4 text-pink-400" />
+                        </div>
+                        <CardTitle className="text-xl font-bold text-white">Quick Actions</CardTitle>
+                      </div>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Change Outcome</label>
+                    <CardContent className="pt-6 space-y-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-orange-500/10 border border-orange-500/20">
+                            <CheckCircle className="h-3 w-3 text-orange-400" />
+                          </div>
+                          <label className="text-sm font-medium text-gray-300">Change Outcome</label>
+                        </div>
                         <Select value={selectedOutcome} onValueChange={handleOutcomeChange}>
-                          <SelectTrigger className="border-gray-700 bg-gray-800 text-white">
+                          <SelectTrigger className="border-gray-700/50 bg-gray-800/50 text-white hover:bg-gray-800 transition-colors">
                             <SelectValue placeholder="Select outcome" />
                           </SelectTrigger>
                           <SelectContent className="border-gray-700 bg-gray-800">
@@ -804,10 +933,15 @@ export default function LeadDetails() {
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Assign To</label>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                            <UserPlus className="h-3 w-3 text-indigo-400" />
+                          </div>
+                          <label className="text-sm font-medium text-gray-300">Assign To</label>
+                        </div>
                         <Select value={selectedAssignee} onValueChange={handleAssigneeChange}>
-                          <SelectTrigger className="border-gray-700 bg-gray-800 text-white">
+                          <SelectTrigger className="border-gray-700/50 bg-gray-800/50 text-white hover:bg-gray-800 transition-colors">
                             <SelectValue placeholder="Select team member" />
                           </SelectTrigger>
                           <SelectContent className="border-gray-700 bg-gray-800">
@@ -819,34 +953,53 @@ export default function LeadDetails() {
                         </Select>
                       </div>
 
-                      <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
-                        <Phone className="mr-2 h-4 w-4" />
-                        Start Call
-                      </Button>
+                      <div className="pt-2 space-y-3">
+                        <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-2.5 transition-all duration-200 shadow-lg hover:shadow-emerald-500/25">
+                          <Phone className="mr-2 h-4 w-4" />
+                          Start Call
+                        </Button>
 
-                      <Button
-                        variant="outline"
-                        className="w-full border-gray-700 text-gray-300 hover:bg-gray-800"
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Schedule Follow-up
-                      </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full border-gray-600 bg-gray-800/30 text-gray-300 hover:bg-gray-700 hover:text-white transition-all duration-200 py-2.5"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Schedule Follow-up
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
 
                   {/* Next Action */}
                   {lead.nextAction && (
-                    <Card className="border-gray-800 bg-gray-900/50">
-                      <CardHeader>
-                        <CardTitle className="text-white">Next Action</CardTitle>
+                    <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                      <CardHeader className="border-b border-gray-800/50 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                            <Target className="h-4 w-4 text-cyan-400" />
+                          </div>
+                          <CardTitle className="text-xl font-bold text-white">Next Action</CardTitle>
+                        </div>
                       </CardHeader>
-                      <CardContent>
-                        <p className="text-gray-300">{lead.nextAction}</p>
-                        {lead.nextFollowUp && (
-                          <p className="mt-2 text-sm text-gray-500">
-                            Due: {new Date(lead.nextFollowUp).toLocaleString()}
-                          </p>
-                        )}
+                      <CardContent className="pt-6">
+                        <div className="space-y-4">
+                          <div className="p-4 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                            <p className="text-white font-medium leading-relaxed">{lead.nextAction}</p>
+                          </div>
+                          {lead.nextFollowUp && (
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/20">
+                                <Clock className="h-3 w-3 text-blue-400" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-blue-300 font-medium">Due Date</p>
+                                <p className="text-sm font-semibold text-white">
+                                  {new Date(lead.nextFollowUp).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   )}
@@ -863,19 +1016,19 @@ export default function LeadDetails() {
             <TabsContent value="notes" className="mt-0">
               <div className="space-y-4">
                 {/* Add Note */}
-                <Card className="border-gray-700 bg-gray-800/50">
-                  <CardContent className="p-4">
-                    <div className="flex gap-3">
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                  <CardContent className="p-6">
+                    <div className="flex gap-4">
                       <Textarea
                         placeholder="Add a note..."
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
-                        className="border-gray-600 bg-gray-700 text-white"
-                        rows={2}
+                        className="border-gray-700/50 bg-gray-800/50 text-white placeholder:text-gray-400 focus:border-cyan-500/50 transition-colors"
+                        rows={3}
                       />
                       <Button
                         onClick={handleAddNote}
-                        className="bg-emerald-600 hover:bg-emerald-700"
+                        className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 px-4 transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -885,18 +1038,18 @@ export default function LeadDetails() {
 
                 {/* Notes List */}
                 {mockNotes.map((note) => (
-                  <Card key={note.id} className="border-gray-700 bg-gray-800/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
+                  <Card key={note.id} className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
                         <div
-                          className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                          className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
                             note.type === 'call'
-                              ? 'bg-emerald-500'
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                               : note.type === 'email'
-                                ? 'bg-blue-500'
+                                ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'
                                 : note.type === 'meeting'
-                                  ? 'bg-green-500'
-                                  : 'bg-gray-500'
+                                  ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                                  : 'bg-gray-500/10 border-gray-500/20 text-gray-400'
                           }`}
                         >
                           {note.type === 'call' ? (
@@ -910,11 +1063,19 @@ export default function LeadDetails() {
                           )}
                         </div>
                         <div className="flex-1">
-                          <p className="text-white">{note.content}</p>
-                          <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
-                            <span>{note.date}</span>
-                            <span>•</span>
-                            <span>{note.author}</span>
+                          <div className="p-4 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                            <p className="text-white leading-relaxed">{note.content}</p>
+                          </div>
+                          <div className="mt-3 flex items-center gap-3 text-xs">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-gray-500" />
+                              <span className="text-gray-400">{note.date}</span>
+                            </div>
+                            <span className="text-gray-600">•</span>
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3 text-gray-500" />
+                              <span className="text-gray-400 font-medium">{note.author}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -927,35 +1088,66 @@ export default function LeadDetails() {
             {/* Analytics Tab */}
             <TabsContent value="analytics" className="mt-0">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="border-gray-700 bg-gray-800/50">
-                  <CardHeader>
-                    <CardTitle className="text-sm text-white">Call Success Rate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-400">75%</div>
-                    <Progress value={75} className="mt-2" />
-                  </CardContent>
-                </Card>
-
-                <Card className="border-gray-700 bg-gray-800/50">
-                  <CardHeader>
-                    <CardTitle className="text-sm text-white">Avg Call Duration</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-400">3:25</div>
-                    <p className="mt-1 text-xs text-gray-400">+0:45 vs average</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-gray-700 bg-gray-800/50">
-                  <CardHeader>
-                    <CardTitle className="text-sm text-white">Estimated Value</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-emerald-400">
-                      ${lead.value || 15000}
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                  <CardHeader className="border-b border-gray-800/50 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20">
+                        <TrendingUp className="h-4 w-4 text-green-400" />
+                      </div>
+                      <CardTitle className="text-lg font-bold text-white">Call Success Rate</CardTitle>
                     </div>
-                    <p className="mt-1 text-xs text-gray-400">Based on lead profile</p>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">75%</div>
+                      <div className="space-y-2">
+                        <Progress value={75} className="h-2 bg-gray-800/50 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-700 ease-out" style={{width: '75%'}} />
+                        </Progress>
+                        <p className="text-xs text-gray-400">Above average performance</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                  <CardHeader className="border-b border-gray-800/50 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <Clock className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <CardTitle className="text-lg font-bold text-white">Avg Call Duration</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">3:25</div>
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <ArrowUp className="h-3 w-3 text-blue-400" />
+                        <p className="text-xs text-blue-300 font-medium">+0:45 vs average</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                  <CardHeader className="border-b border-gray-800/50 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <DollarSign className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <CardTitle className="text-lg font-bold text-white">Estimated Value</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
+                        ${(lead.value || 15000).toLocaleString()}
+                      </div>
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <p className="text-xs text-emerald-300 font-medium">Based on lead profile & activity</p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -963,9 +1155,14 @@ export default function LeadDetails() {
 
             {/* Transcript & Recording Tab */}
             <TabsContent value="transcript" className="space-y-6">
-              <Card className="border-gray-800 bg-gray-900/50">
-                <CardHeader>
-                  <CardTitle className="text-white">Call History</CardTitle>
+              <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                <CardHeader className="border-b border-gray-800/50 pb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 border border-purple-500/20">
+                      <Volume2 className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <CardTitle className="text-xl font-bold text-white">Call History</CardTitle>
+                  </div>
                   <CardDescription className="text-gray-400">
                     View recordings and transcripts from all calls with this lead
                   </CardDescription>
@@ -1077,62 +1274,85 @@ export default function LeadDetails() {
             {/* Call Costs Tab */}
             <TabsContent value="costs" className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <Card className="border-gray-800 bg-gray-900/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <DollarSign className="h-5 w-5 text-green-500" />
-                      Total Cost
-                    </CardTitle>
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                  <CardHeader className="border-b border-gray-800/50 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20">
+                        <DollarSign className="h-4 w-4 text-green-400" />
+                      </div>
+                      <CardTitle className="text-lg font-bold text-white">Total Cost</CardTitle>
+                    </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-white">${totalCallCost.toFixed(2)}</div>
-                    <p className="mt-1 text-sm text-gray-400">
-                      Across {mockCallRecords.length} calls
-                    </p>
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">${totalCallCost.toFixed(2)}</div>
+                      <div className="p-2 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                        <p className="text-xs text-gray-300 font-medium">
+                          Across {mockCallRecords.length} calls
+                        </p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-gray-800 bg-gray-900/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <Clock className="h-5 w-5 text-blue-500" />
-                      Avg Duration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-white">
-                      {avgCallDuration.toFixed(1)}m
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                  <CardHeader className="border-b border-gray-800/50 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <Clock className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <CardTitle className="text-lg font-bold text-white">Avg Duration</CardTitle>
                     </div>
-                    <p className="mt-1 text-sm text-gray-400">Per call</p>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">
+                        {avgCallDuration.toFixed(1)}m
+                      </div>
+                      <div className="p-2 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                        <p className="text-xs text-gray-300 font-medium">Per call</p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-gray-800 bg-gray-900/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <CreditCard className="h-5 w-5 text-emerald-500" />
-                      Cost per Minute
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-white">
-                      $
-                      {(
-                        totalCallCost /
-                        mockCallRecords.reduce((sum, call) => {
-                          const [min, sec] = call.duration.split(':').map(Number);
-                          return sum + min + sec / 60;
-                        }, 0)
-                      ).toFixed(2)}
+                <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                  <CardHeader className="border-b border-gray-800/50 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <CreditCard className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <CardTitle className="text-lg font-bold text-white">Cost per Minute</CardTitle>
                     </div>
-                    <p className="mt-1 text-sm text-gray-400">Average rate</p>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
+                        $
+                        {(
+                          totalCallCost /
+                          mockCallRecords.reduce((sum, call) => {
+                            const [min, sec] = call.duration.split(':').map(Number);
+                            return sum + min + sec / 60;
+                          }, 0)
+                        ).toFixed(2)}
+                      </div>
+                      <div className="p-2 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                        <p className="text-xs text-gray-300 font-medium">Average rate</p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <Card className="border-gray-800 bg-gray-900/50">
-                <CardHeader>
-                  <CardTitle className="text-white">Call Cost Breakdown</CardTitle>
+              <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                <CardHeader className="border-b border-gray-800/50 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <DollarSign className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <CardTitle className="text-xl font-bold text-white">Call Cost Breakdown</CardTitle>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -1160,9 +1380,14 @@ export default function LeadDetails() {
 
             {/* Timeline Tab */}
             <TabsContent value="timeline" className="space-y-6">
-              <Card className="border-gray-800 bg-gray-900/50">
-                <CardHeader>
-                  <CardTitle className="text-white">Activity Timeline</CardTitle>
+              <Card className="border-gray-800/50 bg-gradient-to-br from-gray-900/90 to-gray-800/50 backdrop-blur-sm">
+                <CardHeader className="border-b border-gray-800/50 pb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                      <Activity className="h-4 w-4 text-indigo-400" />
+                    </div>
+                    <CardTitle className="text-xl font-bold text-white">Activity Timeline</CardTitle>
+                  </div>
                   <CardDescription className="text-gray-400">
                     Complete history of all interactions and changes
                   </CardDescription>

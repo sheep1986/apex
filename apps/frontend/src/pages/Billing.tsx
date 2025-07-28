@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -85,21 +86,52 @@ interface BillingHistory {
   invoice_url?: string;
 }
 
-const plans: SubscriptionPlan[] = [
+// Plans will be generated dynamically with translations
+const getPlanFeatures = (t: any, planId: string, limits: any) => {
+  switch (planId) {
+    case 'starter':
+      return [
+        t('billing.plans.starter.features.calls', { count: '1,000' }),
+        t('billing.plans.starter.features.teamMembers', { count: '3' }),
+        t('billing.plans.starter.features.aiAssistants', { count: '2' }),
+        t('billing.plans.starter.features.phoneNumbers', { count: '1' }),
+        t('billing.plans.starter.features.analytics'),
+        t('billing.plans.starter.features.support'),
+      ];
+    case 'growth':
+      return [
+        t('billing.plans.growth.features.calls', { count: '10,000' }),
+        t('billing.plans.growth.features.teamMembers', { count: '10' }),
+        t('billing.plans.growth.features.aiAssistants', { count: '10' }),
+        t('billing.plans.growth.features.phoneNumbers', { count: '5' }),
+        t('billing.plans.growth.features.analytics'),
+        t('billing.plans.growth.features.support'),
+        t('billing.plans.growth.features.integrations'),
+      ];
+    case 'enterprise':
+      return [
+        t('billing.plans.enterprise.features.calls'),
+        t('billing.plans.enterprise.features.teamMembers'),
+        t('billing.plans.enterprise.features.aiAssistants'),
+        t('billing.plans.enterprise.features.phoneNumbers'),
+        t('billing.plans.enterprise.features.analytics'),
+        t('billing.plans.enterprise.features.support'),
+        t('billing.plans.enterprise.features.sla'),
+        t('billing.plans.enterprise.features.customFeatures'),
+      ];
+    default:
+      return [];
+  }
+};
+
+const getPlans = (t: any): SubscriptionPlan[] => [
   {
     id: 'starter',
-    name: 'Starter',
-    description: 'Perfect for small teams getting started',
+    name: t('billing.plans.starter.name'),
+    description: t('billing.plans.starter.description'),
     price: 99,
     interval: 'month',
-    features: [
-      '1,000 AI calls per month',
-      'Up to 3 team members',
-      '2 AI assistants',
-      '1 phone number',
-      'Basic analytics',
-      'Email support',
-    ],
+    features: getPlanFeatures(t, 'starter', { monthly_calls: 1000, team_members: 3, ai_assistants: 2, phone_numbers: 1 }),
     limits: {
       monthly_calls: 1000,
       team_members: 3,
@@ -110,20 +142,12 @@ const plans: SubscriptionPlan[] = [
   },
   {
     id: 'growth',
-    name: 'Growth',
-    description: 'Scale your AI calling operations',
+    name: t('billing.plans.growth.name'),
+    description: t('billing.plans.growth.description'),
     price: 299,
     interval: 'month',
     recommended: true,
-    features: [
-      '10,000 AI calls per month',
-      'Up to 10 team members',
-      '10 AI assistants',
-      '5 phone numbers',
-      'Advanced analytics',
-      'Priority support',
-      'Custom integrations',
-    ],
+    features: getPlanFeatures(t, 'growth', { monthly_calls: 10000, team_members: 10, ai_assistants: 10, phone_numbers: 5 }),
     limits: {
       monthly_calls: 10000,
       team_members: 10,
@@ -134,20 +158,11 @@ const plans: SubscriptionPlan[] = [
   },
   {
     id: 'enterprise',
-    name: 'Enterprise',
-    description: 'For large teams with custom needs',
+    name: t('billing.plans.enterprise.name'),
+    description: t('billing.plans.enterprise.description'),
     price: 999,
     interval: 'month',
-    features: [
-      'Unlimited AI calls',
-      'Unlimited team members',
-      'Unlimited AI assistants',
-      'Unlimited phone numbers',
-      'Custom analytics',
-      'Dedicated support',
-      'SLA guarantee',
-      'Custom features',
-    ],
+    features: getPlanFeatures(t, 'enterprise', { monthly_calls: -1, team_members: -1, ai_assistants: -1, phone_numbers: -1 }),
     limits: {
       monthly_calls: -1,
       team_members: -1,
@@ -160,6 +175,7 @@ const plans: SubscriptionPlan[] = [
 
 const Billing: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['common']);
   const [loading, setLoading] = useState(true);
   const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -184,7 +200,7 @@ const Billing: React.FC = () => {
       setBillingHistory(history.data);
     } catch (error) {
       console.error('Error fetching billing data:', error);
-      toast.error('Failed to load billing information');
+      toast.error(t('billing.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -199,34 +215,28 @@ const Billing: React.FC = () => {
         window.location.href = response.data.checkout_url;
       } else {
         await fetchBillingData();
-        toast.success('Subscription updated successfully');
+        toast.success(t('billing.subscription.upgradeSuccess'));
       }
     } catch (error) {
       console.error('Error upgrading subscription:', error);
-      toast.error('Failed to update subscription');
+      toast.error(t('billing.subscription.upgradeFailed'));
     } finally {
       setProcessingPlanId(null);
     }
   };
 
   const handleCancelSubscription = async () => {
-    if (
-      !confirm(
-        'Are you sure you want to cancel your subscription? You will retain access until the end of your billing period.'
-      )
-    ) {
+    if (!confirm(t('billing.subscription.cancelConfirm'))) {
       return;
     }
 
     try {
       await apiClient.post('/api/billing/cancel');
       await fetchBillingData();
-      toast.success(
-        'Subscription cancelled. You will retain access until the end of your billing period.'
-      );
+      toast.success(t('billing.subscription.cancelSuccess'));
     } catch (error) {
       console.error('Error cancelling subscription:', error);
-      toast.error('Failed to cancel subscription');
+      toast.error(t('billing.subscription.cancelFailed'));
     }
   };
 
@@ -238,22 +248,22 @@ const Billing: React.FC = () => {
       }
     } catch (error) {
       console.error('Error setting up payment method:', error);
-      toast.error('Failed to set up payment method');
+      toast.error(t('billing.payment.addFailed'));
     }
   };
 
   const handleRemovePaymentMethod = async (methodId: string) => {
-    if (!confirm('Are you sure you want to remove this payment method?')) {
+    if (!confirm(t('billing.payment.removeConfirm'))) {
       return;
     }
 
     try {
       await apiClient.delete(`/api/billing/payment-method/${methodId}`);
       await fetchBillingData();
-      toast.success('Payment method removed');
+      toast.success(t('billing.payment.removeSuccess'));
     } catch (error) {
       console.error('Error removing payment method:', error);
-      toast.error('Failed to remove payment method');
+      toast.error(t('billing.payment.removeFailed'));
     }
   };
 
@@ -261,10 +271,10 @@ const Billing: React.FC = () => {
     try {
       await apiClient.post(`/api/billing/payment-method/${methodId}/default`);
       await fetchBillingData();
-      toast.success('Default payment method updated');
+      toast.success(t('billing.payment.defaultSuccess'));
     } catch (error) {
       console.error('Error updating default payment method:', error);
-      toast.error('Failed to update default payment method');
+      toast.error(t('billing.payment.defaultFailed'));
     }
   };
 
@@ -274,7 +284,7 @@ const Billing: React.FC = () => {
   };
 
   const formatLimit = (limit: number) => {
-    return limit === -1 ? 'Unlimited' : limit.toLocaleString();
+    return limit === -1 ? t('billing.subscription.unlimited') : limit.toLocaleString();
   };
 
   if (loading) {
@@ -285,19 +295,21 @@ const Billing: React.FC = () => {
     );
   }
 
+  const plans = getPlans(t);
+
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-8">
         <p className="text-zinc-400">
-          Manage your subscription, payment methods, and billing history
+          {t('billing.description')}
         </p>
       </div>
 
       <Tabs defaultValue="subscription" className="space-y-6">
         <TabsList className="border-zinc-800 bg-zinc-900">
-          <TabsTrigger value="subscription">Subscription</TabsTrigger>
-          <TabsTrigger value="payment">Payment Methods</TabsTrigger>
-          <TabsTrigger value="history">Billing History</TabsTrigger>
+          <TabsTrigger value="subscription">{t('billing.subscription.title')}</TabsTrigger>
+          <TabsTrigger value="payment">{t('billing.payment.title')}</TabsTrigger>
+          <TabsTrigger value="history">{t('billing.history.title')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscription" className="space-y-6">
@@ -307,9 +319,9 @@ const Billing: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-white">Current Subscription</CardTitle>
+                    <CardTitle className="text-white">{t('billing.subscription.current')}</CardTitle>
                     <CardDescription className="text-zinc-400">
-                      Your current plan and usage
+                      {t('billing.subscription.currentDescription')}
                     </CardDescription>
                   </div>
                   <Badge
@@ -327,18 +339,19 @@ const Billing: React.FC = () => {
                 <div className="flex items-center justify-between rounded-lg bg-zinc-800 p-4">
                   <div>
                     <h3 className="text-xl font-semibold text-white">
-                      {currentSubscription.plan_name} Plan
+                      {t('billing.subscription.plan', { plan: currentSubscription.plan_name })}
                     </h3>
                     <p className="text-zinc-400">
-                      Renews on{' '}
-                      {new Date(currentSubscription.current_period_end).toLocaleDateString()}
+                      {t('billing.subscription.renewsOn', { 
+                        date: new Date(currentSubscription.current_period_end).toLocaleDateString() 
+                      })}
                     </p>
                   </div>
                   {currentSubscription.cancel_at_period_end && (
                     <Alert className="border-red-500/30 bg-red-500/10">
                       <AlertCircle className="h-4 w-4 text-red-400" />
                       <AlertDescription className="text-red-400">
-                        Subscription will cancel at period end
+                        {t('billing.subscription.willCancelAtPeriodEnd')}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -346,14 +359,14 @@ const Billing: React.FC = () => {
 
                 {/* Usage Overview */}
                 <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white">Usage This Period</h4>
+                  <h4 className="text-lg font-semibold text-white">{t('billing.subscription.usageThisPeriod')}</h4>
 
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 text-zinc-400">
                           <Phone className="h-4 w-4" />
-                          AI Calls
+                          {t('billing.subscription.aiCalls')}
                         </span>
                         <span className="text-white">
                           {currentSubscription.usage.calls.toLocaleString()} /{' '}
@@ -373,7 +386,7 @@ const Billing: React.FC = () => {
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 text-zinc-400">
                           <Users className="h-4 w-4" />
-                          Team Members
+                          {t('billing.subscription.teamMembers')}
                         </span>
                         <span className="text-white">
                           {currentSubscription.usage.team_members} /{' '}
@@ -393,7 +406,7 @@ const Billing: React.FC = () => {
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 text-zinc-400">
                           <Zap className="h-4 w-4" />
-                          AI Assistants
+                          {t('billing.subscription.aiAssistants')}
                         </span>
                         <span className="text-white">
                           {currentSubscription.usage.ai_assistants} /{' '}
@@ -417,7 +430,7 @@ const Billing: React.FC = () => {
                     className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10"
                     onClick={handleCancelSubscription}
                   >
-                    Cancel Subscription
+                    {t('billing.subscription.cancel')}
                   </Button>
                 )}
               </CardContent>
@@ -426,7 +439,7 @@ const Billing: React.FC = () => {
 
           {/* Available Plans */}
           <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-white">Available Plans</h3>
+            <h3 className="text-xl font-semibold text-white">{t('billing.subscription.availablePlans')}</h3>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {plans.map((plan) => {
                 const isCurrentPlan = currentSubscription?.plan_id === plan.id;
@@ -444,7 +457,7 @@ const Billing: React.FC = () => {
                   >
                     {plan.recommended && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 transform">
-                        <Badge className="bg-emerald-500 text-white">Recommended</Badge>
+                        <Badge className="bg-emerald-500 text-white">{t('billing.subscription.recommended')}</Badge>
                       </div>
                     )}
 
@@ -459,7 +472,7 @@ const Billing: React.FC = () => {
                       </CardDescription>
                       <div className="mt-4">
                         <span className="text-3xl font-bold text-white">${plan.price}</span>
-                        <span className="text-zinc-400">/{plan.interval}</span>
+                        <span className="text-zinc-400">/{t(`billing.subscription.${plan.interval}`)}</span>
                       </div>
                     </CardHeader>
 
@@ -475,7 +488,7 @@ const Billing: React.FC = () => {
 
                       {isCurrentPlan ? (
                         <Button className="w-full bg-zinc-800 text-zinc-400" disabled>
-                          Current Plan
+                          {t('billing.subscription.currentPlan')}
                         </Button>
                       ) : (
                         <Button
@@ -487,7 +500,7 @@ const Billing: React.FC = () => {
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <>
-                              {isUpgrade ? 'Upgrade' : 'Switch'} to {plan.name}
+                              {isUpgrade ? t('billing.subscription.upgradeTo', { plan: plan.name }) : t('billing.subscription.switchTo', { plan: plan.name })}
                               <ChevronRight className="ml-1 h-4 w-4" />
                             </>
                           )}
@@ -506,16 +519,16 @@ const Billing: React.FC = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-white">Payment Methods</CardTitle>
+                  <CardTitle className="text-white">{t('billing.payment.title')}</CardTitle>
                   <CardDescription className="text-zinc-400">
-                    Manage your payment methods
+                    {t('billing.payment.description')}
                   </CardDescription>
                 </div>
                 <Button
                   onClick={handleAddPaymentMethod}
                   className="bg-emerald-600 text-white hover:bg-emerald-700"
                 >
-                  Add Payment Method
+                  {t('billing.payment.addMethod')}
                 </Button>
               </div>
             </CardHeader>
@@ -523,7 +536,7 @@ const Billing: React.FC = () => {
               {paymentMethods.length === 0 ? (
                 <div className="py-8 text-center">
                   <CreditCard className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-                  <p className="text-zinc-400">No payment methods added yet</p>
+                  <p className="text-zinc-400">{t('billing.payment.noMethods')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -539,12 +552,12 @@ const Billing: React.FC = () => {
                             {method.brand} •••• {method.last4}
                           </p>
                           <p className="text-sm text-zinc-400">
-                            Expires {method.exp_month}/{method.exp_year}
+                            {t('billing.payment.expires', { month: method.exp_month, year: method.exp_year })}
                           </p>
                         </div>
                         {method.is_default && (
                           <Badge className="border-emerald-500/30 bg-emerald-500/20 text-emerald-400">
-                            Default
+                            {t('billing.payment.default')}
                           </Badge>
                         )}
                       </div>
@@ -556,7 +569,7 @@ const Billing: React.FC = () => {
                             onClick={() => handleSetDefaultPaymentMethod(method.id)}
                             className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                           >
-                            Set Default
+                            {t('billing.payment.setDefault')}
                           </Button>
                         )}
                         <Button
@@ -565,7 +578,7 @@ const Billing: React.FC = () => {
                           onClick={() => handleRemovePaymentMethod(method.id)}
                           className="border-red-500/30 text-red-400 hover:bg-red-500/10"
                         >
-                          Remove
+                          {t('billing.payment.remove')}
                         </Button>
                       </div>
                     </div>
@@ -579,16 +592,16 @@ const Billing: React.FC = () => {
         <TabsContent value="history" className="space-y-6">
           <Card className="border-zinc-800 bg-zinc-900">
             <CardHeader>
-              <CardTitle className="text-white">Billing History</CardTitle>
+              <CardTitle className="text-white">{t('billing.history.title')}</CardTitle>
               <CardDescription className="text-zinc-400">
-                Your past invoices and payments
+                {t('billing.history.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {billingHistory.length === 0 ? (
                 <div className="py-8 text-center">
                   <Clock className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-                  <p className="text-zinc-400">No billing history yet</p>
+                  <p className="text-zinc-400">{t('billing.history.noHistory')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -626,7 +639,7 @@ const Billing: React.FC = () => {
                                 : 'border-yellow-500/30 bg-yellow-500/20 text-yellow-400'
                             }`}
                           >
-                            {item.status}
+                            {t(`billing.history.status.${item.status}`)}
                           </Badge>
                         </div>
                         {item.invoice_url && (

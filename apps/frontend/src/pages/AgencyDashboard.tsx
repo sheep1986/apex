@@ -205,8 +205,8 @@ const AgencyDashboard: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-black p-4 text-white lg:p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
+    <div className="min-h-screen bg-black text-white">
+      <div className="w-full space-y-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>

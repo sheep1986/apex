@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   SidebarProvider,
   Sidebar,
@@ -14,334 +15,417 @@ import {
 } from '@/components/ui/sidebar';
 import { 
   Home, 
+  Phone, 
   Users, 
   BarChart3, 
   Settings, 
+  Bot,
+  MessageSquare,
   CreditCard,
+  Bell,
   Database,
   Building,
   UserCheck,
   PhoneCall,
   Target,
+  Zap,
+  Monitor,
   DollarSign,
-  Palette,
-  Monitor
+  HeadphonesIcon,
+  Shield,
+  Activity,
+  Menu
 } from 'lucide-react';
 import { UserDropdown } from './UserDropdown';
 import { NotificationBell } from './NotificationBell';
-import { useUserContext } from '../services/MinimalUserProvider';
+import { useUserContext } from '@/services/MinimalUserProvider';
+import { useNotificationStore } from '@/lib/notification-store';
 
-// TypeScript interface for menu items
 interface MenuItem {
   title: string;
+  titleKey: string;
   url: string;
-  icon: React.ComponentType<any>;
+  icon: any;
   isActive: (path: string) => boolean;
   badge?: string;
+  adminOnly?: boolean;
 }
 
-// Role-based menu configurations
-const getMenuItemsForRole = (role: string): MenuItem[] => {
-  const baseItems = [
-    {
-      title: 'Dashboard',
-      url: role === 'platform_owner' ? '/platform' : role.includes('agency') ? '/agency' : '/dashboard',
-      icon: Home,
-      isActive: (path: string) => {
-        if (role === 'platform_owner') return path === '/platform';
-        if (role.includes('agency')) return path === '/agency';
-        return path === '/dashboard';
-      },
-    },
-  ];
+// Platform Owner Menu Items
+const platformOwnerMenuItems = [
+  {
+    title: 'Platform Overview',
+    titleKey: 'platform_overview',
+    url: '/platform',
+    icon: Home,
+    isActive: (path: string) => path === '/platform' || path === '/platform-owner',
+  },
+  {
+    title: 'Organizations',
+    titleKey: 'organizations',
+    url: '/organizations',
+    icon: Building,
+    isActive: (path: string) => path === '/organizations' || path.startsWith('/organization'),
+  },
+  {
+    title: 'User Management',
+    titleKey: 'user_management',
+    url: '/user-management',
+    icon: UserCheck,
+    isActive: (path: string) => path === '/user-management',
+  },
+  {
+    title: 'Platform Analytics',
+    titleKey: 'platform_analytics',
+    url: '/platform-analytics',
+    icon: BarChart3,
+    isActive: (path: string) => path === '/platform-analytics',
+  },
+  {
+    title: 'Support Tickets',
+    titleKey: 'support_tickets',
+    url: '/support-tickets',
+    icon: HeadphonesIcon,
+    isActive: (path: string) => path === '/support-tickets',
+  },
+  {
+    title: 'System Health',
+    titleKey: 'system_health',
+    url: '/system-health',
+    icon: Activity,
+    isActive: (path: string) => path === '/system-health',
+  },
+  {
+    title: 'Security & Audit',
+    titleKey: 'security_audit',
+    url: '/audit-logs',
+    icon: Shield,
+    isActive: (path: string) => path === '/audit-logs',
+  },
+];
 
-  // Platform owner menu items (highest priority)
-  if (role === 'platform_owner') {
-    return [
-      ...baseItems,
-      {
-        title: 'Organizations',
-        url: '/organizations',
-        icon: Building,
-        isActive: (path: string) => path === '/organizations',
-      },
-      {
-        title: 'User Management',
-        url: '/user-management',
-        icon: Users,
-        isActive: (path: string) => path === '/user-management',
-      },
-      {
-        title: 'Platform Analytics',
-        url: '/platform-analytics',
-        icon: BarChart3,
-        isActive: (path: string) => path === '/platform-analytics',
-      },
-      {
-        title: 'System Health',
-        url: '/system-health',
-        icon: Monitor,
-        isActive: (path: string) => path === '/system-health',
-      },
-      {
-        title: 'API Management',
-        url: '/api-keys',
-        icon: Settings,
-        isActive: (path: string) => path === '/api-keys',
-      },
-      {
-        title: 'Billing',
-        url: '/billing',
-        icon: CreditCard,
-        isActive: (path: string) => path === '/billing',
-      },
-    ];
-  }
-
-  // Agency-specific menu items
-  if (role.includes('agency')) {
-    return [
-      ...baseItems,
-      {
-        title: 'Client Portfolio',
-        url: '/clients',
-        icon: Building,
-        isActive: (path: string) => path === '/clients',
-      },
-      {
-        title: 'Revenue Analytics',
-        url: '/agency-analytics',
-        icon: DollarSign,
-        isActive: (path: string) => path === '/agency-analytics',
-      },
-      {
-        title: 'Campaigns',
-        url: '/campaigns',
-        icon: Target,
-        isActive: (path: string) => path === '/campaigns' || path.startsWith('/campaigns/'),
-      },
-      {
-        title: 'All Calls',
-        url: '/all-calls',
-        icon: PhoneCall,
-        isActive: (path: string) => path === '/all-calls',
-      },
-      {
-        title: 'Client Onboarding',
-        url: '/client-onboarding',
-        icon: UserCheck,
-        isActive: (path: string) => path === '/client-onboarding',
-      },
-      {
-        title: 'White Label',
-        url: '/white-label',
-        icon: Palette,
-        isActive: (path: string) => path === '/white-label',
-      },
-      {
-        title: 'Team Management',
-        url: '/team-management',
-        icon: Users,
-        isActive: (path: string) => path === '/team-management',
-      },
-    ];
-  }
-
-  // Client user menu items (default) - includes both client_admin and client_user
-  const clientItems = [
-    ...baseItems,
-    {
-      title: 'Campaigns',
-      url: '/campaigns',
-      icon: Target,
-      isActive: (path: string) => path === '/campaigns' || path.startsWith('/campaigns/'),
-    },
-    {
-      title: 'CRM',
-      url: '/crm',
-      icon: Database,
-      isActive: (path: string) => path === '/crm',
-    },
-    {
-      title: 'All Calls',
-      url: '/all-calls',
-      icon: PhoneCall,
-      isActive: (path: string) => path === '/all-calls',
-    },
-    {
-      title: 'Analytics',
-      url: '/analytics',
-      icon: BarChart3,
-      isActive: (path: string) => path === '/analytics',
-    },
-  ];
-
-  // Add Team Management for admin users (client_admin)
-  if (role.includes('admin') || role === 'client_admin') {
-    clientItems.push({
-      title: 'Team Management',
-      url: '/team-management',
-      icon: Users,
-      isActive: (path: string) => path === '/team-management',
-    });
-  }
-
-  // Add Settings for all users
-  clientItems.push({
+// Agency Menu Items
+const agencyMenuItems = [
+  {
+    title: 'Agency Dashboard',
+    titleKey: 'agency_dashboard',
+    url: '/agency',
+    icon: Home,
+    isActive: (path: string) => path === '/agency',
+  },
+  {
+    title: 'Client Management',
+    titleKey: 'client_management',
+    url: '/clients',
+    icon: Building,
+    isActive: (path: string) => path === '/clients' || path.startsWith('/client/'),
+  },
+  {
+    title: 'Campaigns',
+    titleKey: 'campaigns',
+    url: '/campaigns',
+    icon: Target,
+    isActive: (path: string) => path === '/campaigns' || path.startsWith('/campaigns/'),
+  },
+  {
+    title: 'Analytics',
+    titleKey: 'analytics',
+    url: '/analytics',
+    icon: BarChart3,
+    isActive: (path: string) => path === '/analytics',
+  },
+  {
+    title: 'Team',
+    titleKey: 'team',
+    url: '/team-management',
+    icon: Users,
+    isActive: (path: string) => path === '/team-management',
+  },
+  {
+    title: 'Billing',
+    titleKey: 'billing',
+    url: '/billing',
+    icon: CreditCard,
+    isActive: (path: string) => path === '/billing',
+  },
+  {
     title: 'Settings',
+    titleKey: 'settings',
     url: '/settings',
     icon: Settings,
-    isActive: (path: string) => path === '/settings' || path === '/profile-settings',
-  });
+    isActive: (path: string) => path === '/settings' || path.startsWith('/settings/'),
+  },
+];
 
-  return clientItems;
-};
+// Client Menu Items (original menu)
+const clientMenuItems = [
+  {
+    title: 'Dashboard',
+    titleKey: 'dashboard',
+    url: '/dashboard',
+    icon: Home,
+    isActive: (path: string) => path === '/dashboard',
+  },
+  {
+    title: 'Campaigns',
+    titleKey: 'campaigns',
+    url: '/campaigns',
+    icon: Target,
+    isActive: (path: string) => path === '/campaigns' || path.startsWith('/campaigns/'),
+  },
+  {
+    title: 'CRM',
+    titleKey: 'crm',
+    url: '/crm',
+    icon: Database,
+    isActive: (path: string) => path === '/crm',
+  },
+  {
+    title: 'All Calls',
+    titleKey: 'all_calls',
+    url: '/all-calls',
+    icon: PhoneCall,
+    isActive: (path: string) => path === '/all-calls',
+  },
+  {
+    title: 'Live Monitor',
+    titleKey: 'live_monitor',
+    url: '/live-calls',
+    icon: Monitor,
+    isActive: (path: string) => path === '/live-calls',
+  },
+  {
+    title: 'Analytics',
+    titleKey: 'analytics',
+    url: '/analytics',
+    icon: BarChart3,
+    isActive: (path: string) => path === '/analytics',
+  },
+  {
+    title: 'Cost Analytics',
+    titleKey: 'cost_analytics',
+    url: '/cost-analytics',
+    icon: DollarSign,
+    isActive: (path: string) => path === '/cost-analytics',
+  },
+  {
+    title: 'Team',
+    titleKey: 'team_management',
+    url: '/team-management',
+    icon: Users,
+    isActive: (path: string) => path === '/team-management',
+  },
+  {
+    title: 'Organization',
+    titleKey: 'organization',
+    url: '/organization-settings',
+    icon: Building,
+    isActive: (path: string) => path === '/organization-settings',
+    adminOnly: true,
+  },
+  {
+    title: 'Settings',
+    titleKey: 'settings',
+    url: '/settings',
+    icon: Settings,
+    isActive: (path: string) => path === '/settings' || path.startsWith('/settings/'),
+  },
+];
 
 const Layout: React.FC = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const { userContext } = useUserContext();
+  const { addNotification, notifications } = useNotificationStore();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Get role-based menu items
-  let userRole = userContext?.role?.toLowerCase() || 'client_user';
+  // Initialize demo notifications
+  useEffect(() => {
+    if (notifications.length === 0) {
+      console.log('🔔 Layout: Initializing demo notifications');
+      
+      // Add some demo notifications
+      addNotification({
+        type: 'success',
+        title: 'Campaign Performance Alert',
+        message: 'Summer Sale campaign exceeded target conversion rate by 15%! Great job on the optimization.',
+        category: 'campaigns',
+        priority: 'medium',
+        source: 'Campaign Engine',
+        read: false,
+        action: {
+          label: 'View Campaign',
+          href: '/campaigns'
+        }
+      });
+
+      addNotification({
+        type: 'warning',
+        title: 'Low Credit Balance',
+        message: 'VAPI credits running low. Current balance: 150 credits. Consider topping up.',
+        category: 'billing',
+        priority: 'high',
+        source: 'Billing System',
+        read: false,
+        action: {
+          label: 'Add Credits',
+          href: '/billing'
+        }
+      });
+
+      addNotification({
+        type: 'info',
+        title: 'System Update Complete',
+        message: 'Platform has been updated to v2.1.3 with improved call quality and new analytics features.',
+        category: 'system',
+        priority: 'low',
+        source: 'System',
+        read: true
+      });
+    }
+  }, [notifications.length, addNotification]);
   
-  // Debug: Log role detection
-  console.log('🔍 Layout Role Detection Debug:', {
-    originalRole: userContext?.role,
-    normalizedRole: userRole,
-    userContext: userContext,
-    menuItemsLength: getMenuItemsForRole(userRole).length,
-    menuItems: getMenuItemsForRole(userRole).map(item => item.title),
-    expectedCRM: userRole === 'client_admin' ? 'SHOULD SHOW CRM' : 'no CRM expected',
-    timestamp: new Date().toISOString(),
-    userContextComplete: JSON.stringify(userContext, null, 2)
-  });
-  
-  
-  const menuItems = getMenuItemsForRole(userRole);
+  // Get the appropriate menu items based on user role
+  const menuItems = useMemo(() => {
+    const userRole = userContext?.role?.toLowerCase();
+    console.log('🎯 Layout: Determining menu for role:', userRole);
+    
+    switch (userRole) {
+      case 'platform_owner':
+        return platformOwnerMenuItems;
+      case 'agency_owner':
+      case 'agency_admin':
+      case 'agency_user':
+        return agencyMenuItems;
+      case 'client_admin':
+      case 'client_user':
+      default:
+        return clientMenuItems;
+    }
+  }, [userContext?.role]);
 
   return (
     <div className="flex h-screen w-full bg-gradient-to-br from-gray-900 via-black to-gray-900">
-      {/* Modern Professional Sidebar */}
-      <div className="group">
-        {/* Sidebar Container */}
-        <div className="fixed left-0 top-0 z-40 h-full w-20 group-hover:w-64 transition-all duration-300 ease-out bg-gray-950/95 backdrop-blur-xl border-r border-gray-800/50">
-          {/* Brand Section */}
-          <div className="flex h-20 items-center justify-center border-b border-gray-800/30 px-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
-                <img 
-                  src="https://i.ibb.co/CpCFL2Sn/Screenshot-2025-07-16-at-22-49-Photoroom-1.png" 
-                  alt="Apex AI Logo" 
-                  className="w-12 h-12 object-contain"
-                />
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      {/* Custom Cyberpunk Sidebar with Hover Expansion */}
+      <div className={`group relative transition-all duration-300 ease-in-out z-50 ${
+        isMobileMenuOpen 
+          ? 'fixed inset-y-0 left-0 w-[280px] md:relative md:w-16 md:hover:w-[280px]' 
+          : 'hidden md:block md:w-16 md:hover:w-[280px]'
+      }`}>
+        {/* Sidebar Background with Gradient Overlay */}
+        <div className="absolute inset-0 bg-black/95 backdrop-blur-xl border-r border-cyan-400/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-cyan-400/5 to-transparent pointer-events-none"></div>
+        
+        {/* Sidebar Content */}
+        <div className="relative h-full flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-cyan-400/10">
+            <div className="flex items-center cursor-pointer transition-all duration-300">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg shadow-cyan-400/20 flex-shrink-0">
+                <Zap className="h-6 w-6 text-black font-bold" />
               </div>
-              <div className="overflow-hidden transition-all duration-300 group-hover:w-auto w-0">
-                <div className="whitespace-nowrap">
-                  <h1 className="text-lg font-bold text-white">Apex AI</h1>
-                  <p className="text-xs text-gray-400">
-                    {userRole === 'platform_owner' ? 'Platform Owner' :
-                     userRole.includes('agency') ? 'Agency Portal' : 
-                     userRole.includes('admin') ? 'Client Admin Portal' : 'Client Portal'}
-                  </p>
-                </div>
+              <div className={`ml-3 transition-opacity duration-300 whitespace-nowrap overflow-hidden ${
+                isMobileMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`}>
+                <h1 className="text-xl font-bold text-cyan-400 uppercase tracking-wider">Apex AI</h1>
+                <p className="text-xs text-white/60">{t('navigation:voice_platform')}</p>
               </div>
             </div>
           </div>
           
-          {/* Navigation Menu */}
-          <nav className="flex-1 py-6 px-3">
-            <ul className="space-y-1">
+          {/* Navigation */}
+          <div className="flex-1 py-5">
+            <nav className="space-y-1">
               {menuItems.map((item) => {
-                const isActive = item.isActive(location.pathname);
-                const Icon = item.icon;
+                // Skip admin-only items for non-admin users
+                if (item.adminOnly && userContext?.role !== 'client_admin' && userContext?.role !== 'platform_owner') {
+                  return null;
+                }
                 
+                const isActive = item.isActive(location.pathname);
                 return (
-                  <li key={item.title}>
-                    <Link
-                      to={item.url}
-                      className={`
-                        relative flex items-center h-12 rounded-xl transition-all duration-200
-                        ${isActive 
-                          ? 'bg-amber-500/15 text-amber-400 shadow-lg shadow-amber-500/10' 
-                          : 'text-gray-400 hover:bg-gray-800/60 hover:text-white'
-                        }
-                        group/item
-                      `}
-                    >
-                      {/* Active Indicator */}
-                      {isActive && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-amber-400 rounded-r-full"></div>
-                      )}
-                      
-                      {/* Icon Container */}
-                      <div className="flex items-center justify-center min-w-[3rem] h-12">
-                        <Icon className={`h-5 w-5 transition-colors duration-200 ${
-                          isActive ? 'text-amber-400' : 'text-gray-400 group-hover/item:text-white'
-                        }`} />
-                      </div>
-                      
-                      {/* Text Container */}
-                      <div className="overflow-hidden transition-all duration-300 group-hover:w-auto w-0">
-                        <div className="flex items-center justify-between whitespace-nowrap pr-4">
-                          <span className="text-sm font-medium">{item.title}</span>
-                          {'badge' in item && item.badge && (
-                            <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                              {item.badge}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Collapsed Badge Indicator */}
-                      {'badge' in item && item.badge && (
-                        <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full group-hover:hidden"></div>
-                      )}
-                    </Link>
-                  </li>
+                  <Link
+                    key={item.title}
+                    to={item.url}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`
+                      nav-item flex items-center px-4 py-3.5 text-sm font-medium transition-all duration-300 
+                      border-l-3 relative mx-2 rounded-lg
+                      ${isActive 
+                        ? 'bg-cyan-400/10 text-cyan-400 border-l-cyan-400' 
+                        : 'text-white/70 border-l-transparent hover:bg-cyan-400/5 hover:text-cyan-400 hover:border-l-cyan-400/30'
+                      }
+                    `}
+                  >
+                    {/* Active state indicator */}
+                    {isActive && (
+                      <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-transparent via-cyan-400 to-transparent"></div>
+                    )}
+                    
+                    <item.icon className={`
+                      h-5 w-5 flex-shrink-0 transition-all duration-300
+                      ${isActive ? 'text-cyan-400' : 'text-white/60 group-hover:text-cyan-400'}
+                    `} />
+                    <span className={`ml-3 tracking-wide whitespace-nowrap overflow-hidden transition-opacity duration-300 ${
+                      isMobileMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}>{t(`navigation:${item.titleKey}`)}</span>
+                    
+                    {item.badge && (
+                      <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full animate-pulse opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
                 );
               })}
-            </ul>
-          </nav>
+            </nav>
+          </div>
           
-          {/* User Profile Section */}
-          <div className="border-t border-gray-800/30 p-3">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-shrink-0">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-black font-bold shadow-lg">
-                  SW
-                </div>
-                <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 rounded-full border-2 border-gray-950"></div>
+          {/* Footer */}
+          <div className="p-4 border-t border-cyan-400/10">
+            <div className="flex items-center cursor-pointer transition-all duration-300">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center font-semibold text-black text-sm flex-shrink-0">
+                {userContext?.firstName?.[0] || 'U'}{userContext?.lastName?.[0] || 'U'}
               </div>
-              <div className="overflow-hidden transition-all duration-300 group-hover:w-auto w-0">
-                <div className="whitespace-nowrap">
-                  <p className="text-sm font-semibold text-white">
-                    {userContext?.firstName || 'Sean'} {userContext?.lastName || 'Wentz'}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {userRole === 'platform_owner' ? 'Platform Owner' :
-                     userRole.includes('agency') ? 'Agency Owner' : 
-                     userRole.includes('admin') ? 'Client Admin' : 'Client User'}
-                  </p>
+              <div className="ml-3 flex-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap overflow-hidden">
+                <div className="text-sm font-semibold text-white">
+                  {userContext?.firstName || 'User'} {userContext?.lastName || ''}
+                </div>
+                <div className="text-xs text-white/60">
+                  {userContext?.role?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'User'}
                 </div>
               </div>
             </div>
           </div>
         </div>
-        
-        {/* Sidebar Spacer */}
-        <div className="w-20 group-hover:w-64 transition-all duration-300 ease-out"></div>
       </div>
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900/50 via-black to-gray-900/50">
         {/* Top Bar */}
-        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-cyan-400/10 flex items-center justify-between px-8 relative z-50">
+        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-cyan-400/10 flex items-center justify-between px-4 sm:px-6 lg:px-8 relative z-50">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-white tracking-wide">
-              {menuItems.find(item => item.isActive(location.pathname))?.title || 'Dashboard'}
+            <button
+              className="md:hidden p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <h2 className="text-lg sm:text-xl font-semibold text-white tracking-wide">
+              {(() => {
+                const activeItem = menuItems.find(item => item.isActive(location.pathname));
+                return activeItem ? t(`navigation:${activeItem.titleKey}`) : t('navigation:dashboard');
+              })()}
             </h2>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-5">
             <NotificationBell />
             <UserDropdown />
           </div>
