@@ -70,7 +70,7 @@ function App() {
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<EnhancedLoginPage />} />
+          <Route path="/login" element={<SignIn fallbackRedirectUrl="/dashboard" forceRedirectUrl="/dashboard" routing="path" path="/login" signUpUrl="/signup" />} />
           <Route path="/signup" element={<EnhancedSignUpPage />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
           <Route path="/force-logout" element={<ForceLogout />} />
