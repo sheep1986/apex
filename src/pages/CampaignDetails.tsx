@@ -417,34 +417,49 @@ export default function CampaignDetails() {
     try {
       setIsLoadingCalls(true);
       console.log('🔍 Fetching calls for campaign:', id);
-      const response = await apiClient.get(`/vapi-outbound/campaigns/${id}/calls`);
-      console.log('📊 Raw API response:', response);
-      console.log('📊 Response data:', response.data);
       
-      // Handle different response formats
+      // Try API first, then fallback to Supabase
       let callsData = [];
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          callsData = response.data;
-        } else if (response.data.calls && Array.isArray(response.data.calls)) {
-          callsData = response.data.calls;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          callsData = response.data.data;
+      
+      try {
+        const response = await apiClient.get(`/vapi-outbound/campaigns/${id}/calls`);
+        console.log('📊 Raw API response:', response);
+        console.log('📊 Response data:', response.data);
+        
+        // Handle different response formats
+        if (response.data) {
+          if (Array.isArray(response.data)) {
+            callsData = response.data;
+          } else if (response.data.calls && Array.isArray(response.data.calls)) {
+            callsData = response.data.calls;
+          } else if (response.data.data && Array.isArray(response.data.data)) {
+            callsData = response.data.data;
+          }
         }
+      } catch (apiError) {
+        console.error('❌ API call failed, falling back to Supabase:', apiError);
+        
+        // Import supabase from vapiOutboundService 
+        const { vapiOutboundService } = await import('@/services/vapi-outbound.service');
+        
+        // Use the getCampaignResults method which has Supabase fallback
+        callsData = await vapiOutboundService.getCampaignResults(id);
+        console.log('✅ Fetched calls from Supabase fallback:', callsData);
       }
       
       console.log('📊 Extracted calls data:', callsData);
       
       const transformedCalls = callsData.map((call: any) => ({
         id: call.id, // Use actual call ID, not vapi_call_id
-        phoneNumber: call.customerPhone || call.customer_phone,
-        contactName: call.customerName || call.customer_name,
-        callTime: call.startedAt || call.started_at,
+        phoneNumber: call.customerPhone || call.customer_phone || call.phone_number || call.lead?.phone,
+        contactName: call.customerName || call.customer_name || 
+                    (call.lead ? `${call.lead.firstName || ''} ${call.lead.lastName || ''}`.trim() : ''),
+        callTime: call.startedAt || call.started_at || call.created_at,
         duration: call.duration || 0,
         cost: call.cost || 0,
-        outcome: call.status === 'completed' ? 'Completed' : 
+        outcome: call.outcome || (call.status === 'completed' ? 'Completed' : 
                  call.status === 'initiated' ? 'In Progress' : 
-                 call.status === 'failed' ? 'Failed' : call.status,
+                 call.status === 'failed' ? 'Failed' : call.status),
         status: call.status,
         recording_url: call.recording || call.recording_url,
         recording: call.recording || call.recording_url,
@@ -1009,20 +1024,30 @@ export default function CampaignDetails() {
                             <Badge
                               variant="outline"
                               className={
-                                call.outcome.includes('Interested')
+                                call.outcome === 'interested' || call.outcome.includes('Interested')
                                   ? 'border-green-500 text-green-400'
-                                  : call.outcome.includes('Callback')
+                                  : call.outcome === 'callback' || call.outcome.includes('Callback')
                                     ? 'border-yellow-500 text-yellow-400'
-                                    : call.outcome.includes('Not Interested')
+                                    : call.outcome === 'not_interested' || call.outcome.includes('Not Interested')
                                       ? 'border-red-500 text-red-400'
-                                      : call.outcome.includes('No Answer')
+                                    : call.outcome === 'failed'
+                                      ? 'border-orange-500 text-orange-400'
+                                    : call.outcome === 'no_answer' || call.outcome.includes('No Answer')
                                         ? 'border-gray-500 text-gray-400'
-                                        : call.outcome === 'Completed'
+                                        : call.outcome === 'voicemail'
+                                          ? 'border-purple-500 text-purple-400'
+                                        : call.outcome === 'completed' || call.outcome === 'Completed'
                                           ? 'border-emerald-500 text-emerald-400'
-                                          : 'border-orange-500 text-orange-400'
+                                          : 'border-blue-500 text-blue-400'
                               }
                             >
-                              {call.outcome}
+                              {call.outcome === 'failed' ? 'Unsuccessful' : 
+                               call.outcome === 'no_answer' ? 'No Answer' :
+                               call.outcome === 'interested' ? 'Interested' :
+                               call.outcome === 'not_interested' ? 'Not Interested' :
+                               call.outcome === 'voicemail' ? 'Voicemail' :
+                               call.outcome === 'completed' ? 'Completed' :
+                               call.outcome || 'Unknown'}
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
