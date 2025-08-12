@@ -2,9 +2,12 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } f
 import { useAuth } from '../hooks/auth';
 import { supabase, getSupabase } from '../services/supabase-client';
 
-// API Configuration - Use backend URL from environment
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-august-production.up.railway.app/api';
-console.log('🔗 API Connected to:', API_BASE_URL);
+// API Configuration - Use proxy on Netlify to bypass CORS
+const isNetlify = window.location.hostname.includes('netlify.app');
+const API_BASE_URL = isNetlify 
+  ? '/.netlify/functions/api-proxy/api'  // Use Netlify function proxy
+  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Netlify proxy)' : '(direct)');
 const API_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
