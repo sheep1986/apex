@@ -1,0 +1,668 @@
+import { apiClient } from '../lib/api-client';
+import { supabase } from './supabase-client';
+
+// Types for VAPI Outbound Campaigns
+export interface VapiOutboundCampaign {
+  id: string;
+  apexId?: string; // Human-readable ID like apex12345
+  name: string;
+  description?: string;
+  objective?: string;
+  organizationId: string;
+  assistantId: string;
+  assistantName?: string;
+  phoneNumberId: string;
+  phoneNumber?: string;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  totalLeads: number;
+  callsCompleted: number;
+  callsInProgress: number;
+  successRate: number;
+  totalCost: number;
+  budget?: number;
+  campaignType?: 'b2b' | 'b2c';
+  createdAt: string;
+  updatedAt: string;
+  settings: {
+    callsPerHour: number;
+    retryAttempts: number;
+    timeZone: string;
+    workingHours: {
+      start: string;
+      end: string;
+    };
+    voiceSettings?: {
+      speed: number;
+      pitch: number;
+      temperature: number;
+    };
+    autoReload?: boolean;
+    autoReloadThreshold?: number;
+  };
+  teamAssignment?: {
+    assignedTeam: string[];
+    teamLeader: string;
+  };
+}
+
+export interface VapiOutboundLead {
+  id: string;
+  campaignId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+  company?: string;
+  status: 'pending' | 'calling' | 'completed' | 'failed' | 'no_answer' | 'callback_requested';
+  callAttempts: number;
+  lastCallAt?: string;
+  callId?: string;
+  outcome?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VapiAssistant {
+  id: string;
+  name: string;
+  description?: string;
+  model: string;
+  voice: string;
+  isActive: boolean;
+}
+
+export interface VapiPhoneNumber {
+  id: string;
+  number: string;
+  country: string;
+  provider: string;
+  isActive: boolean;
+}
+
+export interface CampaignDashboard {
+  campaign: VapiOutboundCampaign;
+  metrics: {
+    totalLeads: number;
+    callsCompleted: number;
+    callsInProgress: number;
+    successRate: number;
+    avgCallDuration: number;
+    totalCost: number;
+    costPerCall: number;
+    conversionRate: number;
+  };
+  recentCalls: Array<{
+    id: string;
+    leadName: string;
+    phone: string;
+    status: string;
+    duration: number;
+    cost: number;
+    startedAt: string;
+  }>;
+  leadStatus: {
+    pending: number;
+    calling: number;
+    completed: number;
+    failed: number;
+    noAnswer: number;
+    callbackRequested: number;
+  };
+}
+
+export interface CampaignResults {
+  campaign: VapiOutboundCampaign;
+  leads: VapiOutboundLead[];
+  analytics: {
+    totalCalls: number;
+    successfulCalls: number;
+    avgDuration: number;
+    totalCost: number;
+    conversionsByOutcome: Record<string, number>;
+    callsByHour: Array<{ hour: number; count: number }>;
+    sentimentAnalysis: {
+      positive: number;
+      neutral: number;
+      negative: number;
+    };
+  };
+}
+
+export interface LiveMonitoring {
+  activeCalls: Array<{
+    id: string;
+    leadName: string;
+    phone: string;
+    duration: number;
+    status: string;
+    assistantName: string;
+    startedAt: string;
+  }>;
+  realTimeMetrics: {
+    callsInProgress: number;
+    completedToday: number;
+    successRateToday: number;
+    costToday: number;
+    avgDurationToday: number;
+  };
+  campaignProgress: {
+    leadsRemaining: number;
+    estimatedCompletion: string;
+    currentCallsPerHour: number;
+  };
+}
+
+class VapiOutboundService {
+  private baseURL = import.meta.env.VITE_API_URL || 'https://apex-backend-august-production.up.railway.app';
+
+  // Campaign Management
+  async getCampaigns(): Promise<VapiOutboundCampaign[]> {
+    try {
+      console.log('🎯 VapiOutboundService: Fetching campaigns from:', this.baseURL);
+      
+      // Make the actual API call
+      const response = await apiClient.get('/vapi-outbound/campaigns');
+      console.log('📡 VapiOutboundService: API Response:', response);
+      
+      // The vapi-outbound endpoint returns properly formatted data
+      const campaigns = response.data.campaigns || response.data || [];
+      
+      // Data is already in the correct format from the backend
+      return campaigns.map((campaign: any) => ({
+        id: campaign.id,
+        apexId: campaign.apexId || `apex${campaign.id.substring(0, 5)}`,
+        name: campaign.name,
+        description: campaign.description,
+        status: campaign.status,
+        assistantId: campaign.assistantId,
+        assistantName: campaign.assistantName || 'AI Assistant',
+        phoneNumberId: campaign.phoneNumberId,
+        phoneNumber: campaign.phoneNumber,
+        organizationId: campaign.organizationId || '',
+        objective: campaign.objective,
+        budget: campaign.budget,
+        campaignType: campaign.campaignType,
+        createdAt: campaign.createdAt,
+        updatedAt: campaign.updatedAt,
+        totalLeads: campaign.totalLeads || 0,
+        callsCompleted: campaign.callsCompleted || 0,
+        totalCost: campaign.totalCost || 0,
+        successRate: campaign.successRate || 0,
+        callsInProgress: campaign.callsInProgress || 0,
+        settings: campaign.settings || {
+          callsPerHour: 10,
+          retryAttempts: 2,
+          timeZone: 'America/New_York',
+          workingHours: {
+            start: '09:00',
+            end: '17:00'
+          }
+        },
+        teamAssignment: campaign.teamAssignment
+      }));
+    } catch (error) {
+      console.error('❌ Error fetching campaigns from API:', error);
+      
+      // Fallback to direct Supabase query
+      try {
+        console.log('🔄 Attempting to fetch campaigns directly from Supabase...');
+        
+        const { data: campaigns, error: supabaseError } = await supabase
+          .from('campaigns')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (supabaseError) {
+          console.error('❌ Supabase error:', supabaseError);
+          return [];
+        }
+        
+        console.log('✅ Fetched campaigns from Supabase:', campaigns);
+        
+        // Transform Supabase data to match our interface
+        return (campaigns || []).map((campaign: any) => ({
+          id: campaign.id,
+          apexId: campaign.apex_id || `apex${campaign.id.substring(0, 5)}`,
+          name: campaign.name,
+          description: campaign.description,
+          status: campaign.status || 'draft',
+          assistantId: campaign.assistant_id || '',
+          assistantName: campaign.assistant_name || 'AI Assistant',
+          phoneNumberId: campaign.phone_number_id || '',
+          phoneNumber: campaign.phone_number,
+          organizationId: campaign.organization_id || '',
+          objective: campaign.objective,
+          budget: campaign.budget,
+          campaignType: campaign.campaign_type,
+          createdAt: campaign.created_at,
+          updatedAt: campaign.updated_at,
+          totalLeads: campaign.total_leads || 0,
+          callsCompleted: campaign.calls_completed || 0,
+          totalCost: campaign.total_cost || 0,
+          successRate: campaign.success_rate || 0,
+          callsInProgress: campaign.calls_in_progress || 0,
+          settings: {
+            callsPerHour: campaign.calls_per_hour || 10,
+            retryAttempts: campaign.retry_attempts || 2,
+            timeZone: campaign.time_zone || 'America/New_York',
+            workingHours: {
+              start: campaign.working_hours_start || '09:00',
+              end: campaign.working_hours_end || '17:00'
+            }
+          },
+          teamAssignment: campaign.team_assignment
+        }));
+      } catch (supabaseError) {
+        console.error('❌ Failed to fetch from Supabase:', supabaseError);
+        return [];
+      }
+    }
+  }
+
+  async createCampaign(campaignData: {
+    name: string;
+    assistantId: string;
+    phoneNumberId: string;
+    settings?: Partial<VapiOutboundCampaign['settings']>;
+    callBehavior?: any;
+    workingHours?: any;
+    retryLogic?: any;
+    [key: string]: any;
+  }): Promise<VapiOutboundCampaign> {
+    try {
+      // Extract concurrency from callBehavior if present
+      const maxConcurrentCalls = campaignData.callBehavior?.customConcurrency || 10;
+      
+      // Transform campaign data to match backend expectations
+      const transformedData = {
+        ...campaignData,
+        max_concurrent_calls: maxConcurrentCalls,
+        // Remove frontend-specific properties
+        callBehavior: undefined,
+        // The backend will handle the rest of the data as-is
+      };
+      
+      console.log('📡 Sending campaign data to backend:', transformedData);
+      const response = await apiClient.post('/vapi-outbound/campaigns', transformedData);
+      return response.data.campaign;
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      throw error;
+    }
+  }
+
+  async getCampaignDashboard(campaignId: string): Promise<CampaignDashboard> {
+    try {
+      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching campaign dashboard:', error);
+      throw error;
+    }
+  }
+
+  async uploadLeads(
+    campaignId: string,
+    file: File
+  ): Promise<{ message: string; imported: number; errors: string[] }> {
+    try {
+      const formData = new FormData();
+      formData.append('csvFile', file);
+
+      // Use apiClient for consistent auth handling
+      const response = await apiClient.post(
+        `/vapi-outbound/campaigns/${campaignId}/upload-leads`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading leads:', error);
+      throw error;
+    }
+  }
+
+  async startCampaign(campaignId: string): Promise<{ message: string; callsStarted: number }> {
+    try {
+      console.log('🚀 Starting campaign:', campaignId);
+      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
+      return response.data;
+    } catch (error) {
+      console.error('Error starting campaign:', error);
+      throw error;
+    }
+  }
+
+  async pauseCampaign(campaignId: string): Promise<{ message: string }> {
+    try {
+      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
+      return response.data;
+    } catch (error) {
+      console.error('Error pausing campaign:', error);
+      throw error;
+    }
+  }
+
+  async resumeCampaign(campaignId: string): Promise<{ message: string }> {
+    try {
+      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
+      return response.data;
+    } catch (error) {
+      console.error('Error resuming campaign:', error);
+      throw error;
+    }
+  }
+
+  async getLiveMonitoring(campaignId: string): Promise<LiveMonitoring> {
+    try {
+      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/live`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching live monitoring:', error);
+      throw error;
+    }
+  }
+
+  async getCampaignResults(campaignId: string): Promise<CampaignResults> {
+    try {
+      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/results`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching campaign results:', error);
+      throw error;
+    }
+  }
+
+  // VAPI Resources
+  async getAssistants(): Promise<VapiAssistant[]> {
+    try {
+      console.log('📡 VapiOutboundService.getAssistants: Making API call...');
+      const response = await apiClient.get('/vapi-data/assistants');
+      console.log('📡 VapiOutboundService.getAssistants: Response:', response);
+      console.log('📡 VapiOutboundService.getAssistants: Response data:', response.data);
+      console.log('📡 VapiOutboundService.getAssistants: Assistants array:', response.data.assistants);
+      
+      const assistants = response.data.assistants || [];
+      console.log('📡 VapiOutboundService.getAssistants: Returning', assistants.length, 'assistants');
+      
+      return assistants;
+    } catch (error) {
+      console.error('❌ VapiOutboundService.getAssistants: Error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw error;
+    }
+  }
+
+  async getPhoneNumbers(): Promise<VapiPhoneNumber[]> {
+    try {
+      console.log('📡 VapiOutboundService.getPhoneNumbers: Making API call...');
+      const response = await apiClient.get('/vapi-data/phone-numbers');
+      console.log('📡 VapiOutboundService.getPhoneNumbers: Response:', response);
+      console.log('📡 VapiOutboundService.getPhoneNumbers: Response data:', response.data);
+      console.log('📡 VapiOutboundService.getPhoneNumbers: Phone numbers array:', response.data.phoneNumbers);
+      
+      const phoneNumbers = response.data.phoneNumbers || [];
+      console.log('📡 VapiOutboundService.getPhoneNumbers: Returning', phoneNumbers.length, 'phone numbers');
+      
+      return phoneNumbers;
+    } catch (error) {
+      console.error('❌ VapiOutboundService.getPhoneNumbers: Error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw error;
+    }
+  }
+
+  async downloadLeadsTemplate(): Promise<Blob> {
+    try {
+      const response = await apiClient.get('/vapi-outbound/leads-template', {
+        responseType: 'blob',
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      throw error;
+    }
+  }
+
+  // Utility methods
+  private async getToken(): Promise<string> {
+    // This will be handled by the apiClient which already includes auth headers
+    // The apiClient service handles Clerk authentication automatically
+    return '';
+  }
+
+  formatPhoneNumber(phone: string): string {
+    // Remove all non-digits
+    const digits = phone.replace(/\D/g, '');
+
+    // Format based on length
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    } else if (digits.length === 11 && digits.startsWith('1')) {
+      return `+${digits}`;
+    }
+
+    return `+${digits}`;
+  }
+
+  validateLeadData(leads: any[]): { valid: any[]; invalid: any[] } {
+    const valid = [];
+    const invalid = [];
+
+    for (const lead of leads) {
+      const errors = [];
+
+      if (!lead.firstName?.trim()) errors.push('First name required');
+      if (!lead.lastName?.trim()) errors.push('Last name required');
+      if (!lead.phone?.trim()) errors.push('Phone number required');
+
+      if (lead.phone && !/^\+?[\d\s\-\(\)]+$/.test(lead.phone)) {
+        errors.push('Invalid phone format');
+      }
+
+      if (errors.length === 0) {
+        valid.push({
+          ...lead,
+          phone: this.formatPhoneNumber(lead.phone),
+        });
+      } else {
+        invalid.push({ ...lead, errors });
+      }
+    }
+
+    return { valid, invalid };
+  }
+
+  /**
+   * Get recent calls
+   */
+  async getRecentCalls(limit: number = 20): Promise<any[]> {
+    try {
+      console.log('📡 VapiOutboundService: Fetching recent calls...');
+      const response = await apiClient.get(`/vapi-outbound/calls/recent?limit=${limit}`);
+      console.log('📡 VapiOutboundService: Recent calls response:', response);
+      return response.data.calls || response.data || [];
+    } catch (error) {
+      console.error('Error fetching recent calls from API:', error);
+      
+      // Fallback to direct Supabase query
+      try {
+        console.log('🔄 Attempting to fetch calls directly from Supabase...');
+        
+        const { data: calls, error: supabaseError } = await supabase
+          .from('calls')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        
+        if (supabaseError) {
+          console.error('❌ Supabase error:', supabaseError);
+          return [];
+        }
+        
+        console.log('✅ Fetched calls from Supabase:', calls);
+        return calls || [];
+      } catch (supabaseError) {
+        console.error('❌ Failed to fetch from Supabase:', supabaseError);
+        return [];
+      }
+    }
+  }
+
+  /**
+   * Get calls for a specific campaign
+   */
+  async getCampaignCalls(campaignId: string, params: URLSearchParams): Promise<any> {
+    try {
+      const response = await apiClient.get(`/campaigns/${campaignId}/calls?${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching campaign calls:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get campaign dashboard data (live metrics)
+   */
+  async getCampaignDashboard(campaignId: string): Promise<any> {
+    try {
+      // Try API first
+      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/dashboard`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching campaign dashboard:', error);
+      
+      // Return default dashboard data
+      return {
+        totalCalls: 0,
+        completedCalls: 0,
+        inProgressCalls: 0,
+        averageCallDuration: 0,
+        conversionRate: 0,
+        totalCost: 0,
+        outcomeBreakdown: {
+          answered: 0,
+          voicemail: 0,
+          no_answer: 0,
+          busy: 0,
+          failed: 0
+        }
+      };
+    }
+  }
+
+  /**
+   * Get campaign results (call history)
+   */
+  async getCampaignResults(campaignId: string): Promise<any[]> {
+    try {
+      // Try API first
+      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/calls`);
+      return response.data.calls || response.data || [];
+    } catch (error) {
+      console.error('Error fetching campaign results from API:', error);
+      
+      // Fallback to Supabase
+      try {
+        console.log('🔄 Fetching campaign calls from Supabase...');
+        const { data: calls, error: supabaseError } = await supabase
+          .from('calls')
+          .select(`
+            *,
+            leads:lead_id(*)
+          `)
+          .eq('campaign_id', campaignId)
+          .order('created_at', { ascending: false });
+        
+        if (supabaseError) {
+          console.error('❌ Supabase error:', supabaseError);
+          return [];
+        }
+        
+        // Transform the data to match expected format
+        const transformedCalls = (calls || []).map(call => ({
+          id: call.id,
+          status: call.status || 'completed',
+          outcome: call.outcome || 'no_answer',
+          duration: call.duration || 0,
+          cost: call.cost || 0.05,
+          lead: {
+            firstName: call.leads?.first_name || 'Unknown',
+            lastName: call.leads?.last_name || '',
+            phone: call.leads?.phone || call.phone_number || 'N/A'
+          },
+          startedAt: call.started_at || call.created_at,
+          endedAt: call.ended_at
+        }));
+        
+        console.log(`✅ Fetched ${transformedCalls.length} calls for campaign ${campaignId}`);
+        return transformedCalls;
+      } catch (supabaseError) {
+        console.error('❌ Failed to fetch from Supabase:', supabaseError);
+        return [];
+      }
+    }
+  }
+
+  /**
+   * Get live data for a campaign
+   */
+  async getLiveData(campaignId: string): Promise<any> {
+    return this.getCampaignDashboard(campaignId);
+  }
+
+  /**
+   * Start a campaign
+   */
+  async startCampaign(campaignId: string): Promise<void> {
+    try {
+      await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
+    } catch (error) {
+      console.error('Error starting campaign:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Pause a campaign
+   */
+  async pauseCampaign(campaignId: string): Promise<void> {
+    try {
+      await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
+    } catch (error) {
+      console.error('Error pausing campaign:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resume a campaign
+   */
+  async resumeCampaign(campaignId: string): Promise<void> {
+    try {
+      await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
+    } catch (error) {
+      console.error('Error resuming campaign:', error);
+      throw error;
+    }
+  }
+}
+
+export const vapiOutboundService = new VapiOutboundService();
+export default vapiOutboundService;

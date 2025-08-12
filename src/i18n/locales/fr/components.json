@@ -1,0 +1,46 @@
+{
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "campaigns": "Campagnes",
+    "crm": "CRM",
+    "analytics": "Analytiques",
+    "settings": "Paramètres",
+    "phone_numbers": "Numéros de téléphone",
+    "team_management": "Gestion d'équipe",
+    "billing": "Facturation",
+    "support": "Support"
+  },
+  "user_dropdown": {
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "billing": "Facturation",
+    "support": "Support",
+    "sign_out": "Se déconnecter"
+  },
+  "notifications": {
+    "mark_all_read": "Tout marquer comme lu",
+    "no_notifications": "Aucune nouvelle notification",
+    "view_all": "Voir toutes les notifications"
+  },
+  "search": {
+    "placeholder": "Rechercher...",
+    "no_results": "Aucun résultat trouvé",
+    "searching": "Recherche en cours..."
+  },
+  "table": {
+    "no_data": "Aucune donnée disponible",
+    "loading": "Chargement des données...",
+    "rows_per_page": "Lignes par page",
+    "of": "de",
+    "page": "Page",
+    "previous": "Précédent",
+    "next": "Suivant"
+  },
+  "forms": {
+    "required": "Ce champ est requis",
+    "invalid_email": "Veuillez entrer une adresse e-mail valide",
+    "invalid_phone": "Veuillez entrer un numéro de téléphone valide",
+    "min_length": "Doit contenir au moins {{count}} caractères",
+    "max_length": "Ne doit pas dépasser {{count}} caractères"
+  }
+}

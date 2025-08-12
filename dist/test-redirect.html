@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Redirect</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            background-color: #1a1a2e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: sans-serif;
+        }
+        .container {
+            text-align: center;
+        }
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Redirect Page</h1>
+        <p>If you can see this, the page is rendering correctly.</p>
+        <button onclick="window.location.href='/platform'">Go to Platform</button>
+        <button onclick="window.location.href='/dashboard'">Go to Dashboard</button>
+    </div>
+</body>
+</html>

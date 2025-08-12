@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Auth State</title>
+</head>
+<body>
+    <h1>Auth State Checker</h1>
+    <button onclick="checkAuth()">Check Auth State</button>
+    <pre id="output"></pre>
+    
+    <script>
+        function checkAuth() {
+            const output = document.getElementById('output');
+            const authState = {
+                localStorage: {
+                    devAuthToken: localStorage.getItem('devAuthToken'),
+                    devAuthUser: localStorage.getItem('devAuthUser'),
+                    devAuthRole: localStorage.getItem('devAuthRole'),
+                    devAuthOrgId: localStorage.getItem('devAuthOrgId'),
+                    clerkAuth: localStorage.getItem('__clerk_db_jwt'),
+                    sessionData: localStorage.getItem('clerk-db-jwt-[development-5622]')
+                },
+                cookies: document.cookie,
+                windowClerk: typeof window.Clerk !== 'undefined' ? 'Present' : 'Not found'
+            };
+            
+            output.textContent = JSON.stringify(authState, null, 2);
+            
+            // Also check if we can make an API call
+            fetch('http://localhost:3001/api/health')
+                .then(res => res.json())
+                .then(data => {
+                    output.textContent += '\n\nHealth Check: ' + JSON.stringify(data, null, 2);
+                })
+                .catch(err => {
+                    output.textContent += '\n\nHealth Check Error: ' + err.message;
+                });
+        }
+    </script>
+</body>
+</html>
