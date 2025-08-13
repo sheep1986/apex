@@ -1,15 +1,25 @@
 import type { Handler } from '@netlify/functions';
 
+// Always use Railway API for the proxy since this runs on Netlify servers
 const RAILWAY_API = 'https://apex-backend-august-production.up.railway.app';
-const LOCAL_API = 'http://localhost:3001';
-
-// Use Railway in production, local in development
-const API_BASE = process.env.NODE_ENV === 'production' ? RAILWAY_API : LOCAL_API;
 
 export const handler: Handler = async (event) => {
+  // Handle OPTIONS preflight requests immediately
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type,X-Requested-With',
+      },
+      body: '',
+    };
+  }
+
   // Remove the function path prefix to get the actual API path
   const path = event.path.replace('/.netlify/functions/api-proxy', '');
-  const url = `${API_BASE}${path}${event.rawQuery ? `?${event.rawQuery}` : ''}`;
+  const url = `${RAILWAY_API}${path}${event.rawQuery ? `?${event.rawQuery}` : ''}`;
   
   console.log(`Proxying ${event.httpMethod} request to: ${url}`);
   
@@ -56,7 +66,8 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({ 
         error: 'Backend unavailable',
         message: error instanceof Error ? error.message : 'Unknown error',
-        backend: API_BASE
+        backend: RAILWAY_API,
+        details: 'Railway backend is currently down. Falling back to Supabase.'
       }),
     };
   }

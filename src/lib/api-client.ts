@@ -3,11 +3,17 @@ import { useAuth } from '../hooks/auth';
 import { supabase, getSupabase } from '../services/supabase-client';
 
 // API Configuration - Use proxy on Netlify to bypass CORS
-const isNetlify = window.location.hostname.includes('netlify.app');
+const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('netlify.com');
+const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// Force proxy on Netlify, local API for dev, never use Railway directly
 const API_BASE_URL = isNetlify 
   ? '/.netlify/functions/api-proxy/api'  // Use Netlify function proxy
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
-console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Netlify proxy)' : '(direct)');
+  : isLocalDev 
+    ? 'http://localhost:3001/api'  // Local development
+    : '/.netlify/functions/api-proxy/api';  // Default to proxy for safety
+
+console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Netlify proxy)' : isLocalDev ? '(local dev)' : '(proxy)');
 const API_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
