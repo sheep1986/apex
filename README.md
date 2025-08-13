@@ -397,3 +397,4 @@ All dropdowns (SelectTrigger/SelectContent) across the platform must use the fol
   - Padding: `px-4 py-3` (or as needed for compactness).
 
 **All new dropdowns must follow these specs.**
+<!-- Deployment trigger: Wed Aug 13 18:01:50 CEST 2025 -->
