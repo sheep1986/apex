@@ -19,8 +19,12 @@ export interface Organization {
   billing_email?: string;
   phone?: string;
   address?: string;
+  country?: string;
   website?: string;
   industry?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
   logo_url?: string;
   primary_color: string;
   secondary_color: string;
@@ -28,6 +32,19 @@ export interface Organization {
   call_limit: number;
   user_limit: number;
   storage_limit_gb: number;
+  vapi_api_key?: string;  // Public key
+  vapi_private_key?: string;  // Private key
+  vapi_webhook_secret?: string;
+  vapi_webhook_url?: string;
+  vapi_webhook_configured?: boolean;
+  vapi_assistant_id?: string;
+  vapi_phone_number_id?: string;
+  vapi_settings?: any;
+  webhook_url?: string;
+  max_concurrent_calls?: number;
+  default_user_role?: string;
+  compliance_settings?: any;
+  settings?: any;
   created_at: string;
   updated_at: string;
   trial_ends_at?: string;

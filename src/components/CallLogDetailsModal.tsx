@@ -310,9 +310,19 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
           audioRef.current.pause();
           setIsPlaying(false);
         } else {
-          // If audio source is not set, set it
-          if (!audioRef.current.src || audioRef.current.src !== callData.recording) {
-            audioRef.current.src = callData.recording;
+          // Get the proxy URL if needed
+          let audioUrl = callData.recording;
+          if (callData.recording.includes('vapi.ai') || callData.recording.includes('vapi-public-recordings')) {
+            const baseUrl = import.meta.env.VITE_API_URL || 
+              (window.location.hostname.includes('netlify') 
+                ? 'https://apex-backend-august-production.up.railway.app/api'
+                : 'http://localhost:3001/api');
+            audioUrl = `${baseUrl}/vapi-outbound/recording-proxy?url=${encodeURIComponent(callData.recording)}`;
+          }
+          
+          // If audio source is not set or different, set it
+          if (!audioRef.current.src || !audioRef.current.src.includes(encodeURIComponent(callData.recording))) {
+            audioRef.current.src = audioUrl;
             // Wait for audio to load
             await new Promise((resolve, reject) => {
               audioRef.current!.addEventListener('canplay', resolve, { once: true });
@@ -797,18 +807,24 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                       <button 
                         onClick={() => {
                           if (callData.recording) {
-                            // For VAPI URLs, open in new tab
-                            if (callData.recording.includes('vapi.ai')) {
-                              window.open(callData.recording, '_blank');
-                            } else {
-                              // For other URLs, try to download
-                              const a = document.createElement('a');
-                              a.href = callData.recording;
-                              a.download = `call-recording-${callData.id}.wav`;
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
+                            // Use proxy URL for VAPI recordings
+                            let downloadUrl = callData.recording;
+                            if (callData.recording.includes('vapi.ai') || callData.recording.includes('vapi-public-recordings')) {
+                              const baseUrl = import.meta.env.VITE_API_URL || 
+                                (window.location.hostname.includes('netlify') 
+                                  ? 'https://apex-backend-august-production.up.railway.app/api'
+                                  : 'http://localhost:3001/api');
+                              downloadUrl = `${baseUrl}/vapi-outbound/recording-proxy?url=${encodeURIComponent(callData.recording)}`;
                             }
+                            
+                            // Download the file
+                            const a = document.createElement('a');
+                            a.href = downloadUrl;
+                            a.download = `call-recording-${callData.id}.wav`;
+                            a.target = '_blank'; // Open in new tab for better compatibility
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
                           }
                         }}
                         className="group flex flex-shrink-0 items-center gap-2.5 rounded-xl border border-gray-600/50 bg-gray-800/50 px-5 py-3 transition-all duration-200 hover:border-gray-500/50 hover:bg-gray-700/50"
@@ -903,7 +919,17 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
               {callData.recording && (
                 <audio 
                   ref={audioRef} 
-                  src={callData.recording}
+                  src={(() => {
+                    // Use proxy for VAPI recordings to bypass CORS
+                    if (callData.recording.includes('vapi.ai') || callData.recording.includes('vapi-public-recordings')) {
+                      const baseUrl = import.meta.env.VITE_API_URL || 
+                        (window.location.hostname.includes('netlify') 
+                          ? 'https://apex-backend-august-production.up.railway.app/api'
+                          : 'http://localhost:3001/api');
+                      return `${baseUrl}/vapi-outbound/recording-proxy?url=${encodeURIComponent(callData.recording)}`;
+                    }
+                    return callData.recording;
+                  })()}
                   preload="metacallData"
                   onError={(e) => {
                     console.error('Audio loading error:', e);

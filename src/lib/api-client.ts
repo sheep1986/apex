@@ -6,16 +6,16 @@ import { supabase, getSupabase } from '../services/supabase-client';
 const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('netlify.com');
 const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// Force proxy on Netlify, local API for dev, never use Railway directly
+// Use Railway backend for production, local for dev
 const API_BASE_URL = isNetlify 
-  ? '/.netlify/functions/api-proxy/api'  // Use Netlify function proxy
+  ? 'https://apex-backend-august-production.up.railway.app/api'  // Use Railway backend for production
   : isLocalDev 
     ? 'http://localhost:3001/api'  // Local development
-    : '/.netlify/functions/api-proxy/api';  // Default to proxy for safety
+    : 'https://apex-backend-august-production.up.railway.app/api';  // Default to Railway
 
-console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Netlify proxy)' : isLocalDev ? '(local dev)' : '(proxy)');
-const API_TIMEOUT = 30000; // 30 seconds
-const MAX_RETRIES = 3;
+console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Railway)' : isLocalDev ? '(local dev)' : '(Railway)');
+const API_TIMEOUT = 5000; // 5 seconds - fail fast to use Supabase fallback
+const MAX_RETRIES = 1; // Don't retry - use Supabase fallback quickly
 const RETRY_DELAY = 1000; // 1 second
 
 // Request/Response Types

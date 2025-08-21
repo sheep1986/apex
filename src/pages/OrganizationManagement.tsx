@@ -366,6 +366,7 @@ export default function OrganizationManagement() {
         billing_email: editedOrg.contact_email,
         phone: editedOrg.phone,
         address: editedOrg.address,
+        country: editedOrg.country,
         website: editedOrg.website,
         industry: editedOrg.industry,
         updated_at: new Date().toISOString(),

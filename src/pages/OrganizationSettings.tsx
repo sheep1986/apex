@@ -58,7 +58,8 @@ import { useApiClient } from '@/lib/api-client';
 import { supabaseService } from '@/services/supabase-service';
 
 interface OrganizationSettings {
-  vapi_api_key?: string;
+  vapi_api_key?: string;  // Public key
+  vapi_private_key?: string;  // Private key
   vapi_webhook_secret?: string;
   vapi_phone_numbers?: string[];
   vapi_assistants?: Array<{
@@ -134,6 +135,7 @@ const OrganizationSettings: React.FC = () => {
         // Transform Supabase data to match expected format
         const transformedSettings: OrganizationSettings = {
           vapi_api_key: orgData.vapi_api_key || '',
+          vapi_private_key: orgData.vapi_private_key || '',
           vapi_webhook_secret: orgData.vapi_webhook_secret || '',
           organization_name: orgData.name || '',
           webhook_url: orgData.webhook_url || `https://apex-backend-august-production.up.railway.app/api/vapi/webhook`,
@@ -279,10 +281,10 @@ const OrganizationSettings: React.FC = () => {
   };
 
   const testVapiConnection = async () => {
-    if (!settings.vapi_api_key) {
+    if (!settings.vapi_private_key) {
       toast({
         title: 'Error',
-        description: 'API key is required for testing connection.',
+        description: 'VAPI Private key is required for testing connection.',
         variant: 'destructive',
       });
       return;
@@ -395,16 +397,51 @@ const OrganizationSettings: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* API Key */}
+                {/* Private API Key */}
                 <div className="space-y-2">
-                  <Label className="text-white">VAPI API Key</Label>
+                  <Label className="text-white">VAPI Private Key</Label>
+                  <div className="flex space-x-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={settings.vapi_private_key || ''}
+                        onChange={(e) => setSettings(prev => ({ ...prev, vapi_private_key: e.target.value }))}
+                        placeholder="Enter your VAPI Private Key"
+                        className="pr-10 bg-gray-800 border-gray-700 text-white"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button
+                      onClick={() => saveSetting('vapi_private_key', settings.vapi_private_key, true)}
+                      disabled={saving || !settings.vapi_private_key}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Your VAPI Private key is used to authenticate API requests to the VAPI service.
+                  </p>
+                </div>
+
+                {/* Public API Key */}
+                <div className="space-y-2">
+                  <Label className="text-white">VAPI Public Key</Label>
                   <div className="flex space-x-2">
                     <div className="relative flex-1">
                       <Input
                         type={showApiKey ? 'text' : 'password'}
                         value={settings.vapi_api_key || ''}
                         onChange={(e) => setSettings(prev => ({ ...prev, vapi_api_key: e.target.value }))}
-                        placeholder="Enter your VAPI API key"
+                        placeholder="Enter your VAPI Public Key"
                         className="pr-10 bg-gray-800 border-gray-700 text-white"
                       />
                       <Button
@@ -426,7 +463,7 @@ const OrganizationSettings: React.FC = () => {
                     </Button>
                   </div>
                   <p className="text-xs text-gray-400">
-                    Your VAPI API key is used to authenticate requests to the VAPI service.
+                    Your VAPI Public key is used for webhook authentication.
                   </p>
                 </div>
 
@@ -470,7 +507,7 @@ const OrganizationSettings: React.FC = () => {
                   </div>
                   <Button
                     onClick={testVapiConnection}
-                    disabled={saving || !settings.vapi_api_key}
+                    disabled={saving || !settings.vapi_private_key}
                     variant="outline"
                     className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/20"
                   >
