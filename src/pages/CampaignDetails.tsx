@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { vapiOutboundService } from '@/services/vapi-outbound.service';
 import { apiClient } from '@/lib/api-client';
+import { supabase } from '@/services/supabase-client';
 import {
   ArrowLeft,
   Edit3,
@@ -346,8 +347,35 @@ export default function CampaignDetails() {
     
     try {
       setIsLoading(true);
-      const response = await apiClient.get(`/vapi-outbound/campaigns/${id}`);
-      const campaignData = response.data.campaign;
+      
+      let campaignData;
+      try {
+        // Try API first
+        const response = await apiClient.get(`/vapi-outbound/campaigns/${id}`);
+        campaignData = response.data.campaign;
+      } catch (apiError) {
+        console.log('❌ API call failed, falling back to Supabase:', apiError);
+        
+        // Fallback to Supabase
+        const { data, error } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error) throw error;
+        
+        // Transform Supabase data to match API format
+        campaignData = {
+          ...data,
+          phoneNumbers: data.phone_numbers || [],
+          phoneNumberDetails: [],
+          totalLeads: data.total_leads || 0,
+          callsCompleted: data.calls_completed || 0,
+          successfulCalls: data.successful_calls || 0,
+          assistantName: data.assistant_name || 'AI Assistant',
+        };
+      }
       
       console.log('📊 Campaign data from backend:', campaignData);
       console.log('📊 Metrics:', {
