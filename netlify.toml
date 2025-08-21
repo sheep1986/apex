@@ -1,6 +1,7 @@
 [build]
   publish = "dist"
   command = "npm run build"
+  environment = { CI = "true", NODE_VERSION = "18" }
 
 [[redirects]]
   from = "/api/*"
