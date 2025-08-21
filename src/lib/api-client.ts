@@ -169,9 +169,9 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
         console.warn('⚠️ No authentication token available - user needs to sign in');
       }
 
-      // Add request ID for tracking
-      config.headers['X-Request-ID'] =
-        `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Temporarily disable request ID to avoid CORS issues
+      // config.headers['X-Request-ID'] =
+      //   `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // Log request in development
       if (import.meta.env.DEV) {
