@@ -6,9 +6,9 @@ import { supabase, getSupabase } from '../services/supabase-client';
 const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('netlify.com');
 const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// Use Railway backend for production, local for dev
+// Use Netlify proxy for production to avoid CORS issues
 const API_BASE_URL = isNetlify 
-  ? 'https://apex-backend-august-production.up.railway.app/api'  // Use Railway backend for production
+  ? '/api'  // Use Netlify proxy (configured in netlify.toml)
   : isLocalDev 
     ? 'http://localhost:3001/api'  // Local development
     : 'https://apex-backend-august-production.up.railway.app/api';  // Default to Railway

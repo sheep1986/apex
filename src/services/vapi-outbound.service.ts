@@ -292,16 +292,6 @@ class VapiOutboundService {
     }
   }
 
-  async getCampaignDashboard(campaignId: string): Promise<CampaignDashboard> {
-    try {
-      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching campaign dashboard:', error);
-      throw error;
-    }
-  }
-
   async uploadLeads(
     campaignId: string,
     file: File
@@ -328,53 +318,12 @@ class VapiOutboundService {
     }
   }
 
-  async startCampaign(campaignId: string): Promise<{ message: string; callsStarted: number }> {
-    try {
-      console.log('🚀 Starting campaign:', campaignId);
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
-      return response.data;
-    } catch (error) {
-      console.error('Error starting campaign:', error);
-      throw error;
-    }
-  }
-
-  async pauseCampaign(campaignId: string): Promise<{ message: string }> {
-    try {
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
-      return response.data;
-    } catch (error) {
-      console.error('Error pausing campaign:', error);
-      throw error;
-    }
-  }
-
-  async resumeCampaign(campaignId: string): Promise<{ message: string }> {
-    try {
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
-      return response.data;
-    } catch (error) {
-      console.error('Error resuming campaign:', error);
-      throw error;
-    }
-  }
-
   async getLiveMonitoring(campaignId: string): Promise<LiveMonitoring> {
     try {
       const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/live`);
       return response.data;
     } catch (error) {
       console.error('Error fetching live monitoring:', error);
-      throw error;
-    }
-  }
-
-  async getCampaignResults(campaignId: string): Promise<CampaignResults> {
-    try {
-      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/results`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching campaign results:', error);
       throw error;
     }
   }
@@ -635,9 +584,11 @@ class VapiOutboundService {
   /**
    * Start a campaign
    */
-  async startCampaign(campaignId: string): Promise<void> {
+  async startCampaign(campaignId: string): Promise<{ message: string; callsStarted?: number }> {
     try {
-      await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
+      console.log('🚀 Starting campaign:', campaignId);
+      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
+      return response.data || { message: 'Campaign started' };
     } catch (error) {
       console.error('Error starting campaign:', error);
       throw error;
@@ -647,9 +598,10 @@ class VapiOutboundService {
   /**
    * Pause a campaign
    */
-  async pauseCampaign(campaignId: string): Promise<void> {
+  async pauseCampaign(campaignId: string): Promise<{ message: string }> {
     try {
-      await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
+      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
+      return response.data || { message: 'Campaign paused' };
     } catch (error) {
       console.error('Error pausing campaign:', error);
       throw error;
@@ -659,9 +611,10 @@ class VapiOutboundService {
   /**
    * Resume a campaign
    */
-  async resumeCampaign(campaignId: string): Promise<void> {
+  async resumeCampaign(campaignId: string): Promise<{ message: string }> {
     try {
-      await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
+      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
+      return response.data || { message: 'Campaign resumed' };
     } catch (error) {
       console.error('Error resuming campaign:', error);
       throw error;
