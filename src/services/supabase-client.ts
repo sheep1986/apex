@@ -1,9 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://twigokrtbvigiqnaybfy.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3aWdva3J0YnZpZ2lxbmF5YmZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMzUyNjksImV4cCI6MjA2NjcxMTI2OX0.AcRI1NYcCYpRqvHZvux15kMbGPocFbvT6uLf5DD6v24';
 
-if (!supabaseUrl || !supabaseAnonKey) {
+// Ensure URL has https:// prefix
+const finalSupabaseUrl = supabaseUrl.startsWith('http') ? supabaseUrl : `https://${supabaseUrl}`;
+
+if (!finalSupabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase URL or anonymous key is missing from environment variables.');
 }
 
@@ -17,7 +20,7 @@ export function getSupabase() {
     if (typeof window === 'undefined') {
       throw new Error('Supabase client can only be used in the browser');
     }
-    _supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    _supabase = createClient(finalSupabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
