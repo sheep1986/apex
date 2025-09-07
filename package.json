@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "yes | pnpm install && rm -rf node_modules/.vite-temp && vite build",
+    "build": "rm -rf node_modules/.vite-temp && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
