@@ -33,7 +33,15 @@ export function getSupabase() {
     if (typeof window === 'undefined') {
       throw new Error('Supabase client can only be used in the browser');
     }
-    _supabase = createClient(finalSupabaseUrl, supabaseAnonKey, {
+    
+    // CRITICAL: Ensure the URL always has https://
+    const safeUrl = finalSupabaseUrl.startsWith('http') 
+      ? finalSupabaseUrl 
+      : `https://${finalSupabaseUrl.replace(/^https?:\/\//, '')}`;
+    
+    console.log('🔐 Creating Supabase client with URL:', safeUrl);
+    
+    _supabase = createClient(safeUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -41,6 +49,12 @@ export function getSupabase() {
         storageKey: 'sb-twigokrtbvigiqnaybfy-auth-token',
         detectSessionInUrl: true,
       },
+      // Force HTTPS in all requests
+      global: {
+        headers: {
+          'X-Client-Info': 'apex-frontend'
+        }
+      }
     });
   }
   return _supabase;

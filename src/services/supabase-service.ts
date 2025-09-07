@@ -1,11 +1,24 @@
 import { getSupabase } from './supabase-client';
 
-// Get the actual client instead of using the proxy
-const supabase = getSupabase();
+// Lazy-load the Supabase client to ensure proper initialization
+let _supabaseClient: ReturnType<typeof getSupabase> | null = null;
 
-// Add initialization check
-console.log('🔍 Supabase client initialized:', !!supabase);
-console.log('🔍 Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+function getSupabaseClient() {
+  if (!_supabaseClient) {
+    _supabaseClient = getSupabase();
+    console.log('🔍 Supabase client initialized:', !!_supabaseClient);
+    console.log('🔍 Supabase URL:', import.meta.env.VITE_SUPABASE_URL || 'https://twigokrtbvigiqnaybfy.supabase.co');
+  }
+  return _supabaseClient;
+}
+
+// Use getter for backward compatibility
+const supabase = new Proxy({} as ReturnType<typeof getSupabase>, {
+  get(target, prop, receiver) {
+    const client = getSupabaseClient();
+    return Reflect.get(client, prop, receiver);
+  }
+});
 
 // Types for our database tables
 export interface Organization {
