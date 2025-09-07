@@ -47,6 +47,11 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { cn } from '@/lib/utils';
 import { organizationService, OrganizationUser } from '@/services/organization-service';
 import { VAPIAutoSetup } from '@/components/VAPIAutoSetup';
+import { supabase } from '@/services/supabase-client';
+
+// Network detection for API calls
+const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('netlify.com');
+const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 import { 
   Select,
   SelectContent,
@@ -364,7 +369,9 @@ const OrganizationSettingsV2: React.FC = () => {
   const [showVapiPrivateKey, setShowVapiPrivateKey] = useState(false);
   const [showVapiPublicKey, setShowVapiPublicKey] = useState(false);
   const [vapiPrivateKey, setVapiPrivateKey] = useState(organization?.vapi_private_key || '');
-  const [vapiPublicKey, setVapiPublicKey] = useState(organization?.vapi_api_key || ''); // vapi_api_key contains the public key
+  const [vapiPublicKey, setVapiPublicKey] = useState(organization?.vapi_public_key || organization?.vapi_api_key || ''); // Use vapi_public_key first, fall back to vapi_api_key
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ assistants?: number; phoneNumbers?: number } | null>(null);
 
   useEffect(() => {
     if (organization) {
@@ -379,9 +386,9 @@ const OrganizationSettingsV2: React.FC = () => {
         vapi_api_key: organization.vapi_api_key,
         vapi_private_key: organization.vapi_private_key
       });
-      // Handle current data structure where vapi_api_key contains the public key
+      // Handle new data structure with vapi_public_key
       setVapiPrivateKey(organization.vapi_private_key || '');
-      setVapiPublicKey(organization.vapi_api_key || ''); // vapi_api_key contains the public key
+      setVapiPublicKey(organization.vapi_public_key || organization.vapi_api_key || ''); // Use vapi_public_key first, fall back to vapi_api_key
       setEditedOrg(organization);
     } else {
       console.log('⚠️ No organization data available');
@@ -392,7 +399,7 @@ const OrganizationSettingsV2: React.FC = () => {
     try {
       const updates = keyType === 'private' 
         ? { vapi_private_key: vapiPrivateKey }
-        : { vapi_api_key: vapiPublicKey }; // Save public key to vapi_api_key for now
+        : { vapi_public_key: vapiPublicKey, vapi_api_key: vapiPublicKey }; // Save to both for backward compatibility
         
       await updateOrganization(updates);
       toast({
@@ -405,6 +412,60 @@ const OrganizationSettingsV2: React.FC = () => {
         description: `Failed to update VAPI ${keyType} key`,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleSyncVapi = async (syncType: 'all' | 'assistants' | 'phone-numbers') => {
+    setIsSyncing(true);
+    try {
+      // Import supabase at the top if not already
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token || '';
+      
+      const apiUrl = isNetlify 
+        ? '/api'  
+        : isLocalDev 
+          ? 'http://localhost:3001/api'
+          : 'https://apex-backend-august-production.up.railway.app/api';
+      
+      const response = await fetch(`${apiUrl}/vapi-sync/${syncType}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Sync failed');
+      }
+
+      const result = await response.json();
+      
+      if (syncType === 'all') {
+        setSyncStatus({
+          assistants: result.assistants?.count || 0,
+          phoneNumbers: result.phoneNumbers?.count || 0,
+        });
+        toast({
+          title: 'Sync Complete',
+          description: `Synced ${result.assistants?.count || 0} assistants and ${result.phoneNumbers?.count || 0} phone numbers`,
+        });
+      } else {
+        const count = result.count || 0;
+        toast({
+          title: 'Sync Complete',
+          description: `Synced ${count} ${syncType.replace('-', ' ')}`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Sync Failed',
+        description: 'Failed to sync VAPI data. Please check your keys.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -1014,6 +1075,57 @@ const OrganizationSettingsV2: React.FC = () => {
                   </div>
                   <p className="text-xs text-gray-500">Configure this URL in your VAPI dashboard</p>
                 </div>
+
+                {/* Manual Sync Section - Only for Admin Users */}
+                {vapiPrivateKey && vapiPublicKey && (
+                  <div className="space-y-2 pt-4 border-t border-gray-800">
+                    <Label className="text-gray-400">VAPI Data Sync</Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        className="bg-blue-600 hover:bg-blue-700 border-blue-600 text-white"
+                        onClick={() => handleSyncVapi('all')}
+                        disabled={isSyncing}
+                      >
+                        {isSyncing ? (
+                          <>
+                            <Cpu className="h-4 w-4 mr-2 animate-spin" />
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="h-4 w-4 mr-2" />
+                            Sync All
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-gray-700 hover:bg-gray-800"
+                        onClick={() => handleSyncVapi('assistants')}
+                        disabled={isSyncing}
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        Sync Assistants
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-gray-700 hover:bg-gray-800"
+                        onClick={() => handleSyncVapi('phone-numbers')}
+                        disabled={isSyncing}
+                      >
+                        <Phone className="h-4 w-4 mr-2" />
+                        Sync Phone Numbers
+                      </Button>
+                    </div>
+                    {syncStatus && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Last sync: {syncStatus.assistants} assistants, {syncStatus.phoneNumbers} phone numbers
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500">Manually sync your VAPI assistants and phone numbers</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
