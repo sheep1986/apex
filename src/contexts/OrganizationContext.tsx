@@ -82,7 +82,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchOrganization = async () => {
-    console.log('🔄 fetchOrganization called, user:', user);
+    console.log('🔄 fetchOrganization called', {
+      user: user?.email,
+      userId: user?.id,
+      orgId: user?.organization_id,
+      retryCount
+    });
     
     // Prevent excessive retries
     if (retryCount >= 3) {
@@ -96,15 +101,17 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       const orgId = getOrganizationId();
-      console.log('🔍 Organization ID:', orgId);
+      console.log('🔍 Organization ID resolved to:', orgId);
       
       if (!orgId) {
+        console.error('❌ No organization ID found for user:', user?.email);
         throw new Error('No organization ID found');
       }
 
       // Fetch organization from Supabase
-      console.log('📡 Fetching organization from Supabase...');
+      console.log('📡 Starting Supabase fetch for org:', orgId);
       const orgData = await supabaseService.getOrganization(orgId);
+      console.log('📦 Organization data received from service:', orgData);
       
       if (!orgData) {
         throw new Error('Organization not found');
@@ -116,18 +123,32 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       // Use the data as-is from Supabase, it should have all fields
       setOrganization(orgData);
 
-      // Fetch organization stats
-      const stats = await supabaseService.getOrganizationStats(orgId);
-      
-      setStats({
-        totalUsers: stats.totalUsers,
-        totalCampaigns: stats.totalCampaigns,
-        totalCalls: stats.totalCalls,
-        totalLeads: stats.totalLeads,
-        monthlySpend: orgData.monthly_cost || 0,
-        creditsUsed: stats.completedCalls * 10, // Rough estimate: 10 credits per call
-        creditsRemaining: Math.max(0, (orgData.call_limit || 5000) - stats.completedCalls),
-      });
+      // Fetch organization stats - wrapped in try/catch to prevent errors from breaking the org data
+      try {
+        const stats = await supabaseService.getOrganizationStats(orgId);
+        
+        setStats({
+          totalUsers: stats.totalUsers,
+          totalCampaigns: stats.totalCampaigns,
+          totalCalls: stats.totalCalls,
+          totalLeads: stats.totalLeads,
+          monthlySpend: orgData.monthly_cost || 0,
+          creditsUsed: stats.completedCalls * 10, // Rough estimate: 10 credits per call
+          creditsRemaining: Math.max(0, (orgData.call_limit || 5000) - stats.completedCalls),
+        });
+      } catch (statsError) {
+        console.warn('⚠️ Could not fetch organization stats:', statsError);
+        // Set default stats if fetch fails
+        setStats({
+          totalUsers: 0,
+          totalCampaigns: 0,
+          totalCalls: 0,
+          totalLeads: 0,
+          monthlySpend: orgData.monthly_cost || 0,
+          creditsUsed: 0,
+          creditsRemaining: orgData.call_limit || 5000,
+        });
+      }
       
       // Reset retry count on success
       setRetryCount(0);
@@ -175,14 +196,16 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       isLoading: isLoading,
       organization: organization,
       hasFetched: hasFetched,
-      condition: user && !hasFetched
+      condition: user && !isLoading && !organization && !hasFetched
     });
     
-    if (user && !hasFetched) {
+    // Fetch if we have a user and haven't fetched yet OR if we have no organization data
+    if (user && !isLoading && (!hasFetched || !organization)) {
+      console.log('🚀 Triggering fetchOrganization from useEffect');
       setHasFetched(true);
       fetchOrganization();
     }
-  }, [user, hasFetched]);
+  }, [user, hasFetched, organization, isLoading]);
 
   return (
     <OrganizationContext.Provider

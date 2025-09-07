@@ -45,7 +45,8 @@ import SystemHealth from './pages/SystemHealth';
 import AllCalls from './pages/AllCalls';
 import Notifications from './pages/Notifications';
 import { Organizations } from './pages/Organizations';
-import OrganizationSettings from './pages/OrganizationSettings';
+import OrganizationSettingsV2 from './pages/OrganizationSettingsV2';
+import { OrganizationProvider } from './contexts/OrganizationContext';
 import OrganizationSetupWizard from './pages/OrganizationSetupWizard';
 import OrganizationManagement from './pages/OrganizationManagement';
 import PlatformAnalytics from './pages/PlatformAnalytics';
@@ -120,7 +121,9 @@ function App() {
               path="/organization-settings"
               element={
                 <RoleBasedRoute allowedRoles={['client_admin', 'platform_owner']} redirectTo="/dashboard">
-                  <OrganizationSettings />
+                  <OrganizationProvider>
+                    <OrganizationSettingsV2 />
+                  </OrganizationProvider>
                 </RoleBasedRoute>
               }
             />

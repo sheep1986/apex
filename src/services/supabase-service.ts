@@ -704,11 +704,7 @@ class SupabaseService {
   async getCalls(organizationId: string, campaignId?: string, leadId?: string) {
     let query = supabase
       .from('calls')
-      .select(`
-        *,
-        leads(*),
-        campaigns(*)
-      `)
+      .select('*')
       .eq('organization_id', organizationId)
       .order('started_at', { ascending: false });
     
