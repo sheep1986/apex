@@ -28,7 +28,8 @@ interface Organization {
   trial_ends_at?: string;
   last_payment_at?: string;
   vapi_private_key?: string;
-  vapi_public_key?: string;
+  vapi_api_key?: string;  // This is the public key - matching database column name
+  vapi_public_key?: string;  // Kept for backward compatibility
 }
 
 interface OrganizationStats {
@@ -109,16 +110,11 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         throw new Error('Organization not found');
       }
 
-      // Set organization data, handling missing VAPI fields
-      const org = {
-        ...orgData,
-        // Only add VAPI fields if they exist
-        ...(orgData.vapi_private_key && { vapi_private_key: orgData.vapi_private_key }),
-        ...(orgData.vapi_public_key && { vapi_public_key: orgData.vapi_public_key }),
-        ...(orgData.vapi_api_key && { vapi_api_key: orgData.vapi_api_key }),
-      };
+      // Set organization data - include ALL fields from database
+      console.log('📊 Organization data received:', orgData);
       
-      setOrganization(org);
+      // Use the data as-is from Supabase, it should have all fields
+      setOrganization(orgData);
 
       // Fetch organization stats
       const stats = await supabaseService.getOrganizationStats(orgId);
@@ -160,16 +156,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       // Update in Supabase
       const updatedOrg = await supabaseService.updateOrganization(organization.id, updates);
       
-      // Update with the actual data from the server, handling missing VAPI fields
-      const org = {
-        ...updatedOrg,
-        // Only add VAPI fields if they exist
-        ...(updatedOrg.vapi_private_key && { vapi_private_key: updatedOrg.vapi_private_key }),
-        ...(updatedOrg.vapi_public_key && { vapi_public_key: updatedOrg.vapi_public_key }),
-        ...(updatedOrg.vapi_api_key && { vapi_api_key: updatedOrg.vapi_api_key }),
-      };
-      
-      setOrganization(org);
+      // Use the updated data as-is from Supabase
+      console.log('📊 Updated organization data:', updatedOrg);
+      setOrganization(updatedOrg);
       
       console.log('Organization updated successfully:', updates);
     } catch (err) {

@@ -368,7 +368,14 @@ const OrganizationSettingsV2: React.FC = () => {
 
   useEffect(() => {
     if (organization) {
-      console.log('🔑 Loading VAPI keys from organization:', {
+      console.log('🔍 Full organization data loaded:', organization);
+      console.log('📋 Organization fields:', {
+        name: organization.name,
+        billing_email: organization.billing_email,
+        phone: organization.phone,
+        website: organization.website,
+        industry: organization.industry,
+        address: organization.address,
         vapi_api_key: organization.vapi_api_key,
         vapi_private_key: organization.vapi_private_key
       });
@@ -376,6 +383,8 @@ const OrganizationSettingsV2: React.FC = () => {
       setVapiPrivateKey(organization.vapi_private_key || '');
       setVapiPublicKey(organization.vapi_api_key || ''); // vapi_api_key contains the public key
       setEditedOrg(organization);
+    } else {
+      console.log('⚠️ No organization data available');
     }
   }, [organization]);
 

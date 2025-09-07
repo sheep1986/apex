@@ -296,13 +296,31 @@ class SupabaseService {
   }
 
   async getOrganization(id: string) {
+    console.log('📡 Fetching organization with ID:', id);
+    
     const { data, error } = await supabase
       .from('organizations')
       .select('*')
       .eq('id', id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error fetching organization:', error);
+      throw error;
+    }
+    
+    console.log('✅ Organization fetched from Supabase:', data);
+    console.log('📊 Organization data fields:', {
+      hasName: !!data?.name,
+      hasBillingEmail: !!data?.billing_email,
+      hasPhone: !!data?.phone,
+      hasWebsite: !!data?.website,
+      hasIndustry: !!data?.industry,
+      hasAddress: !!data?.address,
+      hasVapiApiKey: !!data?.vapi_api_key,
+      hasVapiPrivateKey: !!data?.vapi_private_key
+    });
+    
     return data as Organization;
   }
 
