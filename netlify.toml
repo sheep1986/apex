@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "npm run build"
+  command = "npx pnpm install && npx pnpm build"
   environment = { CI = "true", NODE_VERSION = "18" }
 
 [[redirects]]
