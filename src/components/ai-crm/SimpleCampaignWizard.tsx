@@ -17,6 +17,7 @@ import { supabaseService } from '@/services/supabase-service';
 import { supabase } from '@/services/supabase-client';
 import { useUserContext } from '@/services/MinimalUserProvider';
 import vapiDirect from '@/services/vapi-direct';
+import { useUser } from '@/hooks/auth';
 
 interface SimpleCampaignWizardProps {
   onCampaignCreated: (campaign: any) => void;
@@ -159,6 +160,7 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
   const { toast } = useToast();
   const apiClient = useApiClient();
   const { userContext } = useUserContext();
+  const { user } = useUser();
 
   // Load organization defaults on component mount
   useEffect(() => {
@@ -1464,6 +1466,7 @@ The review section provides detailed estimates for your campaign including durat
         .insert({
           name: campaignName,
           organization_id: userContext?.organization_id || localStorage.getItem('organization_id'),
+          created_by: user?.id || null,
           status: whenToSend === 'now' ? 'active' : 'draft',
           type: campaignType,
           description: `Campaign with ${csvData.length} contacts`,
