@@ -20,43 +20,40 @@ async function getVapiPublicKey(): Promise<string | null> {
   if (cachedApiKey) return cachedApiKey;
   
   try {
-    // Get current user's organization
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error('No authenticated user');
-      return null;
-    }
+    // Try to get organization ID from localStorage (set by UserContext)
+    const storedOrgId = localStorage.getItem('organization_id');
+    console.log('🔍 Stored organization ID:', storedOrgId);
     
-    // Get user's organization ID
-    const { data: userData } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single();
+    // If no org ID, try the hardcoded one for Emerald Green Energy
+    const organizationId = storedOrgId || '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
     
-    if (!userData?.organization_id) {
-      console.error('User has no organization');
-      return null;
-    }
-    
-    // Get organization's VAPI public key
-    const { data: org } = await supabase
+    // Get organization's VAPI keys directly
+    const { data: org, error: orgError } = await supabase
       .from('organizations')
-      .select('vapi_api_key, vapi_public_key')
-      .eq('id', userData.organization_id)
+      .select('vapi_api_key, vapi_private_key, vapi_public_key, name')
+      .eq('id', organizationId)
       .single();
     
-    const apiKey = org?.vapi_public_key || org?.vapi_api_key;
+    console.log('🔍 Organization data:', org);
+    if (orgError) {
+      console.error('Error fetching org:', orgError);
+      return null;
+    }
+    
+    // Check both private and public keys - private key is what VAPI actually uses
+    const apiKey = org?.vapi_private_key || org?.vapi_api_key || org?.vapi_public_key;
     
     if (apiKey) {
       cachedApiKey = apiKey;
       // Store in localStorage for quick access (with expiry)
       localStorage.setItem('vapi_public_key', apiKey);
       localStorage.setItem('vapi_key_cached_at', Date.now().toString());
-      console.log('✅ Loaded VAPI key from organization settings');
+      console.log('✅ Loaded VAPI key from organization:', org.name);
+      console.log('🔑 Using key:', apiKey.substring(0, 10) + '...');
       return apiKey;
     } else {
       console.warn('⚠️ Organization has no VAPI API key configured');
+      console.log('📊 Org data:', org);
       return null;
     }
   } catch (error) {
@@ -89,7 +86,8 @@ async function vapiRequest(
   const apiKey = await getVapiPublicKey();
   
   if (!apiKey) {
-    throw new Error('VAPI Public API Key not configured');
+    console.warn('⚠️ No VAPI API key found for organization');
+    throw new Error('VAPI API keys not configured. Please contact your administrator to set up VAPI integration in Organization Settings.');
   }
   
   const response = await fetch(`${VAPI_BASE_URL}${endpoint}`, {

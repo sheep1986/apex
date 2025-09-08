@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Slider } from '../ui/slider';
 import { Switch } from '../ui/switch';
+import { Alert, AlertDescription } from '../ui/alert';
 import { useApiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import vapiOutboundService from '@/services/vapi-outbound.service';
@@ -158,13 +159,19 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
 
   // Load organization defaults on component mount
   useEffect(() => {
+    // Store organization ID for VAPI service to use
+    if (userContext?.organization_id) {
+      localStorage.setItem('organization_id', userContext.organization_id);
+      console.log('📝 Stored organization ID:', userContext.organization_id);
+    }
+    
     loadOrganizationDefaults();
     // Load VAPI data with a small delay to ensure component is ready
     const timer = setTimeout(() => {
       loadVapiData();
     }, 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [userContext]);
 
   // Load VAPI assistants and phone numbers using organization's VAPI credentials
   const loadVapiData = async () => {
@@ -1650,22 +1657,17 @@ The review section provides detailed estimates for your campaign including durat
                   <SelectValue placeholder={loadingVapiData ? "Loading..." : "Select"} />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700">
-                  {(() => {
-                    console.log('🎨 Rendering assistants dropdown:', {
-                      assistantsLength: assistants.length,
-                      assistants: assistants,
-                      loadingVapiData: loadingVapiData
-                    });
-                    return assistants.length === 0 ? (
-                      <SelectItem value="none" disabled>No assistants available</SelectItem>
-                    ) : (
-                      assistants.map((asst) => (
-                        <SelectItem key={asst.id} value={asst.id}>
-                          {asst.name}
-                        </SelectItem>
-                      ))
-                    );
-                  })()}
+                  {assistants.length === 0 ? (
+                    <SelectItem value="none" disabled>
+                      {loadingVapiData ? "Loading..." : "No assistants available - Check VAPI configuration"}
+                    </SelectItem>
+                  ) : (
+                    assistants.map((asst) => (
+                      <SelectItem key={asst.id} value={asst.id}>
+                        {asst.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
