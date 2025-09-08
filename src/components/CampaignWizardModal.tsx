@@ -332,6 +332,29 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
     }
   };
 
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<any>(null);
+  const [bypassDuplicates, setBypassDuplicates] = useState(false);
+
+  const checkForDuplicates = async (csvData: string) => {
+    try {
+      const response = await fetch('http://localhost:3002/api/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          csvData,
+          organizationId: user?.organizationId
+        })
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      return null;
+    }
+  };
+
   const handleCreateCampaign = async () => {
     try {
       setLoading(true);
@@ -340,9 +363,21 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
       let csvData = null;
       if (uploadedFile) {
         csvData = await uploadedFile.text();
+        
+        // Check for duplicates if not already bypassed
+        if (!bypassDuplicates) {
+          const duplicateCheck = await checkForDuplicates(csvData);
+          
+          if (duplicateCheck && duplicateCheck.totalDuplicates > 0) {
+            setDuplicateInfo(duplicateCheck);
+            setShowDuplicateWarning(true);
+            setLoading(false);
+            return; // Stop here and show warning
+          }
+        }
       }
 
-      // Create the campaign with all form data
+      // Create the campaign with all form data including settings
       const campaignPayload = {
         name: formData.name,
         description: 'VAPI Outbound Campaign',
@@ -361,6 +396,26 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
                 timezone: 'UTC',
               }
             : null,
+        // Add settings for backend to store in settings column
+        settings: {
+          assistant_id: formData.assistantId,
+          phone_number_id: formData.phoneNumberId,
+          csv_data: csvData,
+          working_hours_start: '09:00',  // Default working hours
+          working_hours_end: '17:00',
+          time_zone: 'America/New_York',
+          calls_per_day: 100,  // Default calls per day limit
+          max_concurrent_calls: 5,
+          total_leads: csvData ? csvData.split('\n').filter(line => line.trim()).length - 1 : 0, // Count CSV rows minus header
+          allowDuplicates: bypassDuplicates,  // Add duplicate bypass flag
+        },
+        workingHours: {
+          start: '09:00',
+          end: '17:00'
+        },
+        callBehavior: {
+          customConcurrency: 5
+        }
       };
 
       const response = await vapiOutboundService.createCampaign(campaignPayload);
@@ -403,6 +458,7 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-900">
       <div className="min-h-full">
         {/* Header */}
@@ -892,6 +948,72 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
         />
       )}
     </div>
+
+    {/* Duplicate Warning Modal */}
+    {showDuplicateWarning && duplicateInfo && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="mx-4 max-w-lg rounded-lg bg-gray-900 border border-yellow-600/30 p-6 shadow-2xl">
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-yellow-500">⚠️ Duplicate Leads Detected</h3>
+          </div>
+          
+          <div className="mb-6 space-y-3">
+            <p className="text-gray-300">
+              Found <span className="font-bold text-yellow-500">{duplicateInfo.totalDuplicates}</span> phone 
+              number(s) that already exist in other campaigns.
+            </p>
+            
+            <div className="max-h-48 overflow-y-auto rounded bg-gray-800 p-3">
+              {duplicateInfo.duplicates.slice(0, 5).map((dup: any, idx: number) => (
+                <div key={idx} className="mb-2 text-sm">
+                  <div className="text-gray-400">
+                    📞 {dup.phone}
+                  </div>
+                  <div className="ml-4 text-xs text-gray-500">
+                    Already in: {dup.campaigns[0]?.campaignName || 'Another campaign'}
+                    {dup.campaigns.length > 1 && ` (+${dup.campaigns.length - 1} more)`}
+                  </div>
+                </div>
+              ))}
+              {duplicateInfo.totalDuplicates > 5 && (
+                <div className="text-xs text-gray-500 mt-2">
+                  ...and {duplicateInfo.totalDuplicates - 5} more duplicates
+                </div>
+              )}
+            </div>
+            
+            <p className="text-sm text-gray-400">
+              Do you want to proceed and call these numbers again?
+            </p>
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setShowDuplicateWarning(false);
+                setDuplicateInfo(null);
+                setBypassDuplicates(false);
+              }}
+              className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-gray-300 hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setShowDuplicateWarning(false);
+                setBypassDuplicates(true);
+                // Retry campaign creation with bypass flag
+                setTimeout(() => handleCreateCampaign(), 100);
+              }}
+              className="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
+            >
+              Yes, Call Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

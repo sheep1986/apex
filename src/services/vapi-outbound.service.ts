@@ -165,11 +165,18 @@ class VapiOutboundService {
       const response = await apiClient.get('/vapi-outbound/campaigns');
       console.log('📡 VapiOutboundService: API Response:', response);
       
-      // The vapi-outbound endpoint returns properly formatted data
-      const campaigns = response.data.campaigns || response.data || [];
+      // The API returns {campaigns: [...], pagination: {...}}
+      // Extract just the campaigns array
+      const campaignsData = response.data?.campaigns || [];
+      
+      // Ensure we have an array before mapping
+      if (!Array.isArray(campaignsData)) {
+        console.error('❌ Campaigns data is not an array:', campaignsData);
+        return [];
+      }
       
       // Data is already in the correct format from the backend
-      return campaigns.map((campaign: any) => ({
+      return campaignsData.map((campaign: any) => ({
         id: campaign.id,
         apexId: campaign.apexId || `apex${campaign.id.substring(0, 5)}`,
         name: campaign.name,
