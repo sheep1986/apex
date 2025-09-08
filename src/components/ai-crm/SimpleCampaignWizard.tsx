@@ -67,6 +67,8 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
     requireAllFields: false,
     disqualifiers: [] as string[]
   });
+  const [qualificationThreshold, setQualificationThreshold] = useState(70); // percentage
+  const [disqualifyingFactors, setDisqualifyingFactors] = useState<string[]>([]);
   
   // Working hours and timezone state
   const [workingHoursEnabled, setWorkingHoursEnabled] = useState(true);
