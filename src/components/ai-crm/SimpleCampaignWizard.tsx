@@ -67,7 +67,6 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
     requireAllFields: false,
     disqualifiers: [] as string[]
   });
-  const [qualificationThreshold, setQualificationThreshold] = useState(70); // percentage
   const [disqualifyingFactors, setDisqualifyingFactors] = useState<string[]>([]);
   
   // Working hours and timezone state
@@ -124,14 +123,12 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
       if (currentStep === 2) {
         setHelpContent('rateLimiting');
       } else if (currentStep === 3) {
-        setHelpContent('qualificationCriteria');
-      } else if (currentStep === 4) {
         setHelpContent('retryLogic');
-      } else if (currentStep === 5) {
+      } else if (currentStep === 4) {
         setHelpContent('workingHours');
-      } else if (currentStep === 6) {
+      } else if (currentStep === 5) {
         setHelpContent('teamManagement');
-      } else if (currentStep === 7) {
+      } else if (currentStep === 6) {
         setHelpContent('review');
       }
     } else {
@@ -260,7 +257,7 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
 
   // Calculate review metrics whenever relevant values change
   useEffect(() => {
-    if (currentStep === 7 && csvData.length > 0) {
+    if (currentStep === 6 && csvData.length > 0) {
       calculateReviewMetrics();
     }
   }, [currentStep, csvData.length, avgCallDuration, currentBalance, costPerMinute, concurrentCalls]);
@@ -1334,15 +1331,11 @@ The review section provides detailed estimates for your campaign including durat
       setCurrentStep(5);
     } else if (currentStep === 5) {
       setCurrentStep(6);
-    } else if (currentStep === 6) {
-      setCurrentStep(7);
     }
   };
 
   const handleBack = () => {
-    if (currentStep === 7) {
-      setCurrentStep(6);
-    } else if (currentStep === 6) {
+    if (currentStep === 6) {
       setCurrentStep(5);
     } else if (currentStep === 5) {
       setCurrentStep(4);
@@ -1499,7 +1492,6 @@ The review section provides detailed estimates for your campaign including durat
             workingHours,
             defaultTimezone,
             winningCriteria,
-            qualificationThreshold,
             disqualifyingFactors,
             teamMembers: allTeamMembers,
             teamInvitations
@@ -1567,7 +1559,7 @@ The review section provides detailed estimates for your campaign including durat
               <ChevronLeft className="w-5 h-5" />
             </button>
             <h1 className="text-lg font-semibold text-white">
-              New campaign {currentStep === 2 && '- Rate Limiting'}{currentStep === 3 && '- Qualification Criteria'}{currentStep === 4 && '- Retry Logic'}{currentStep === 5 && '- Working Hours'}{currentStep === 6 && '- Team Management'}{currentStep === 7 && '- Review & Launch'}
+              New campaign {currentStep === 2 && '- Rate Limiting'}{currentStep === 3 && '- Retry Logic'}{currentStep === 4 && '- Working Hours'}{currentStep === 5 && '- Team Management'}{currentStep === 6 && '- Review & Launch'}
             </h1>
           </div>
           <div></div>
@@ -2065,257 +2057,9 @@ The review section provides detailed estimates for your campaign including durat
               </div>
             )}
 
-            {/* Step 3: Qualification Criteria */}
+
+            {/* Step 3: Retry Logic Enhancements */}
             {currentStep === 3 && (
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="border-b border-gray-800 pb-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Target className="w-5 h-5 text-emerald-400" />
-                    <h2 className="text-xl font-semibold text-white">Lead Qualification Criteria</h2>
-                  </div>
-                  <p className="text-gray-400 text-sm">
-                    Define what makes a qualified lead for your campaign. AI will analyze call transcripts to detect these signals.
-                  </p>
-                </div>
-
-                {/* Preset Fields Selection */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium text-white">Preset Qualification Fields</h3>
-                    <span className="text-sm text-gray-400">
-                      {Object.keys(selectedQualificationFields).filter(k => selectedQualificationFields[k].enabled).length} selected
-                    </span>
-                  </div>
-                  
-                  {/* Category Tabs */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { category: 'appointment', label: 'Appointments', icon: Calendar, count: 3 },
-                      { category: 'interest', label: 'Interest Level', icon: Target, count: 3 },
-                      { category: 'timeline', label: 'Timeline', icon: Clock, count: 2 },
-                      { category: 'budget', label: 'Budget', icon: DollarSign, count: 4 },
-                      { category: 'pain_point', label: 'Pain Points', icon: AlertCircle, count: 2 },
-                      { category: 'company', label: 'Company Info', icon: Building, count: 3 }
-                    ].map((cat) => (
-                      <div key={cat.category} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-                        <div className="flex items-center space-x-2 mb-3">
-                          <cat.icon className="w-4 h-4 text-emerald-400" />
-                          <h4 className="text-sm font-medium text-white">{cat.label}</h4>
-                          <span className="text-xs text-gray-500">({cat.count})</span>
-                        </div>
-                        
-                        {/* Quick toggle for common fields */}
-                        <div className="space-y-2">
-                          {cat.category === 'appointment' && (
-                            <>
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedQualificationFields['appointment_booked']?.enabled || false}
-                                  onChange={(e) => setSelectedQualificationFields({
-                                    ...selectedQualificationFields,
-                                    appointment_booked: { enabled: e.target.checked, weight: 90 }
-                                  })}
-                                  className="rounded border-gray-600 bg-gray-800 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span className="text-sm text-gray-300">Appointment Booked</span>
-                              </label>
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedQualificationFields['demo_requested']?.enabled || false}
-                                  onChange={(e) => setSelectedQualificationFields({
-                                    ...selectedQualificationFields,
-                                    demo_requested: { enabled: e.target.checked, weight: 80 }
-                                  })}
-                                  className="rounded border-gray-600 bg-gray-800 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span className="text-sm text-gray-300">Demo Requested</span>
-                              </label>
-                            </>
-                          )}
-                          {cat.category === 'interest' && (
-                            <>
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedQualificationFields['high_interest']?.enabled || false}
-                                  onChange={(e) => setSelectedQualificationFields({
-                                    ...selectedQualificationFields,
-                                    high_interest: { enabled: e.target.checked, weight: 70 }
-                                  })}
-                                  className="rounded border-gray-600 bg-gray-800 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span className="text-sm text-gray-300">High Interest</span>
-                              </label>
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedQualificationFields['asking_questions']?.enabled || false}
-                                  onChange={(e) => setSelectedQualificationFields({
-                                    ...selectedQualificationFields,
-                                    asking_questions: { enabled: e.target.checked, weight: 50 }
-                                  })}
-                                  className="rounded border-gray-600 bg-gray-800 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span className="text-sm text-gray-300">Asking Questions</span>
-                              </label>
-                            </>
-                          )}
-                          {/* Add more categories as needed */}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Winning Criteria */}
-                <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
-                  <h3 className="text-lg font-medium text-white mb-3">Winning Lead Criteria</h3>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="minCallDuration" className="text-gray-300 text-sm mb-2">
-                        Minimum Call Duration (seconds)
-                      </Label>
-                      <Input
-                        id="minCallDuration"
-                        type="number"
-                        value={winningCriteria.minCallDuration}
-                        onChange={(e) => setWinningCriteria({
-                          ...winningCriteria,
-                          minCallDuration: parseInt(e.target.value) || 60
-                        })}
-                        className="bg-gray-950 border-gray-700 text-white"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Calls shorter than this are auto-disqualified</p>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="autoAcceptScore" className="text-gray-300 text-sm mb-2">
-                        Auto-Accept Score (%)
-                      </Label>
-                      <Input
-                        id="autoAcceptScore"
-                        type="number"
-                        value={winningCriteria.autoAcceptScore}
-                        onChange={(e) => setWinningCriteria({
-                          ...winningCriteria,
-                          autoAcceptScore: parseInt(e.target.value) || 80
-                        })}
-                        className="bg-gray-950 border-gray-700 text-white"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Leads scoring above this auto-qualify</p>
-                    </div>
-                  </div>
-
-                  {/* Disqualifiers */}
-                  <div>
-                    <Label className="text-gray-300 text-sm mb-2">Disqualifier Keywords</Label>
-                    <Input
-                      type="text"
-                      placeholder="e.g., not interested, already a customer, competitor"
-                      className="bg-gray-950 border-gray-700 text-white"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          const value = e.currentTarget.value.trim();
-                          if (value) {
-                            setWinningCriteria({
-                              ...winningCriteria,
-                              disqualifiers: [...winningCriteria.disqualifiers, value]
-                            });
-                            e.currentTarget.value = '';
-                          }
-                        }
-                      }}
-                    />
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {winningCriteria.disqualifiers.map((disq, idx) => (
-                        <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-500/10 text-red-400">
-                          {disq}
-                          <button
-                            onClick={() => setWinningCriteria({
-                              ...winningCriteria,
-                              disqualifiers: winningCriteria.disqualifiers.filter((_, i) => i !== idx)
-                            })}
-                            className="ml-1 hover:text-red-300"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Custom Fields (optional) */}
-                <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-medium text-white">Custom Fields</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setCustomFields([...customFields, {
-                          id: Date.now().toString(),
-                          name: '',
-                          weight: 50,
-                          keywords: []
-                        }]);
-                      }}
-                      className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Custom Field
-                    </Button>
-                  </div>
-                  
-                  {customFields.length === 0 ? (
-                    <p className="text-gray-500 text-sm text-center py-4">
-                      No custom fields added yet. Add fields specific to your business.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {customFields.map((field, idx) => (
-                        <div key={field.id} className="flex items-center space-x-2">
-                          <Input
-                            placeholder="Field name"
-                            value={field.name}
-                            onChange={(e) => {
-                              const updated = [...customFields];
-                              updated[idx].name = e.target.value;
-                              setCustomFields(updated);
-                            }}
-                            className="flex-1 bg-gray-950 border-gray-700 text-white"
-                          />
-                          <Input
-                            type="number"
-                            placeholder="Weight"
-                            value={field.weight}
-                            onChange={(e) => {
-                              const updated = [...customFields];
-                              updated[idx].weight = parseInt(e.target.value) || 50;
-                              setCustomFields(updated);
-                            }}
-                            className="w-20 bg-gray-950 border-gray-700 text-white"
-                          />
-                          <button
-                            onClick={() => setCustomFields(customFields.filter((_, i) => i !== idx))}
-                            className="p-2 text-gray-400 hover:text-red-400"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Retry Logic Enhancements */}
-            {currentStep === 4 && (
               <div className="space-y-6">
                 {/* Header */}
                 <div className="border-b border-gray-800 pb-4">
@@ -2425,8 +2169,8 @@ The review section provides detailed estimates for your campaign including durat
               </div>
             )}
 
-            {/* Step 5: Working Hours and Timezone Management */}
-            {currentStep === 5 && (
+            {/* Step 4: Working Hours and Timezone Management */}
+            {currentStep === 4 && (
               <div className="space-y-6">
                 {/* Header */}
                 <div className="border-b border-gray-800 pb-4">
@@ -2798,8 +2542,8 @@ The review section provides detailed estimates for your campaign including durat
               </div>
             )}
 
-            {/* Step 6: Team Management */}
-            {currentStep === 6 && (
+            {/* Step 5: Team Management */}
+            {currentStep === 5 && (
               <div className="space-y-6">
                 {/* Header */}
                 <div className="border-b border-gray-800 pb-4">
@@ -2942,8 +2686,8 @@ The review section provides detailed estimates for your campaign including durat
               </div>
             )}
 
-            {/* Step 7: Review & Launch */}
-            {currentStep === 7 && (
+            {/* Step 6: Review & Launch */}
+            {currentStep === 6 && (
               <div className="space-y-6">
                 {/* Header */}
                 <div className="border-b border-gray-800 pb-4">
@@ -3230,11 +2974,11 @@ The review section provides detailed estimates for your campaign including durat
                   {currentStep === 1 ? 'Cancel' : 'Back'}
                 </Button>
                 <Button 
-                  onClick={currentStep === 7 ? handleCreateCampaign : handleNext}
+                  onClick={currentStep === 6 ? handleCreateCampaign : handleNext}
                   disabled={isLoading}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  {currentStep === 7 ? (isLoading ? 'Creating...' : 'Launch campaign') : 'Next'}
+                  {currentStep === 6 ? (isLoading ? 'Creating...' : 'Launch campaign') : 'Next'}
                 </Button>
               </div>
             </div>
