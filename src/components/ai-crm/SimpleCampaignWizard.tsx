@@ -1464,35 +1464,53 @@ The review section provides detailed estimates for your campaign including durat
         .insert({
           name: campaignName,
           organization_id: userContext?.organization_id || localStorage.getItem('organization_id'),
-          assistant_id: assistant,
-          phone_number_id: phoneNumber,
           status: whenToSend === 'now' ? 'active' : 'draft',
           type: campaignType,
-          csv_data: csvString,
-          total_leads: csvData.length,
+          description: `Campaign with ${csvData.length} contacts`,
           settings: {
+            // VAPI Configuration
+            assistant_id: assistant,
+            phone_number_id: phoneNumber,
+            
+            // CSV Data
+            csv_data: csvString,
+            total_leads: csvData.length,
+            
+            // Schedule Settings
             whenToSend,
             scheduleDate,
             scheduleTime,
             timezone,
+            
+            // Rate Limiting
             callsPerMinute,
             callsPerHour,
             enableRateLimiting,
             customConcurrency,
             delayBetweenCalls,
             concurrentCalls,
+            
+            // Cost Settings
             avgCallDuration,
             costPerMinute,
             currentBalance,
+            
+            // Retry Logic
             retryStrategy,
             maxRetryAttempts,
             retryInterval,
             retryConditions,
+            
+            // Working Hours
             workingHoursEnabled,
             workingHours,
             defaultTimezone,
+            
+            // Qualification
             winningCriteria,
             disqualifyingFactors,
+            
+            // Team Management
             teamMembers: allTeamMembers,
             teamInvitations
           },
@@ -1513,7 +1531,13 @@ The review section provides detailed estimates for your campaign including durat
       if (whenToSend === 'now') {
         const { error: updateError } = await supabase
           .from('campaigns')
-          .update({ status: 'active', started_at: new Date().toISOString() })
+          .update({ 
+            status: 'active',
+            settings: {
+              ...campaign.settings,
+              started_at: new Date().toISOString()
+            }
+          })
           .eq('id', campaign.id);
         
         if (updateError) {
