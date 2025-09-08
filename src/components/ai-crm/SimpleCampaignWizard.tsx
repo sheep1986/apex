@@ -166,25 +166,19 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Load VAPI assistants and phone numbers using direct API
+  // Load VAPI assistants and phone numbers using organization's VAPI credentials
   const loadVapiData = async () => {
-    const loadId = Date.now();
-    console.log(`🔄 [${loadId}] Loading VAPI data using direct API...`);
-    
     try {
       setLoadingVapiData(true);
       
-      // Use direct VAPI API calls
-      console.log('📡 Using direct VAPI API...');
-      
-      // Fetch both assistants and phone numbers in parallel
+      // Fetch both assistants and phone numbers using org credentials
       const [assistantsData, phoneNumbersData] = await Promise.all([
         vapiDirect.getAssistants(),
         vapiDirect.getPhoneNumbers()
       ]);
       
-      console.log(`✅ [${loadId}] Loaded ${assistantsData.length} assistants`);
-      console.log(`✅ [${loadId}] Loaded ${phoneNumbersData.length} phone numbers`);
+      console.log(`✅ Loaded ${assistantsData.length} assistants`);
+      console.log(`✅ Loaded ${phoneNumbersData.length} phone numbers`);
       
       // Set the data
       setAssistants(assistantsData);
@@ -213,7 +207,7 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
       
       toast({
         title: 'VAPI Configuration Required',
-        description: 'Please add your VAPI API key in Organization Settings.',
+        description: 'Your organization admin needs to add VAPI API keys in Settings > Details > VAPI API Keys',
         variant: 'destructive'
       });
     } finally {
@@ -1650,22 +1644,7 @@ The review section provides detailed estimates for your campaign including durat
 
             {/* Assistant */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="assistant" className="text-gray-300">Assistant</Label>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    console.log('🔧 Manual reload clicked');
-                    console.log('🔧 Current assistants state:', assistants);
-                    console.log('🔧 Current phoneNumbers state:', phoneNumbers);
-                    console.log('🔧 Dev auth enabled:', import.meta.env.VITE_USE_DEV_AUTH);
-                    await loadVapiData();
-                  }}
-                  className="text-xs text-emerald-500 hover:text-emerald-400"
-                >
-                  Reload ({assistants.length})
-                </button>
-              </div>
+              <Label htmlFor="assistant" className="text-gray-300">Assistant</Label>
               <Select value={assistant} onValueChange={setAssistant} disabled={loadingVapiData}>
                 <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                   <SelectValue placeholder={loadingVapiData ? "Loading..." : "Select"} />
