@@ -1064,14 +1064,6 @@ const OrganizationSettingsV2: React.FC = () => {
                 <Separator className="bg-gray-800" />
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-white font-medium">SMS Notifications</p>
-                    <p className="text-sm text-gray-400">Get SMS alerts for critical issues</p>
-                  </div>
-                  <Switch />
-                </div>
-                <Separator className="bg-gray-800" />
-                <div className="flex items-center justify-between">
-                  <div>
                     <p className="text-white font-medium">Weekly Reports</p>
                     <p className="text-sm text-gray-400">Receive weekly performance summaries</p>
                   </div>
