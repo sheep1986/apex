@@ -12,39 +12,71 @@ const VAPI_BASE_URL = 'https://api.vapi.ai';
 let cachedApiKey: string | null = null;
 
 /**
- * Get VAPI Public API Key from Supabase or localStorage
+ * Get VAPI Public API Key from organization settings
+ * Organization credentials are the primary source of truth
  */
 async function getVapiPublicKey(): Promise<string | null> {
   // Check cache first
   if (cachedApiKey) return cachedApiKey;
   
-  // Check localStorage for quick access
-  const localKey = localStorage.getItem('vapi_public_key');
-  if (localKey) {
-    cachedApiKey = localKey;
-    return localKey;
-  }
-  
   try {
-    // Get from Supabase organizations table
-    const { data: org } = await supabase
-      .from('organizations')
-      .select('vapi_api_key')
+    // Get current user's organization
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('No authenticated user');
+      return null;
+    }
+    
+    // Get user's organization ID
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
       .single();
     
-    if (org?.vapi_api_key) {
-      cachedApiKey = org.vapi_api_key;
-      localStorage.setItem('vapi_public_key', org.vapi_api_key);
-      return org.vapi_api_key;
+    if (!userData?.organization_id) {
+      console.error('User has no organization');
+      return null;
+    }
+    
+    // Get organization's VAPI public key
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('vapi_api_key, vapi_public_key')
+      .eq('id', userData.organization_id)
+      .single();
+    
+    const apiKey = org?.vapi_public_key || org?.vapi_api_key;
+    
+    if (apiKey) {
+      cachedApiKey = apiKey;
+      // Store in localStorage for quick access (with expiry)
+      localStorage.setItem('vapi_public_key', apiKey);
+      localStorage.setItem('vapi_key_cached_at', Date.now().toString());
+      console.log('✅ Loaded VAPI key from organization settings');
+      return apiKey;
+    } else {
+      console.warn('⚠️ Organization has no VAPI API key configured');
+      return null;
     }
   } catch (error) {
-    console.error('Error fetching VAPI key from Supabase:', error);
+    console.error('Error fetching organization VAPI key:', error);
+    
+    // Check localStorage as fallback (if recently cached)
+    const cachedKey = localStorage.getItem('vapi_public_key');
+    const cachedAt = localStorage.getItem('vapi_key_cached_at');
+    
+    if (cachedKey && cachedAt) {
+      const cacheAge = Date.now() - parseInt(cachedAt);
+      // Use cache if less than 5 minutes old
+      if (cacheAge < 5 * 60 * 1000) {
+        cachedApiKey = cachedKey;
+        return cachedKey;
+      }
+    }
+    
+    return null;
   }
-  
-  // Fallback to hardcoded key (for testing)
-  const fallbackKey = 'da8956d4-0508-474e-bd96-7eda82d2d943';
-  cachedApiKey = fallbackKey;
-  return fallbackKey;
 }
 
 /**

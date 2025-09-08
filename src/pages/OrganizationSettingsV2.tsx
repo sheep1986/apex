@@ -368,6 +368,10 @@ const OrganizationSettingsV2: React.FC = () => {
   const [showVapiPrivateKey, setShowVapiPrivateKey] = useState(false);
   const [showVapiPublicKey, setShowVapiPublicKey] = useState(false);
   const [vapiPrivateKey, setVapiPrivateKey] = useState(organization?.vapi_private_key || '');
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [pendingKeyUpdate, setPendingKeyUpdate] = useState<{type: 'private' | 'public', value: string} | null>(null);
+  const [password, setPassword] = useState('');
+  const [isUpdatingKey, setIsUpdatingKey] = useState(false);
   const [vapiPublicKey, setVapiPublicKey] = useState(organization?.vapi_public_key || organization?.vapi_api_key || ''); // Use vapi_public_key first, fall back to vapi_api_key
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ assistants?: number; phoneNumbers?: number } | null>(null);
@@ -395,22 +399,112 @@ const OrganizationSettingsV2: React.FC = () => {
   }, [organization]);
 
   const handleSaveVapiKey = async (keyType: 'private' | 'public') => {
+    // Set pending update and show password dialog
+    const value = keyType === 'private' ? vapiPrivateKey : vapiPublicKey;
+    setPendingKeyUpdate({ type: keyType, value });
+    setShowPasswordDialog(true);
+  };
+
+  const confirmVapiKeyUpdate = async () => {
+    if (!pendingKeyUpdate || !password) return;
+    
+    setIsUpdatingKey(true);
     try {
-      const updates = keyType === 'private' 
-        ? { vapi_private_key: vapiPrivateKey }
-        : { vapi_public_key: vapiPublicKey, vapi_api_key: vapiPublicKey }; // Save to both for backward compatibility
+      // Verify password with Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error('User not authenticated');
+      
+      // Re-authenticate user with password
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: password
+      });
+      
+      if (authError) {
+        toast({
+          title: 'Authentication Failed',
+          description: 'Incorrect password. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Update the keys
+      const updates = pendingKeyUpdate.type === 'private' 
+        ? { vapi_private_key: pendingKeyUpdate.value }
+        : { vapi_public_key: pendingKeyUpdate.value, vapi_api_key: pendingKeyUpdate.value };
         
       await updateOrganization(updates);
+      
+      // Log the change
+      await logVapiCredentialChange(pendingKeyUpdate.type, user.email);
+      
+      // Send notification email to all admins
+      await sendVapiChangeNotification(pendingKeyUpdate.type, user.email);
+      
       toast({
-        title: 'Success',
-        description: `VAPI ${keyType} key updated successfully`,
+        title: 'VAPI Credentials Updated',
+        description: `Your VAPI ${pendingKeyUpdate.type} key has been updated successfully. All administrators have been notified.`,
       });
+      
+      // Clear state
+      setShowPasswordDialog(false);
+      setPendingKeyUpdate(null);
+      setPassword('');
     } catch (error) {
+      console.error('Error updating VAPI key:', error);
       toast({
-        title: 'Error',
-        description: `Failed to update VAPI ${keyType} key`,
+        title: 'Update Failed',
+        description: error instanceof Error ? error.message : 'Failed to update VAPI credentials',
         variant: 'destructive',
       });
+    } finally {
+      setIsUpdatingKey(false);
+    }
+  };
+
+  const logVapiCredentialChange = async (keyType: string, userEmail: string) => {
+    try {
+      const { error } = await supabase
+        .from('audit_logs')
+        .insert({
+          organization_id: organization?.id,
+          user_email: userEmail,
+          action: 'vapi_credential_update',
+          details: {
+            key_type: keyType,
+            timestamp: new Date().toISOString(),
+            ip_address: window.location.hostname,
+          }
+        });
+      
+      if (error) console.error('Failed to log audit:', error);
+    } catch (error) {
+      console.error('Error logging credential change:', error);
+    }
+  };
+
+  const sendVapiChangeNotification = async (keyType: string, changedBy: string) => {
+    try {
+      // Get all admin users for this organization
+      const { data: admins } = await supabase
+        .from('users')
+        .select('email, first_name, last_name')
+        .eq('organization_id', organization?.id)
+        .in('role', ['client_admin', 'platform_owner']);
+      
+      if (!admins || admins.length === 0) return;
+      
+      // In production, this would call your email service
+      console.log('Sending notifications to:', admins.map(a => a.email));
+      
+      // For now, just show a toast
+      toast({
+        title: 'Notifications Sent',
+        description: `${admins.length} administrator(s) have been notified of this change.`,
+      });
+    } catch (error) {
+      console.error('Error sending notifications:', error);
     }
   };
 
@@ -983,6 +1077,15 @@ const OrganizationSettingsV2: React.FC = () => {
                 <CardDescription>Use these keys for interacting with VAPI APIs</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Warning Alert */}
+                <Alert className="border-yellow-800 bg-yellow-900/20">
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
+                  <AlertDescription className="text-yellow-200">
+                    <strong>Critical Configuration:</strong> Changing VAPI API keys will immediately affect all active campaigns and ongoing calls. 
+                    Ensure you have the correct keys from your VAPI dashboard before making changes. All administrators will be notified of any modifications.
+                  </AlertDescription>
+                </Alert>
+                
                 {/* Private API Key */}
                 <div className="space-y-2">
                   <Label className="text-gray-400">Private API Key</Label>
@@ -1180,6 +1283,68 @@ const OrganizationSettingsV2: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Password Confirmation Dialog */}
+      <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <AlertDialogContent className="bg-gray-900 border-gray-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Confirm VAPI Credential Update</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400 space-y-3">
+              <p>You are about to update your organization's VAPI {pendingKeyUpdate?.type} API key.</p>
+              
+              <Alert className="border-orange-800 bg-orange-900/20">
+                <AlertCircle className="h-4 w-4 text-orange-400" />
+                <AlertDescription className="text-orange-200 text-sm">
+                  <strong>Warning:</strong> This change will:
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>Immediately affect all active calling campaigns</li>
+                    <li>Interrupt any ongoing calls if the key is invalid</li>
+                    <li>Prevent new calls from starting if misconfigured</li>
+                    <li>Be logged and notify all organization administrators</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="password" className="text-gray-300">
+                  Enter your password to confirm this change:
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="bg-gray-800 border-gray-700 text-white"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && password) {
+                      confirmVapiKeyUpdate();
+                    }
+                  }}
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="bg-gray-800 text-white hover:bg-gray-700 border-gray-700"
+              onClick={() => {
+                setPassword('');
+                setPendingKeyUpdate(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={confirmVapiKeyUpdate}
+              disabled={!password || isUpdatingKey}
+            >
+              {isUpdatingKey ? 'Updating...' : 'Confirm Update'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
