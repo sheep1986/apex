@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/api-client';
+import { useApiClient, apiClient } from '../lib/api-client';
 import { supabase } from './supabase-client';
 
 // Types for VAPI Outbound Campaigns
@@ -154,15 +154,21 @@ export interface LiveMonitoring {
 }
 
 class VapiOutboundService {
-  private baseURL = import.meta.env.VITE_API_URL || 'https://apex-backend-august-production.up.railway.app';
+  private baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  private apiClient: any;
+
+  constructor(apiClient?: any) {
+    // Use provided apiClient or fall back to default
+    this.apiClient = apiClient || require('../lib/api-client').apiClient;
+  }
 
   // Campaign Management
   async getCampaigns(): Promise<VapiOutboundCampaign[]> {
     try {
       console.log('🎯 VapiOutboundService: Fetching campaigns from:', this.baseURL);
       
-      // Make the actual API call
-      const response = await apiClient.get('/vapi-outbound/campaigns');
+      // Make the actual API call - use /campaigns for our local API
+      const response = await this.apiClient.get('/campaigns');
       console.log('📡 VapiOutboundService: API Response:', response);
       
       // The API returns {campaigns: [...], pagination: {...}}
@@ -291,7 +297,7 @@ class VapiOutboundService {
       };
       
       console.log('📡 Sending campaign data to backend:', transformedData);
-      const response = await apiClient.post('/vapi-outbound/campaigns', transformedData);
+      const response = await this.apiClient.post('/vapi-outbound/campaigns', transformedData);
       return response.data.campaign;
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -308,7 +314,7 @@ class VapiOutboundService {
       formData.append('csvFile', file);
 
       // Use apiClient for consistent auth handling
-      const response = await apiClient.post(
+      const response = await this.apiClient.post(
         `/vapi-outbound/campaigns/${campaignId}/upload-leads`,
         formData,
         {
@@ -327,7 +333,7 @@ class VapiOutboundService {
 
   async getLiveMonitoring(campaignId: string): Promise<LiveMonitoring> {
     try {
-      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/live`);
+      const response = await this.apiClient.get(`/vapi-outbound/campaigns/${campaignId}/live`);
       return response.data;
     } catch (error) {
       console.error('Error fetching live monitoring:', error);
@@ -339,7 +345,7 @@ class VapiOutboundService {
   async getAssistants(): Promise<VapiAssistant[]> {
     try {
       console.log('📡 VapiOutboundService.getAssistants: Making API call...');
-      const response = await apiClient.get('/vapi-data/assistants');
+      const response = await this.apiClient.get('/vapi-data/assistants');
       console.log('📡 VapiOutboundService.getAssistants: Response:', response);
       console.log('📡 VapiOutboundService.getAssistants: Response data:', response.data);
       console.log('📡 VapiOutboundService.getAssistants: Assistants array:', response.data.assistants);
@@ -362,7 +368,7 @@ class VapiOutboundService {
   async getPhoneNumbers(): Promise<VapiPhoneNumber[]> {
     try {
       console.log('📡 VapiOutboundService.getPhoneNumbers: Making API call...');
-      const response = await apiClient.get('/vapi-data/phone-numbers');
+      const response = await this.apiClient.get('/vapi-data/phone-numbers');
       console.log('📡 VapiOutboundService.getPhoneNumbers: Response:', response);
       console.log('📡 VapiOutboundService.getPhoneNumbers: Response data:', response.data);
       console.log('📡 VapiOutboundService.getPhoneNumbers: Phone numbers array:', response.data.phoneNumbers);
@@ -384,7 +390,7 @@ class VapiOutboundService {
 
   async downloadLeadsTemplate(): Promise<Blob> {
     try {
-      const response = await apiClient.get('/vapi-outbound/leads-template', {
+      const response = await this.apiClient.get('/vapi-outbound/leads-template', {
         responseType: 'blob',
       });
 
@@ -450,7 +456,7 @@ class VapiOutboundService {
   async getRecentCalls(limit: number = 20): Promise<any[]> {
     try {
       console.log('📡 VapiOutboundService: Fetching recent calls...');
-      const response = await apiClient.get(`/vapi-outbound/calls/recent?limit=${limit}`);
+      const response = await this.apiClient.get(`/vapi-outbound/calls/recent?limit=${limit}`);
       console.log('📡 VapiOutboundService: Recent calls response:', response);
       return response.data.calls || response.data || [];
     } catch (error) {
@@ -485,7 +491,7 @@ class VapiOutboundService {
    */
   async getCampaignCalls(campaignId: string, params: URLSearchParams): Promise<any> {
     try {
-      const response = await apiClient.get(`/campaigns/${campaignId}/calls?${params}`);
+      const response = await this.apiClient.get(`/campaigns/${campaignId}/calls?${params}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching campaign calls:', error);
@@ -499,7 +505,7 @@ class VapiOutboundService {
   async getCampaignDashboard(campaignId: string): Promise<any> {
     try {
       // Try API first
-      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/dashboard`);
+      const response = await this.apiClient.get(`/vapi-outbound/campaigns/${campaignId}/dashboard`);
       return response.data;
     } catch (error) {
       console.error('Error fetching campaign dashboard:', error);
@@ -529,7 +535,7 @@ class VapiOutboundService {
   async getCampaignResults(campaignId: string): Promise<any[]> {
     try {
       // Try API first
-      const response = await apiClient.get(`/vapi-outbound/campaigns/${campaignId}/calls`);
+      const response = await this.apiClient.get(`/vapi-outbound/campaigns/${campaignId}/calls`);
       return response.data.calls || response.data || [];
     } catch (error) {
       console.error('Error fetching campaign results from API:', error);
@@ -594,7 +600,7 @@ class VapiOutboundService {
   async startCampaign(campaignId: string): Promise<{ message: string; callsStarted?: number }> {
     try {
       console.log('🚀 Starting campaign:', campaignId);
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
+      const response = await this.apiClient.post(`/vapi-outbound/campaigns/${campaignId}/start`);
       return response.data || { message: 'Campaign started' };
     } catch (error) {
       console.error('Error starting campaign:', error);
@@ -607,7 +613,7 @@ class VapiOutboundService {
    */
   async pauseCampaign(campaignId: string): Promise<{ message: string }> {
     try {
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
+      const response = await this.apiClient.post(`/vapi-outbound/campaigns/${campaignId}/pause`);
       return response.data || { message: 'Campaign paused' };
     } catch (error) {
       console.error('Error pausing campaign:', error);
@@ -620,7 +626,7 @@ class VapiOutboundService {
    */
   async resumeCampaign(campaignId: string): Promise<{ message: string }> {
     try {
-      const response = await apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
+      const response = await this.apiClient.post(`/vapi-outbound/campaigns/${campaignId}/resume`);
       return response.data || { message: 'Campaign resumed' };
     } catch (error) {
       console.error('Error resuming campaign:', error);
@@ -629,5 +635,13 @@ class VapiOutboundService {
   }
 }
 
-export const vapiOutboundService = new VapiOutboundService();
+// Create default instance for backward compatibility
+export const vapiOutboundService = new VapiOutboundService(apiClient);
+
+// Hook to create authenticated service instance
+export const useVapiOutboundService = () => {
+  const authenticatedApiClient = useApiClient();
+  return new VapiOutboundService(authenticatedApiClient);
+};
+
 export default vapiOutboundService;
