@@ -366,14 +366,18 @@ export default function CampaignDetails() {
         if (error) throw error;
         
         // Transform Supabase data to match API format
+        // All campaign-specific data is now in the settings JSONB column
+        const settings = data.settings || {};
         campaignData = {
           ...data,
-          phoneNumbers: data.phone_numbers || [],
+          phoneNumbers: [settings.phone_number_id].filter(Boolean),
           phoneNumberDetails: [],
-          totalLeads: data.total_leads || 0,
-          callsCompleted: data.calls_completed || 0,
-          successfulCalls: data.successful_calls || 0,
-          assistantName: data.assistant_name || 'AI Assistant',
+          totalLeads: settings.total_leads || 0,
+          callsCompleted: settings.calls_completed || 0,
+          successfulCalls: settings.successful_calls || 0,
+          assistantName: settings.assistant_name || 'AI Assistant',
+          assistant_id: settings.assistant_id,
+          phone_number_id: settings.phone_number_id,
         };
       }
       
@@ -404,7 +408,7 @@ export default function CampaignDetails() {
         createdAt: campaignData.createdAt,
         lastModified: campaignData.updatedAt,
         // Real metrics from backend - check both direct fields and metrics object
-        totalLeads: campaignData.totalLeads || campaignData.metrics?.totalLeads || 0,
+        totalLeads: campaignData.totalLeads || campaignData.settings?.total_leads || campaignData.metrics?.totalLeads || 0,
         callsCompleted: campaignData.callsCompleted || campaignData.metrics?.callsCompleted || 0,
         leadsContacted: campaignData.callsCompleted || campaignData.metrics?.callsCompleted || 0,
         leadsCalled: campaignData.callsCompleted || campaignData.metrics?.callsCompleted || campaignData.totalCalls || 0, // for compatibility
@@ -423,8 +427,8 @@ export default function CampaignDetails() {
         opportunities: campaignData.meetings || 0, // for compatibility
         callbacks: campaignData.callbacks || 0,
         calledBack: campaignData.callbacks || 0, // for compatibility
-        progress: campaignData.totalLeads > 0 
-          ? Math.round((campaignData.callsCompleted / campaignData.totalLeads) * 100) 
+        progress: (campaignData.totalLeads || campaignData.settings?.total_leads) > 0 
+          ? Math.round((campaignData.callsCompleted / (campaignData.totalLeads || campaignData.settings?.total_leads)) * 100) 
           : 0,
       });
     } catch (error) {
