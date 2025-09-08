@@ -30,7 +30,7 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [campaignName, setCampaignName] = useState('');
-  const [campaignType, setCampaignType] = useState('manual');
+  const [campaignType, setCampaignType] = useState('outbound');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [assistant, setAssistant] = useState('');
   const [whenToSend, setWhenToSend] = useState('later');
@@ -1617,19 +1617,19 @@ The review section provides detailed estimates for your campaign including durat
               <div className="grid grid-cols-2 gap-4">
                 <div 
                   className={`cursor-pointer border-2 rounded-lg p-4 transition-colors ${
-                    campaignType === 'manual' 
+                    campaignType === 'outbound' 
                       ? 'border-emerald-500 bg-emerald-500/10' 
                       : 'border-gray-700 hover:border-gray-600'
                   }`}
-                  onClick={() => setCampaignType('manual')}
+                  onClick={() => setCampaignType('outbound')}
                 >
                   <div className="flex items-center space-x-2 mb-2">
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                      campaignType === 'manual' ? 'border-emerald-500' : 'border-gray-600'
+                      campaignType === 'outbound' ? 'border-emerald-500' : 'border-gray-600'
                     }`}>
-                      {campaignType === 'manual' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                      {campaignType === 'outbound' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
                     </div>
-                    <Label className="text-white font-medium">Manual</Label>
+                    <Label className="text-white font-medium">Outbound</Label>
                   </div>
                   <p className="text-sm text-gray-400">Start campaign now or schedule for later.</p>
                 </div>
