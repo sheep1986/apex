@@ -46,7 +46,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { cn } from '@/lib/utils';
 import { organizationService, OrganizationUser } from '@/services/organization-service';
-import { VAPIAutoSetup } from '@/components/VAPIAutoSetup';
 import { supabase } from '@/services/supabase-client';
 
 // Network detection for API calls
@@ -980,38 +979,18 @@ const OrganizationSettingsV2: React.FC = () => {
           <TabsContent value="details" className="space-y-6">
             <Card className="border-gray-800 bg-gray-900/50">
               <CardHeader>
-                <CardTitle className="text-white">API Configuration</CardTitle>
-                <CardDescription>Configure API keys and webhooks for external integrations</CardDescription>
+                <CardTitle className="text-white">VAPI API Keys</CardTitle>
+                <CardDescription>Use these keys for interacting with VAPI APIs</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* One-Click VAPI Setup */}
-                {(!organization?.vapi_webhook_configured || !vapiPrivateKey) && (
-                  <div className="mb-6">
-                    <VAPIAutoSetup 
-                      organizationId={organization?.id || ''} 
-                      onComplete={() => window.location.reload()}
-                    />
-                  </div>
-                )}
-
-                {/* Show manual configuration if already set up */}
-                {organization?.vapi_webhook_configured && vapiPrivateKey && (
-                  <Alert className="border-green-800 bg-green-900/20">
-                    <CheckCircle className="h-4 w-4 text-green-400" />
-                    <AlertDescription className="text-green-400">
-                      VAPI is configured and ready to use. Your assistants are sending calls to our webhook.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Manual Configuration */}
+                {/* Private API Key */}
                 <div className="space-y-2">
-                  <Label className="text-gray-400">VAPI Private Key</Label>
+                  <Label className="text-gray-400">Private API Key</Label>
                   <div className="flex space-x-2">
                     <Input
                       type={showVapiPrivateKey ? "text" : "password"}
-                      placeholder="Enter your VAPI Private Key"
-                      className="bg-gray-800 border-gray-700 text-white"
+                      placeholder="Enter your VAPI Private API Key"
+                      className="bg-gray-800 border-gray-700 text-white font-mono"
                       value={vapiPrivateKey}
                       onChange={(e) => setVapiPrivateKey(e.target.value)}
                     />
@@ -1030,16 +1009,17 @@ const OrganizationSettingsV2: React.FC = () => {
                       <Save className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500">Your VAPI Private key for making calls</p>
+                  <p className="text-xs text-gray-500">Use this key for interacting with our APIs in your backend systems.</p>
                 </div>
 
+                {/* Public API Key */}
                 <div className="space-y-2">
-                  <Label className="text-gray-400">VAPI Public Key</Label>
+                  <Label className="text-gray-400">Public API Key</Label>
                   <div className="flex space-x-2">
                     <Input
                       type={showVapiPublicKey ? "text" : "password"}
-                      placeholder="Enter your VAPI Public Key"
-                      className="bg-gray-800 border-gray-700 text-white"
+                      placeholder="Enter your VAPI Public API Key"
+                      className="bg-gray-800 border-gray-700 text-white font-mono"
                       value={vapiPublicKey}
                       onChange={(e) => setVapiPublicKey(e.target.value)}
                     />
@@ -1058,74 +1038,13 @@ const OrganizationSettingsV2: React.FC = () => {
                       <Save className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500">Your VAPI Public key for webhooks</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-gray-400">Webhook URL</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      value={`${window.location.origin}/api/webhooks/vapi`}
-                      readOnly
-                      className="bg-gray-800 border-gray-700 text-gray-400"
-                    />
-                    <Button variant="outline" className="border-gray-700">
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                  <p className="text-xs text-gray-500">Use this key for interacting with VAPI Client SDKs (e.g. from your frontend).</p>
+                  <div className="mt-2 text-xs text-gray-600">
+                    <p><strong>Origins:</strong> All domains allowed</p>
+                    <p><strong>Assistants:</strong> All Assistants allowed</p>
+                    <p><strong>Transient Assistants:</strong> Allowed</p>
                   </div>
-                  <p className="text-xs text-gray-500">Configure this URL in your VAPI dashboard</p>
                 </div>
-
-                {/* Manual Sync Section - Only for Admin Users */}
-                {vapiPrivateKey && vapiPublicKey && (
-                  <div className="space-y-2 pt-4 border-t border-gray-800">
-                    <Label className="text-gray-400">VAPI Data Sync</Label>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        className="bg-blue-600 hover:bg-blue-700 border-blue-600 text-white"
-                        onClick={() => handleSyncVapi('all')}
-                        disabled={isSyncing}
-                      >
-                        {isSyncing ? (
-                          <>
-                            <Cpu className="h-4 w-4 mr-2 animate-spin" />
-                            Syncing...
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="h-4 w-4 mr-2" />
-                            Sync All
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-gray-700 hover:bg-gray-800"
-                        onClick={() => handleSyncVapi('assistants')}
-                        disabled={isSyncing}
-                      >
-                        <Database className="h-4 w-4 mr-2" />
-                        Sync Assistants
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-gray-700 hover:bg-gray-800"
-                        onClick={() => handleSyncVapi('phone-numbers')}
-                        disabled={isSyncing}
-                      >
-                        <Phone className="h-4 w-4 mr-2" />
-                        Sync Phone Numbers
-                      </Button>
-                    </div>
-                    {syncStatus && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        Last sync: {syncStatus.assistants} assistants, {syncStatus.phoneNumbers} phone numbers
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500">Manually sync your VAPI assistants and phone numbers</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
 

@@ -14,6 +14,7 @@ import { CampaignTeamManager, TeamMember, TeamInvitation } from './CampaignTeamM
 import { organizationSettingsService } from '@/services/organization-settings.service';
 import { supabaseService } from '@/services/supabase-service';
 import { useUserContext } from '@/services/MinimalUserProvider';
+import vapiDirect from '@/services/vapi-direct';
 
 interface SimpleCampaignWizardProps {
   onCampaignCreated: (campaign: any) => void;
@@ -165,145 +166,54 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Load VAPI assistants and phone numbers
+  // Load VAPI assistants and phone numbers using direct API
   const loadVapiData = async () => {
     const loadId = Date.now();
-    console.log(`🔄 [${loadId}] Loading VAPI data for SimpleCampaignWizard...`);
+    console.log(`🔄 [${loadId}] Loading VAPI data using direct API...`);
     
     try {
       setLoadingVapiData(true);
       
-      // First check if backend is accessible
-      try {
-        const healthCheck = await fetch('/api/health');
-        console.log('🏥 Backend health check:', healthCheck.ok ? 'OK' : 'FAILED');
-      } catch (err) {
-        console.error('❌ Backend is not running! Start it with: cd apps/backend && pnpm dev');
-        toast({
-          title: 'Backend Not Running',
-          description: 'Please start the backend server to load VAPI data.',
-          variant: 'destructive'
-        });
-        setLoadingVapiData(false);
-        return;
-      }
+      // Use direct VAPI API calls
+      console.log('📡 Using direct VAPI API...');
       
-      // Fetch assistants
-      try {
-        console.log(`📞 [${loadId}] Fetching assistants...`);
-        // Use API client for proper authentication
-        const response = await apiClient.get('/vapi-data/assistants');
-        console.log('✅ Direct assistants API response:', response);
-        
-        const assistantsData = response.data.assistants || [];
-        console.log(`✅ [${loadId}] Assistants extracted:`, assistantsData);
-        console.log(`✅ [${loadId}] Assistants length:`, assistantsData.length);
-        
-        if (assistantsData.length > 0) {
-          console.log(`✅ [${loadId}] Setting assistants state with`, assistantsData.length, 'items');
-          console.log('🤖 Assistants to set:', assistantsData);
-          // Direct state update
-          setAssistants(assistantsData);
-        } else {
-          console.log(`⚠️ [${loadId}] No assistants data or empty array`);
-          setAssistants([]);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load assistants from API:', err);
-        
-        // For now, set empty array
-        // Once CORS is fixed on backend, assistants will load automatically
-        setAssistants([]);
-        
+      // Fetch both assistants and phone numbers in parallel
+      const [assistantsData, phoneNumbersData] = await Promise.all([
+        vapiDirect.getAssistants(),
+        vapiDirect.getPhoneNumbers()
+      ]);
+      
+      console.log(`✅ [${loadId}] Loaded ${assistantsData.length} assistants`);
+      console.log(`✅ [${loadId}] Loaded ${phoneNumbersData.length} phone numbers`);
+      
+      // Set the data
+      setAssistants(assistantsData);
+      setPhoneNumbers(phoneNumbersData);
+      
+      // Show success message if we got data
+      if (assistantsData.length > 0 || phoneNumbersData.length > 0) {
         toast({
-          title: 'Assistants Temporarily Unavailable',
-          description: 'The backend is being updated. Assistants will be available shortly.',
+          title: 'VAPI Connected',
+          description: `Loaded ${assistantsData.length} assistants and ${phoneNumbersData.length} phone numbers`,
           variant: 'default'
         });
-        
-        // Check if VAPI needs configuration
-        if (err.response?.data?.requiresConfiguration) {
-          toast({
-            title: 'VAPI Configuration Required',
-            description: 'Please add your VAPI API key in Organization Settings to load assistants.',
-            variant: 'default'
-          });
-        }
+      } else {
+        toast({
+          title: 'No VAPI Resources',
+          description: 'Please create assistants and phone numbers in your VAPI dashboard',
+          variant: 'default'
+        });
       }
+    } catch (err) {
+      console.error('❌ Failed to load VAPI data:', err);
       
-      // Add small delay before fetching phone numbers to ensure backend is ready
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Set empty arrays on error
+      setAssistants([]);
+      setPhoneNumbers([]);
       
-      // Fetch phone numbers
-      try {
-        console.log('📱 Fetching phone numbers...');
-        // Use API client for proper authentication
-        const response = await apiClient.get('/vapi-data/phone-numbers');
-        console.log('✅ Direct API response:', response);
-        
-        const phoneNumbersData = response.data.phoneNumbers || [];
-        console.log('✅ Phone numbers extracted:', phoneNumbersData);
-        console.log('✅ Phone numbers length:', phoneNumbersData.length);
-        
-        if (phoneNumbersData.length > 0) {
-          console.log('✅ Setting phone numbers state with', phoneNumbersData.length, 'items');
-          console.log('📱 Phone numbers to set:', phoneNumbersData);
-          // Direct state update
-          setPhoneNumbers(phoneNumbersData);
-          // Force a re-render by updating a counter
-          setLoadingVapiData(prev => !prev);
-          setLoadingVapiData(prev => !prev);
-        } else {
-          console.log('⚠️ No phone numbers data or empty array');
-          setPhoneNumbers([]);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load phone numbers from API, trying Supabase:', err);
-        
-        // Fallback to Supabase
-        try {
-          if (userContext?.organization_id) {
-            const phoneNumbersData = await supabaseService.getPhoneNumbers(userContext.organization_id);
-            console.log('✅ Loaded phone numbers from Supabase:', phoneNumbersData);
-            
-            if (phoneNumbersData && phoneNumbersData.length > 0) {
-              // Transform to match expected format
-              const transformedNumbers = phoneNumbersData.map(phone => ({
-                id: phone.id,
-                number: phone.number,
-                friendlyName: phone.number,
-                country: phone.country_code || 'US'
-              }));
-              setPhoneNumbers(transformedNumbers);
-            } else {
-              setPhoneNumbers([]);
-            }
-          }
-        } catch (supabaseError) {
-          console.error('❌ Failed to load from Supabase too:', supabaseError);
-          setPhoneNumbers([]);
-        }
-        
-        // Check if VAPI needs configuration
-        if (err.response?.data?.requiresConfiguration) {
-          toast({
-            title: 'VAPI Configuration Required',
-            description: 'Please add your VAPI API key in Organization Settings to load phone numbers.',
-            variant: 'default'
-          });
-        }
-      }
-      
-      console.log('📊 Final VAPI data state:', {
-        assistants: assistants.length,
-        phoneNumbers: phoneNumbers.length
-      });
-      
-    } catch (error) {
-      console.error('❌ Unexpected error loading VAPI data:', error);
       toast({
-        title: 'Warning',
-        description: 'Failed to load VAPI data. Please check your configuration.',
+        title: 'VAPI Configuration Required',
+        description: 'Please add your VAPI API key in Organization Settings.',
         variant: 'destructive'
       });
     } finally {
