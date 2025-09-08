@@ -175,7 +175,6 @@ export default function OrganizationManagement() {
   // VAPI settings
   const [vapiPrivateKey, setVapiPrivateKey] = useState('');
   const [vapiPublicKey, setVapiPublicKey] = useState('');
-  const [vapiWebhookUrl, setVapiWebhookUrl] = useState('https://api.apexai.com/webhooks/vapi');
   const [vapiEnabled, setVapiEnabled] = useState(false);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [showPublicKey, setShowPublicKey] = useState(false);
@@ -260,8 +259,6 @@ export default function OrganizationManagement() {
         setVapiPublicKey(orgData.vapi_api_key || ''); // vapi_api_key contains the public key
         setVapiEnabled(!!(orgData.vapi_api_key || orgData.vapi_private_key));
         
-        // Also set webhook URL
-        setVapiWebhookUrl(`https://api.apexai.com/webhooks/vapi`);
         
         // Fetch users for this organization
         try {
@@ -320,7 +317,6 @@ export default function OrganizationManagement() {
         
         setVapiPrivateKey(vapiSettings.privateKey || vapiSettings.apiKey || '');
         setVapiPublicKey(vapiSettings.publicKey || '');
-        setVapiWebhookUrl(vapiSettings.webhookUrl || 'https://api.apexai.com/webhooks/vapi');
         setVapiEnabled(vapiSettings.enabled !== undefined ? vapiSettings.enabled : true);
       }
 
@@ -1039,19 +1035,6 @@ export default function OrganizationManagement() {
                         {showPublicKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="vapiWebhookUrl" className="text-gray-300">
-                      Webhook URL
-                    </Label>
-                    <Input
-                      id="vapiWebhookUrl"
-                      value={vapiWebhookUrl}
-                      onChange={(e) => setVapiWebhookUrl(e.target.value)}
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
-                      placeholder="https://api.apexai.com/webhooks/vapi"
-                    />
                   </div>
 
                   <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-4">
