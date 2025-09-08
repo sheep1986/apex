@@ -92,29 +92,39 @@ export function Organizations() {
         return;
       }
       
-      // Transform data to match our interface
-      const transformedOrgs = organizations.map(org => ({
-        id: org.id,
-        name: org.name,
-        domain: org.custom_domain || undefined,
-        contact_name: undefined, // Not in current schema
-        contact_email: org.billing_email,
-        contact_phone: org.phone,
-        address: org.address,
-        status: org.status === 'active' ? 'active' as const : 'inactive' as const,
-        subscription_plan: org.plan === 'professional' ? 'growth' as const : org.plan === 'starter' ? 'starter' as const : 'enterprise' as const,
-        subscription_status: org.status === 'active' ? 'active' as const : 'cancelled' as const,
-        subscription_mrr: org.monthly_cost,
-        users_count: 0, // Will be calculated from stats
-        campaigns_count: 0, // Will be calculated from stats
-        total_calls: 0, // Will be calculated from stats
-        created_at: org.created_at,
-        updated_at: org.updated_at,
+      // Transform data to match our interface and fetch user counts
+      const transformedOrgs = await Promise.all(organizations.map(async (org) => {
+        // Fetch user count for this organization
+        let userCount = 0;
+        try {
+          const users = await supabaseService.getOrganizationUsers(org.id);
+          userCount = users.length;
+          console.log(`👥 Organization ${org.name} has ${userCount} users`);
+        } catch (error) {
+          console.error(`Failed to fetch user count for ${org.name}:`, error);
+        }
+        
+        return {
+          id: org.id,
+          name: org.name,
+          domain: org.custom_domain || undefined,
+          contact_name: undefined, // Not in current schema
+          contact_email: org.billing_email,
+          contact_phone: org.phone,
+          address: org.address,
+          status: org.status === 'active' ? 'active' as const : 'inactive' as const,
+          subscription_plan: org.plan === 'professional' ? 'growth' as const : org.plan === 'starter' ? 'starter' as const : 'enterprise' as const,
+          subscription_status: org.status === 'active' ? 'active' as const : 'cancelled' as const,
+          subscription_mrr: org.monthly_cost,
+          users_count: userCount,
+          campaigns_count: 0, // TODO: Fetch campaign count
+          total_calls: 0, // TODO: Fetch call count
+          created_at: org.created_at,
+          updated_at: org.updated_at,
+        };
       }));
       
-      // Skip fetching stats for now to avoid rate limiting
-      // We'll show the organizations without the extra stats
-      console.log('📊 Skipping stats fetch to avoid rate limiting');
+      console.log('📊 Organizations with user counts:', transformedOrgs);
       
       setOrganizations(transformedOrgs);
     } catch (error) {
