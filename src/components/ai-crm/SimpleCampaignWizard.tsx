@@ -14,6 +14,7 @@ import vapiOutboundService from '@/services/vapi-outbound.service';
 import { CampaignTeamManager, TeamMember, TeamInvitation } from './CampaignTeamManager';
 import { organizationSettingsService } from '@/services/organization-settings.service';
 import { supabaseService } from '@/services/supabase-service';
+import { supabase } from '@/services/supabase-client';
 import { useUserContext } from '@/services/MinimalUserProvider';
 import vapiDirect from '@/services/vapi-direct';
 
@@ -1457,13 +1458,70 @@ The review section provides detailed estimates for your campaign including durat
         }
       };
 
-      console.log('📡 Calling createCampaign with data:', campaignData);
-      const campaign = await vapiOutboundService.createCampaign(campaignData);
+      console.log('📡 Creating campaign in Supabase...');
+      
+      // Create campaign directly in Supabase
+      const { data: campaign, error } = await supabase
+        .from('campaigns')
+        .insert({
+          name: campaignName,
+          organization_id: userContext?.organization_id || localStorage.getItem('organization_id'),
+          assistant_id: assistant,
+          phone_number_id: phoneNumber,
+          status: whenToSend === 'now' ? 'active' : 'draft',
+          type: campaignType,
+          csv_data: csvString,
+          total_leads: csvData.length,
+          settings: {
+            whenToSend,
+            scheduleDate,
+            scheduleTime,
+            timezone,
+            callsPerMinute,
+            callsPerHour,
+            enableRateLimiting,
+            customConcurrency,
+            delayBetweenCalls,
+            concurrentCalls,
+            avgCallDuration,
+            costPerMinute,
+            currentBalance,
+            retryStrategy,
+            maxRetryAttempts,
+            retryInterval,
+            retryConditions,
+            workingHoursEnabled,
+            workingHours,
+            defaultTimezone,
+            winningCriteria,
+            qualificationThreshold,
+            disqualifyingFactors,
+            teamMembers: allTeamMembers,
+            teamInvitations
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        throw new Error(error.message);
+      }
+      
       console.log('✅ Campaign created:', campaign);
 
-      // Start campaign if "Send Now" is selected
+      // If "Send Now", update status to active
       if (whenToSend === 'now') {
-        await vapiOutboundService.startCampaign(campaign.id);
+        const { error: updateError } = await supabase
+          .from('campaigns')
+          .update({ status: 'active', started_at: new Date().toISOString() })
+          .eq('id', campaign.id);
+        
+        if (updateError) {
+          console.error('❌ Error starting campaign:', updateError);
+        }
       }
 
       toast({
