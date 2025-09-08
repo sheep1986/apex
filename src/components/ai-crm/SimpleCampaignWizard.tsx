@@ -2345,6 +2345,7 @@ The review section provides detailed estimates for your campaign including durat
                     <RadioGroup
                       value={retryStrategy}
                       onValueChange={(value) => {
+                        console.log('🔄 Retry strategy changed to:', value);
                         setRetryStrategy(value);
                         // Update retry attempts based on strategy
                         if (value === 'basic') {
@@ -2357,41 +2358,41 @@ The review section provides detailed estimates for your campaign including durat
                       }}
                       className="space-y-3"
                     >
-                      <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                      <label className="flex items-start space-x-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer">
                         <RadioGroupItem value="basic" id="basic" className="mt-1" />
                         <div className="flex-1">
-                          <Label htmlFor="basic" className="text-white font-medium cursor-pointer">
+                          <div className="text-white font-medium">
                             🎯 Basic (1-2 retries)
-                          </Label>
+                          </div>
                           <p className="text-xs text-gray-400 mt-1">
                             Minimal retries for simple campaigns. Good for cold calling.
                           </p>
                         </div>
-                      </div>
+                      </label>
                       
-                      <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                      <label className="flex items-start space-x-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer">
                         <RadioGroupItem value="smart" id="smart" className="mt-1" />
                         <div className="flex-1">
-                          <Label htmlFor="smart" className="text-white font-medium cursor-pointer">
+                          <div className="text-white font-medium">
                             🧠 Smart (3-5 retries)
-                          </Label>
+                          </div>
                           <p className="text-xs text-gray-400 mt-1">
                             Intelligent retry logic with exponential backoff. Recommended for most campaigns.
                           </p>
                         </div>
-                      </div>
+                      </label>
                       
-                      <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                      <label className="flex items-start space-x-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer">
                         <RadioGroupItem value="conservative" id="conservative" className="mt-1" />
                         <div className="flex-1">
-                          <Label htmlFor="conservative" className="text-white font-medium cursor-pointer">
+                          <div className="text-white font-medium">
                             🛡️ Conservative (2-3 retries)
-                          </Label>
+                          </div>
                           <p className="text-xs text-gray-400 mt-1">
                             Respectful retry pattern. Perfect for warm leads and existing customers.
                           </p>
                         </div>
-                      </div>
+                      </label>
                     </RadioGroup>
                   </div>
 
