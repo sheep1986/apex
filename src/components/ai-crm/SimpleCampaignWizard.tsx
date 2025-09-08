@@ -54,6 +54,9 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
   
   // Retry logic state (simplified)
   const [retryStrategy, setRetryStrategy] = useState('smart'); // 'basic', 'smart', 'conservative'
+  const [maxRetryAttempts, setMaxRetryAttempts] = useState(3);
+  const [retryInterval, setRetryInterval] = useState(60); // minutes
+  const [retryConditions, setRetryConditions] = useState(['no_answer', 'busy', 'failed']);
   
   // Qualification criteria state
   const [selectedQualificationFields, setSelectedQualificationFields] = useState<Record<string, any>>({});
@@ -2341,7 +2344,17 @@ The review section provides detailed estimates for your campaign including durat
                     <Label className="text-white text-sm mb-3 block">Choose your retry strategy</Label>
                     <RadioGroup
                       value={retryStrategy}
-                      onValueChange={(value) => setRetryStrategy(value)}
+                      onValueChange={(value) => {
+                        setRetryStrategy(value);
+                        // Update retry attempts based on strategy
+                        if (value === 'basic') {
+                          setMaxRetryAttempts(2);
+                        } else if (value === 'smart') {
+                          setMaxRetryAttempts(3);
+                        } else if (value === 'conservative') {
+                          setMaxRetryAttempts(5);
+                        }
+                      }}
                       className="space-y-3"
                     >
                       <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
