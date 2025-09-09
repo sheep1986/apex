@@ -144,15 +144,7 @@ export default function Dashboard() {
     { name: 'Failed', value: 3, color: '#ef4444' },
   ];
 
-  const callVolumeData = [
-    { date: 'Monday', calls: 320 },
-    { date: 'Tuesday', calls: 450 },
-    { date: 'Wednesday', calls: 380 },
-    { date: 'Thursday', calls: 520 },
-    { date: 'Friday', calls: 480 },
-    { date: 'Saturday', calls: 350 },
-    { date: 'Sunday', calls: 290 },
-  ];
+  // Call volume data is now declared as state in line 210
   const navigate = useNavigate();
   const { userContext } = useUserContext();
   const { user } = useUser();
