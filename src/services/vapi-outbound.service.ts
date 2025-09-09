@@ -170,12 +170,22 @@ class VapiOutboundService {
       // Try vapi-outbound endpoint first, fall back to regular campaigns
       let response;
       try {
+        console.log('📡 Trying /vapi-outbound/campaigns endpoint...');
         response = await this.apiClient.get('/vapi-outbound/campaigns');
+        console.log('✅ vapi-outbound endpoint succeeded');
       } catch (error: any) {
+        console.log('⚠️ vapi-outbound failed with:', error.response?.status || error.message);
+        
         // If vapi-outbound endpoint doesn't exist, use regular campaigns endpoint
-        if (error.response?.status === 404) {
-          console.log('📡 Falling back to /campaigns endpoint...');
-          response = await this.apiClient.get('/campaigns');
+        if (error.response?.status === 404 || error.message?.includes('404')) {
+          try {
+            console.log('📡 Falling back to /campaigns endpoint...');
+            response = await this.apiClient.get('/campaigns');
+            console.log('✅ Regular campaigns endpoint succeeded');
+          } catch (fallbackError: any) {
+            console.error('❌ Both endpoints failed:', fallbackError);
+            throw fallbackError;
+          }
         } else {
           throw error;
         }
@@ -192,38 +202,38 @@ class VapiOutboundService {
         return [];
       }
       
-      // Data is already in the correct format from the backend
+      // Map the data - handle both camelCase and snake_case fields
       return campaignsData.map((campaign: any) => ({
         id: campaign.id,
-        apexId: campaign.apexId || `apex${campaign.id.substring(0, 5)}`,
+        apexId: campaign.apexId || campaign.apex_id || `apex${campaign.id.substring(0, 5)}`,
         name: campaign.name,
         description: campaign.description,
         status: campaign.status,
-        assistantId: campaign.assistantId,
-        assistantName: campaign.assistantName || 'AI Assistant',
-        phoneNumberId: campaign.phoneNumberId,
-        phoneNumber: campaign.phoneNumber,
-        organizationId: campaign.organizationId || '',
+        assistantId: campaign.assistantId || campaign.assistant_id || '',
+        assistantName: campaign.assistantName || campaign.assistant_name || 'AI Assistant',
+        phoneNumberId: campaign.phoneNumberId || campaign.phone_number_id || '',
+        phoneNumber: campaign.phoneNumber || campaign.phone_number,
+        organizationId: campaign.organizationId || campaign.organization_id || '',
         objective: campaign.objective,
         budget: campaign.budget,
-        campaignType: campaign.campaignType,
-        createdAt: campaign.createdAt,
-        updatedAt: campaign.updatedAt,
-        totalLeads: campaign.totalLeads || 0,
-        callsCompleted: campaign.callsCompleted || 0,
-        totalCost: campaign.totalCost || 0,
-        successRate: campaign.successRate || 0,
-        callsInProgress: campaign.callsInProgress || 0,
+        campaignType: campaign.campaignType || campaign.campaign_type,
+        createdAt: campaign.createdAt || campaign.created_at,
+        updatedAt: campaign.updatedAt || campaign.updated_at,
+        totalLeads: campaign.totalLeads || campaign.total_leads || campaign.leads_count?.count || 0,
+        callsCompleted: campaign.callsCompleted || campaign.calls_completed || campaign.completed_calls_count || 0,
+        totalCost: campaign.totalCost || campaign.total_cost || campaign.spent || 0,
+        successRate: campaign.successRate || campaign.success_rate || campaign.conversion_rate || 0,
+        callsInProgress: campaign.callsInProgress || campaign.calls_in_progress || 0,
         settings: campaign.settings || {
-          callsPerHour: 10,
-          retryAttempts: 2,
-          timeZone: 'America/New_York',
+          callsPerHour: campaign.calls_per_hour || 10,
+          retryAttempts: campaign.retry_attempts || 2,
+          timeZone: campaign.time_zone || 'America/New_York',
           workingHours: {
-            start: '09:00',
-            end: '17:00'
+            start: campaign.working_hours_start || '09:00',
+            end: campaign.working_hours_end || '17:00'
           }
         },
-        teamAssignment: campaign.teamAssignment
+        teamAssignment: campaign.teamAssignment || campaign.team_assignment
       }));
     } catch (error) {
       console.error('❌ Error fetching campaigns from API:', error);
@@ -232,9 +242,29 @@ class VapiOutboundService {
       try {
         console.log('🔄 Attempting to fetch campaigns directly from Supabase...');
         
+        // Get the current user's organization_id from Supabase auth or user context
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('❌ No authenticated user for Supabase fallback');
+          return [];
+        }
+        
+        // First get the user's organization_id
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('organization_id')
+          .eq('email', user.email)
+          .single();
+        
+        if (userError || !userData?.organization_id) {
+          console.error('❌ Could not get user organization:', userError);
+          return [];
+        }
+        
         const { data: campaigns, error: supabaseError } = await supabase
           .from('campaigns')
           .select('*')
+          .eq('organization_id', userData.organization_id)
           .order('created_at', { ascending: false });
         
         if (supabaseError) {
