@@ -4,6 +4,7 @@ import { useVapiOutboundService } from '@/services/vapi-outbound.service';
 import { apiClient } from '@/lib/api-client';
 import { supabase } from '@/services/supabase-client';
 import { directSupabaseService } from '@/services/direct-supabase.service';
+import { vapiAssistantService } from '@/services/vapi-assistant.service';
 import {
   ArrowLeft,
   Edit3,
@@ -451,6 +452,7 @@ export default function CampaignDetails() {
         },
         script: campaignData.script || defaultCampaign.script,
         systemPrompt: campaignData.settings?.system_prompt || '',
+        assistantId: campaignData.assistantId || campaignData.settings?.assistant_id || '',
         callingSchedule: campaignData.settings?.schedule || defaultCampaign.callingSchedule,
         team: campaignData.team || [],
         budget: campaignData.budget || defaultCampaign.budget,
@@ -631,7 +633,10 @@ export default function CampaignDetails() {
   };
 
   const handleUpdateVapiPrompt = async () => {
-    if (!campaign.assistantId) {
+    // Check for assistant ID in campaign or settings
+    const assistantId = campaign.assistantId || campaign.settings?.assistant_id;
+    
+    if (!assistantId) {
       toast({
         title: 'Error',
         description: 'No VAPI assistant ID found for this campaign',
@@ -643,8 +648,17 @@ export default function CampaignDetails() {
     try {
       setLoading(true);
       
-      // For now, update the campaign settings in database
-      // In production, you'd also call VAPI API to update the assistant
+      // Update VAPI assistant first
+      const vapiSuccess = await vapiAssistantService.updateAssistantPrompt(
+        assistantId,
+        campaign.systemPrompt
+      );
+      
+      if (!vapiSuccess) {
+        throw new Error('Failed to update VAPI assistant');
+      }
+      
+      // Then update the campaign settings in database
       const { error } = await supabase
         .from('campaigns')
         .update({
@@ -660,13 +674,16 @@ export default function CampaignDetails() {
 
       toast({
         title: 'Success',
-        description: 'System prompt updated successfully',
+        description: 'System prompt updated in both VAPI and database successfully',
       });
+      
+      // Update the original campaign state so cancel works properly
+      setOriginalCampaign({ ...campaign });
     } catch (error) {
       console.error('Error updating VAPI prompt:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update system prompt',
+        description: 'Failed to update system prompt in VAPI',
         variant: 'destructive',
       });
     } finally {
@@ -1467,14 +1484,41 @@ export default function CampaignDetails() {
                     <div className="flex items-center justify-between mb-3">
                       <Label className="text-white">VAPI System Prompt</Label>
                       {isEditing && (
-                        <Button
-                          onClick={() => handleUpdateVapiPrompt()}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
-                          size="sm"
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Push to VAPI
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={async () => {
+                              const assistantId = campaign.assistantId || campaign.settings?.assistant_id;
+                              if (assistantId) {
+                                setLoading(true);
+                                const details = await vapiAssistantService.fetchAssistantDetails(assistantId);
+                                if (details?.systemPrompt) {
+                                  updateCampaign('systemPrompt', details.systemPrompt);
+                                  toast({
+                                    title: 'Success',
+                                    description: 'Fetched latest prompt from VAPI',
+                                  });
+                                }
+                                setLoading(false);
+                              }
+                            }}
+                            variant="outline"
+                            className="text-sm"
+                            size="sm"
+                            disabled={loading}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Fetch from VAPI
+                          </Button>
+                          <Button
+                            onClick={() => handleUpdateVapiPrompt()}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+                            size="sm"
+                            disabled={loading}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Push to VAPI
+                          </Button>
+                        </div>
                       )}
                     </div>
                     {isEditing ? (
