@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { vapiOutboundService } from '@/services/vapi-outbound.service';
+import { useVapiOutboundService } from '@/services/vapi-outbound.service';
 import { apiClient } from '@/lib/api-client';
 import { supabase } from '@/services/supabase-client';
+import { directSupabaseService } from '@/services/direct-supabase.service';
 import {
   ArrowLeft,
   Edit3,
@@ -139,6 +140,7 @@ export default function CampaignDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const vapiOutboundService = useVapiOutboundService(); // Use authenticated service
   const [isEditing, setIsEditing] = useState(false);
   const [campaign, setCampaign] = useState(defaultCampaign);
   const [isLoading, setIsLoading] = useState(true);
@@ -354,38 +356,38 @@ export default function CampaignDetails() {
         const response = await apiClient.get(`/vapi-outbound/campaigns/${id}`);
         campaignData = response.data.campaign;
       } catch (apiError) {
-        console.log('❌ API call failed, falling back to Supabase:', apiError);
+        console.log('❌ API call failed, falling back to direct Supabase service:', apiError);
         
-        // Fallback to Supabase
-        const { data, error } = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('id', id)
-          .single();
+        // Use the direct Supabase service which includes counts
+        campaignData = await directSupabaseService.getCampaignById(id);
         
-        if (error) throw error;
+        if (!campaignData) {
+          throw new Error('Campaign not found');
+        }
         
-        // Transform Supabase data to match API format
-        // All campaign-specific data is now in the settings JSONB column
-        const settings = data.settings || {};
-        campaignData = {
-          ...data,
-          phoneNumbers: [settings.phone_number_id].filter(Boolean),
-          phoneNumberDetails: [],
-          totalLeads: settings.total_leads || 0,
-          callsCompleted: settings.calls_completed || 0,
-          successfulCalls: settings.successful_calls || 0,
-          assistantName: settings.assistant_name || 'AI Assistant',
-          assistant_id: settings.assistant_id,
-          phone_number_id: settings.phone_number_id,
-        };
+        // The directSupabaseService already returns the data in the right format
+        // with totalLeads, callsCompleted, etc. properly calculated
       }
       
       console.log('📊 Campaign data from backend:', campaignData);
+      
+      // Add null safety - if campaignData is undefined, use empty object
+      if (!campaignData) {
+        console.error('❌ Campaign data is undefined!');
+        campaignData = {
+          id: id,
+          name: 'Loading...',
+          status: 'draft',
+          totalLeads: 0,
+          callsCompleted: 0,
+          settings: {}
+        };
+      }
+      
       console.log('📊 Metrics:', {
-        totalLeads: campaignData.totalLeads,
-        callsCompleted: campaignData.callsCompleted,
-        metrics: campaignData.metrics
+        totalLeads: campaignData?.totalLeads,
+        callsCompleted: campaignData?.callsCompleted,
+        metrics: campaignData?.metrics
       });
       
       setCampaign({
@@ -427,8 +429,8 @@ export default function CampaignDetails() {
         opportunities: campaignData.meetings || 0, // for compatibility
         callbacks: campaignData.callbacks || 0,
         calledBack: campaignData.callbacks || 0, // for compatibility
-        progress: (campaignData.totalLeads || campaignData.settings?.total_leads) > 0 
-          ? Math.round((campaignData.callsCompleted / (campaignData.totalLeads || campaignData.settings?.total_leads)) * 100) 
+        progress: (campaignData?.totalLeads || campaignData?.settings?.total_leads) > 0 
+          ? Math.round(((campaignData?.callsCompleted || 0) / (campaignData?.totalLeads || campaignData?.settings?.total_leads || 1)) * 100) 
           : 0,
       });
     } catch (error) {
