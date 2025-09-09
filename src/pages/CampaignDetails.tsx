@@ -401,7 +401,10 @@ export default function CampaignDetails() {
       console.log('📊 Setting campaign state with:', {
         totalLeads: campaignData.totalLeads,
         callsCompleted: campaignData.callsCompleted,
-        name: campaignData.name
+        leadsCalled: campaignData.totalLeads,
+        answered: campaignData.callsCompleted,
+        name: campaignData.name,
+        fullData: campaignData
       });
       
       setCampaign({
@@ -426,8 +429,8 @@ export default function CampaignDetails() {
         // Use the direct values from DirectSupabaseService
         totalLeads: campaignData.totalLeads || 0,
         callsCompleted: campaignData.callsCompleted || 0,
-        leadsContacted: campaignData.callsCompleted || 0,
-        leadsCalled: campaignData.callsCompleted || 0,
+        leadsContacted: campaignData.totalLeads || 0,  // Should be total leads
+        leadsCalled: campaignData.totalLeads || 0,     // Should be total leads that we attempted to call
         callsToday: campaignData.callsToday || 0,
         callsConnected: campaignData.callsCompleted || 0,
         answered: campaignData.callsCompleted || 0,
