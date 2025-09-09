@@ -146,6 +146,7 @@ export default function CampaignDetails() {
   const [isEditing, setIsEditing] = useState(false);
   const [campaign, setCampaign] = useState(defaultCampaign);
   const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // For button loading states
   const [activeTab, setActiveTab] = useState('overview');
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [selectedCall, setSelectedCall] = useState<any>(null);
