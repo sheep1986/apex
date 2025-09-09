@@ -472,8 +472,9 @@ export default function CampaignDetails() {
         },
         meetings: campaignData.meetings || 0,
         opportunities: campaignData.opportunities || 0,
-        callbacks: campaignData.callbacks || 0,
+        callbacks: campaignData.totalCost || 0,
         calledBack: campaignData.callbacks || 0,
+        totalCost: campaignData.totalCost || 0,
         progress: campaignData.totalLeads > 0 
           ? Math.round((campaignData.callsCompleted / campaignData.totalLeads) * 100) 
           : 0,
@@ -832,10 +833,10 @@ export default function CampaignDetails() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Callbacks</p>
-                  <p className="text-2xl font-bold text-white">{campaign.callbacks || 0}</p>
+                  <p className="text-sm text-gray-400">Total Cost</p>
+                  <p className="text-2xl font-bold text-white">${(campaign.callbacks || 0).toFixed(2)}</p>
                 </div>
-                <ClockIcon className="h-8 w-8 text-amber-500" />
+                <DollarSign className="h-8 w-8 text-amber-500" />
               </div>
             </CardContent>
           </Card>
