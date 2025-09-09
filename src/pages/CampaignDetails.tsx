@@ -448,12 +448,7 @@ export default function CampaignDetails() {
           ...defaultCampaign.voiceAgent,
           name: campaignData.settings?.voice_agent || campaignData.assistantName || 'AI Assistant',
         },
-        script: campaignData.settings?.system_prompt ? {
-          introduction: '',
-          mainContent: campaignData.settings.system_prompt,
-          objections: '',
-          closing: ''
-        } : (campaignData.script || defaultCampaign.script),
+        script: campaignData.script || defaultCampaign.script,
         systemPrompt: campaignData.settings?.system_prompt || '',
         callingSchedule: campaignData.settings?.schedule || defaultCampaign.callingSchedule,
         team: campaignData.team || [],
@@ -905,7 +900,7 @@ export default function CampaignDetails() {
               Schedule
             </TabsTrigger>
             <TabsTrigger value="script" className="text-white">
-              Script
+              System Prompt
             </TabsTrigger>
             <TabsTrigger value="team" className="text-white">
               Team
