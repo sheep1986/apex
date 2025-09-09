@@ -242,29 +242,62 @@ class VapiOutboundService {
       try {
         console.log('🔄 Attempting to fetch campaigns directly from Supabase...');
         
-        // Get the current user's organization_id from Supabase auth or user context
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.error('❌ No authenticated user for Supabase fallback');
-          return [];
+        // Try to get organization_id from window.Clerk if available
+        let organizationId = null;
+        
+        // First try to get from Clerk (if available in window)
+        if (typeof window !== 'undefined' && (window as any).Clerk) {
+          try {
+            const clerk = (window as any).Clerk;
+            const user = clerk.user;
+            if (user) {
+              // Get organization_id from user's publicMetadata or from database
+              const userEmail = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress;
+              if (userEmail) {
+                const { data: userData, error: userError } = await supabase
+                  .from('users')
+                  .select('organization_id')
+                  .eq('email', userEmail)
+                  .single();
+                
+                if (!userError && userData?.organization_id) {
+                  organizationId = userData.organization_id;
+                  console.log('✅ Got organization_id from Clerk user:', organizationId);
+                }
+              }
+            }
+          } catch (clerkError) {
+            console.warn('⚠️ Could not get organization from Clerk:', clerkError);
+          }
         }
         
-        // First get the user's organization_id
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('organization_id')
-          .eq('email', user.email)
-          .single();
+        // If no organization_id, try Supabase auth as fallback
+        if (!organizationId) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('organization_id')
+              .eq('email', user.email)
+              .single();
+            
+            if (userData?.organization_id) {
+              organizationId = userData.organization_id;
+              console.log('✅ Got organization_id from Supabase auth:', organizationId);
+            }
+          }
+        }
         
-        if (userError || !userData?.organization_id) {
-          console.error('❌ Could not get user organization:', userError);
+        // If still no organization_id, we can't proceed
+        if (!organizationId) {
+          console.error('❌ Could not determine organization_id for Supabase fallback');
           return [];
         }
         
         const { data: campaigns, error: supabaseError } = await supabase
           .from('campaigns')
           .select('*')
-          .eq('organization_id', userData.organization_id)
+          .eq('organization_id', organizationId)
           .order('created_at', { ascending: false });
         
         if (supabaseError) {
