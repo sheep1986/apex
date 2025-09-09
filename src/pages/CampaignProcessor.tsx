@@ -19,7 +19,7 @@ import {
   Zap,
   TrendingUp
 } from 'lucide-react';
-import { campaignProcessor } from '@/services/campaign-processor-frontend.service';
+import { campaignProcessor } from '@/services/campaign-processor-frontend';
 import { supabase } from '@/services/supabase-client';
 import { format } from 'date-fns';
 
