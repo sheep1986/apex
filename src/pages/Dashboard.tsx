@@ -75,21 +75,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUserContext } from '../services/MinimalUserProvider';
 import { useUser } from '../hooks/auth';
 
-// Sample data - in real app this would come from API
-
-const voiceAgentPerformance = [
-  { name: 'Sales Pro', successRate: 82, calls: 145, avgCost: 0.12 },
-  { name: 'Support Agent', successRate: 78, calls: 98, avgCost: 0.1 },
-  { name: 'Outbound AI', successRate: 75, calls: 203, avgCost: 0.08 },
-  { name: 'Custom Agent 1', successRate: 71, calls: 67, avgCost: 0.11 },
-];
-
-const campaignPerformance = [
-  { name: 'Healthcare Q1', successRate: 76, totalCalls: 432, avgCost: 0.11, leads: 87 },
-  { name: 'Fitness Centers', successRate: 82, totalCalls: 289, avgCost: 0.13, leads: 72 },
-  { name: 'B2B Software', successRate: 69, totalCalls: 178, avgCost: 0.15, leads: 45 },
-  { name: 'Real Estate', successRate: 73, totalCalls: 356, avgCost: 0.12, leads: 93 },
-];
+// Import Supabase client
+import { supabase } from '../services/supabase-client';
+import { RealDataBanner } from '../components/RealDataBanner';
 
 
 const conversionData = [
@@ -212,32 +200,99 @@ export default function Dashboard() {
     });
   };
 
+  const [realStats, setRealStats] = useState({
+    totalCalls: 0,
+    activeCampaigns: 0,
+    conversionRate: 0,
+    totalCost: 0,
+  });
+  const [campaignData, setCampaignData] = useState<any[]>([]);
+  const [callVolumeData, setCallVolumeData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRealData();
+  }, []);
+
+  const fetchRealData = async () => {
+    try {
+      // Fetch campaigns
+      const { data: campaigns } = await supabase
+        .from('campaigns')
+        .select('*');
+      
+      // Fetch calls
+      const { data: calls } = await supabase
+        .from('calls')
+        .select('*');
+      
+      // Calculate real stats
+      const activeCampaigns = campaigns?.filter(c => c.status === 'active').length || 0;
+      const totalCalls = calls?.length || 0;
+      const successfulCalls = calls?.filter(c => c.status === 'completed').length || 0;
+      const conversionRate = totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0;
+      const totalCost = calls?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
+      
+      setRealStats({
+        totalCalls,
+        activeCampaigns,
+        conversionRate,
+        totalCost,
+      });
+      
+      // Set campaign data for chart
+      const campaignPerf = campaigns?.map(c => ({
+        name: c.name,
+        successRate: c.total_calls > 0 ? (c.successful_calls / c.total_calls) * 100 : 0,
+        value: c.successful_calls || 0,
+      })) || [];
+      
+      setCampaignData(campaignPerf);
+      
+      // Generate call volume data
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - i));
+        return {
+          day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          calls: Math.floor(Math.random() * 10), // Will be replaced with real data
+        };
+      });
+      
+      setCallVolumeData(last7Days);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setLoading(false);
+    }
+  };
+
   const stats = [
     {
       title: 'Total Calls',
-      value: '12,543',
-      change: '+12.5%',
+      value: realStats.totalCalls.toLocaleString(),
+      change: realStats.totalCalls > 0 ? 'Real data' : 'No calls yet',
       icon: Phone,
       color: 'purple',
     },
     {
       title: 'Active Campaigns',
-      value: '24',
-      change: '+3',
+      value: realStats.activeCampaigns.toString(),
+      change: 'Live',
       icon: Target,
       color: 'emerald',
     },
     {
       title: 'Conversion Rate',
-      value: '32.8%',
-      change: '+5.2%',
+      value: `${realStats.conversionRate.toFixed(1)}%`,
+      change: 'Actual rate',
       icon: TrendingUp,
       color: 'pink',
     },
     {
-      title: 'Revenue',
-      value: '$45,231',
-      change: '+18.7%',
+      title: 'Total Cost',
+      value: `£${realStats.totalCost.toFixed(2)}`,
+      change: 'GBP',
       icon: DollarSign,
       color: 'blue',
     },
@@ -253,6 +308,9 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-black">
       <div className="w-full mt-8 space-y-6 px-4 sm:px-6 lg:px-8">
+      {/* Real Data Banner */}
+      <RealDataBanner hasData={realStats.totalCalls > 0} />
+      
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>

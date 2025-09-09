@@ -51,18 +51,15 @@ import OrganizationSetupWizard from './pages/OrganizationSetupWizard';
 import OrganizationManagement from './pages/OrganizationManagement';
 import PlatformAnalytics from './pages/PlatformAnalytics';
 import ApiKeys from './pages/ApiKeys';
-import { TestPage } from './pages/TestPage';
 import OutboundCalls from './pages/OutboundCalls';
+import CampaignProcessor from './pages/CampaignProcessor';
 import CallDetails from './pages/CallDetails';
 import CampaignCalls from './pages/CampaignCalls';
 import LeadPage from './pages/LeadPage';
 import AgencyDashboard from './pages/AgencyDashboard';
 import AcceptInvitation from './pages/AcceptInvitation';
 import ForceLogout from './pages/ForceLogout';
-import DebugAuth from './pages/DebugAuth';
-import TestAuth from './pages/TestAuth';
 import { RoleBasedRedirect } from './components/RoleBasedRedirect';
-import { DebugSupabaseSession } from './pages/DebugSupabaseSession';
 import { RoleBasedRoute } from './components/RoleBasedRoute';
 import { ContactsProvider } from './contexts/ContactsContext';
 import { AuthRedirect } from './components/AuthRedirect';
@@ -78,10 +75,6 @@ function App() {
           <Route path="/signup/*" element={<AuthRedirect><SignUp /></AuthRedirect>} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
           <Route path="/force-logout" element={<ForceLogout />} />
-          <Route path="/debug-auth" element={<DebugAuth />} />
-          <Route path="/test-auth" element={<TestAuth />} />
-          <Route path="/test" element={<TestPage />} />
-          <Route path="/debug-supabase" element={<DebugSupabaseSession />} />
           <Route
             path="/portal"
             element={
@@ -107,6 +100,7 @@ function App() {
             <Route path="/campaign-wizard" element={<CampaignSetupWizard />} />
             <Route path="/campaigns/:id" element={<CampaignDetails />} />
             <Route path="/campaigns/:campaignId/calls" element={<CampaignCalls />} />
+            <Route path="/campaign-processor" element={<CampaignProcessor />} />
             <Route path="/calls/:callId" element={<CallDetails />} />
             <Route path="/leads/:leadId" element={<LeadPage />} />
             <Route path="/all-calls" element={<AllCalls />} />
