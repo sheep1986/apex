@@ -44,6 +44,11 @@ export class DirectSupabaseService {
           .in('status', ['completed', 'ended']);
         
         console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
+    console.log('📊 Returning data with:', {
+      totalLeads: leadCount || 0,
+      callsCompleted: completedCallCount || 0,
+      id: campaign.id
+    });
         
         // Log if this is the test mm campaign
         if (campaign.name === 'test mm') {
@@ -161,6 +166,11 @@ export class DirectSupabaseService {
       .in('status', ['completed', 'ended']);
     
     console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
+    console.log('📊 Returning data with:', {
+      totalLeads: leadCount || 0,
+      callsCompleted: completedCallCount || 0,
+      id: campaign.id
+    });
     
     return {
       ...campaign,

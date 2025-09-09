@@ -397,6 +397,13 @@ export default function CampaignDetails() {
         metrics: campaignData?.metrics
       });
       
+      // Log the data we're about to set
+      console.log('📊 Setting campaign state with:', {
+        totalLeads: campaignData.totalLeads,
+        callsCompleted: campaignData.callsCompleted,
+        name: campaignData.name
+      });
+      
       setCampaign({
         ...defaultCampaign, // Keep default structure as base
         // Override with real data
@@ -416,28 +423,28 @@ export default function CampaignDetails() {
         settings: campaignData.settings || defaultCampaign.settings,
         createdAt: campaignData.createdAt,
         lastModified: campaignData.updatedAt,
-        // Real metrics from backend - check both direct fields and metrics object
-        totalLeads: campaignData.totalLeads || campaignData.settings?.total_leads || campaignData.metrics?.totalLeads || 0,
-        callsCompleted: campaignData.callsCompleted || campaignData.metrics?.callsCompleted || 0,
-        leadsContacted: campaignData.callsCompleted || campaignData.metrics?.callsCompleted || 0,
-        leadsCalled: campaignData.callsCompleted || campaignData.metrics?.callsCompleted || campaignData.totalCalls || 0, // for compatibility
-        callsToday: campaignData.callsToday || campaignData.metrics?.callsToday || 0,
-        callsConnected: campaignData.successfulCalls || campaignData.metrics?.callsConnected || 0,
-        answered: campaignData.successfulCalls || campaignData.metrics?.callsConnected || 0, // for compatibility
-        avgCallDuration: campaignData.avgCallDuration || 0,
-        outcomes: campaignData.outcomes || {
-          answered: campaignData.successfulCalls || 0,
+        // Use the direct values from DirectSupabaseService
+        totalLeads: campaignData.totalLeads || 0,
+        callsCompleted: campaignData.callsCompleted || 0,
+        leadsContacted: campaignData.callsCompleted || 0,
+        leadsCalled: campaignData.callsCompleted || 0,
+        callsToday: campaignData.callsToday || 0,
+        callsConnected: campaignData.callsCompleted || 0,
+        answered: campaignData.callsCompleted || 0,
+        avgCallDuration: campaignData.avgCallDuration || 120,
+        outcomes: {
+          answered: campaignData.callsCompleted || 0,
           voicemail: 0,
           noAnswer: 0,
           busy: 0,
           failed: 0,
         },
         meetings: campaignData.meetings || 0,
-        opportunities: campaignData.meetings || 0, // for compatibility
+        opportunities: campaignData.opportunities || 0,
         callbacks: campaignData.callbacks || 0,
-        calledBack: campaignData.callbacks || 0, // for compatibility
-        progress: (campaignData?.totalLeads || campaignData?.settings?.total_leads) > 0 
-          ? Math.round(((campaignData?.callsCompleted || 0) / (campaignData?.totalLeads || campaignData?.settings?.total_leads || 1)) * 100) 
+        calledBack: campaignData.callbacks || 0,
+        progress: campaignData.totalLeads > 0 
+          ? Math.round((campaignData.callsCompleted / campaignData.totalLeads) * 100) 
           : 0,
       });
     } catch (error) {
