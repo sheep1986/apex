@@ -30,6 +30,7 @@ import {
   AlertCircle,
   Clock as ClockIcon,
   MoreHorizontal,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -627,6 +628,50 @@ export default function CampaignDetails() {
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleUpdateVapiPrompt = async () => {
+    if (!campaign.assistantId) {
+      toast({
+        title: 'Error',
+        description: 'No VAPI assistant ID found for this campaign',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // For now, update the campaign settings in database
+      // In production, you'd also call VAPI API to update the assistant
+      const { error } = await supabase
+        .from('campaigns')
+        .update({
+          settings: {
+            ...campaign.settings,
+            system_prompt: campaign.systemPrompt,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'System prompt updated successfully',
+      });
+    } catch (error) {
+      console.error('Error updating VAPI prompt:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update system prompt',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateNestedField = (parent: string, field: string, value: any) => {
@@ -1418,18 +1463,34 @@ export default function CampaignDetails() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {campaign.systemPrompt ? (
-                  <div>
-                    <Label className="text-white">VAPI System Prompt</Label>
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-white">VAPI System Prompt</Label>
+                      {isEditing && (
+                        <Button
+                          onClick={() => handleUpdateVapiPrompt()}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+                          size="sm"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Push to VAPI
+                        </Button>
+                      )}
+                    </div>
                     {isEditing ? (
-                      <Textarea
-                        value={campaign.systemPrompt}
-                        onChange={(e) => updateCampaign('systemPrompt', e.target.value)}
-                        className="mt-2 border-gray-700 bg-gray-800 text-white font-mono text-sm"
-                        rows={20}
-                      />
+                      <div className="relative flex-1">
+                        <Textarea
+                          value={campaign.systemPrompt}
+                          onChange={(e) => updateCampaign('systemPrompt', e.target.value)}
+                          className="mt-2 border-gray-700 bg-gray-800 text-white font-mono text-sm w-full h-[500px] resize-none"
+                          style={{ minHeight: '500px', maxHeight: '500px' }}
+                        />
+                      </div>
                     ) : (
-                      <div className="mt-2 p-4 bg-gray-800 rounded-lg">
-                        <pre className="text-gray-300 whitespace-pre-wrap font-mono text-sm">{campaign.systemPrompt}</pre>
+                      <div className="mt-2 p-4 bg-gray-800 rounded-lg h-[500px] overflow-hidden">
+                        <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                          <pre className="text-gray-300 whitespace-pre-wrap font-mono text-sm">{campaign.systemPrompt}</pre>
+                        </div>
                       </div>
                     )}
                   </div>
