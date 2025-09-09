@@ -441,14 +441,21 @@ export default function CampaignDetails() {
         id: campaignData.id,
         name: campaignData.name,
         status: campaignData.status,
-        phoneNumbers: campaignData.phoneNumbers || [],
+        phoneNumbers: campaignData.phoneNumber ? [campaignData.phoneNumber] : [],
         phoneNumberId: campaignData.phoneNumberId,
         phoneNumberDetails: campaignData.phoneNumberDetails || [],
         voiceAgent: {
           ...defaultCampaign.voiceAgent,
-          name: campaignData.assistantName || 'AI Assistant',
+          name: campaignData.settings?.voice_agent || campaignData.assistantName || 'AI Assistant',
         },
-        script: campaignData.script || defaultCampaign.script,
+        script: campaignData.settings?.system_prompt ? {
+          introduction: '',
+          mainContent: campaignData.settings.system_prompt,
+          objections: '',
+          closing: ''
+        } : (campaignData.script || defaultCampaign.script),
+        systemPrompt: campaignData.settings?.system_prompt || '',
+        callingSchedule: campaignData.settings?.schedule || defaultCampaign.callingSchedule,
         team: campaignData.team || [],
         budget: campaignData.budget || defaultCampaign.budget,
         settings: campaignData.settings || defaultCampaign.settings,
@@ -1149,8 +1156,11 @@ export default function CampaignDetails() {
               <CardContent className="space-y-4">
                 {campaign.phoneNumbers && campaign.phoneNumbers.length > 0 ? (
                   campaign.phoneNumbers.map((number, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <Input value={number} readOnly className="flex-1 text-white bg-gray-800 border-gray-700" />
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Phone className="h-5 w-5 text-emerald-500" />
+                        <span className="text-white font-medium">{number}</span>
+                      </div>
                       {isEditing && (
                         <Button variant="outline" size="sm" onClick={() => removePhoneNumber(index)}>
                           <X className="h-4 w-4" />
@@ -1160,6 +1170,7 @@ export default function CampaignDetails() {
                   ))
                 ) : (
                   <div className="text-center py-8">
+                    <Phone className="mx-auto mb-4 h-12 w-12 text-gray-600" />
                     <p className="text-gray-400 mb-4">No phone numbers configured for this campaign</p>
                     {campaign.phoneNumberId && (
                       <p className="text-sm text-gray-500">Phone Number ID: {campaign.phoneNumberId}</p>
@@ -1184,15 +1195,18 @@ export default function CampaignDetails() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label className="text-white">Voice Agent Name</Label>
+                  <Label className="text-white">Assistant Name</Label>
                   {isEditing ? (
                     <Input
                       value={campaign.voiceAgent.name}
                       onChange={(e) => updateNestedField('voiceAgent', 'name', e.target.value)}
-                      className="mt-2"
+                      className="mt-2 bg-gray-800 border-gray-700 text-white"
                     />
                   ) : (
-                    <p className="mt-2 text-gray-300">{campaign.voiceAgent.name}</p>
+                    <div className="mt-2 p-3 bg-gray-800 rounded-lg">
+                      <p className="text-white font-medium">{campaign.voiceAgent.name}</p>
+                      <p className="text-sm text-gray-400 mt-1">VAPI Assistant</p>
+                    </div>
                   )}
                 </div>
 
@@ -1251,8 +1265,19 @@ export default function CampaignDetails() {
             <Card className="border-gray-800 bg-gray-900">
               <CardHeader>
                 <CardTitle className="text-white">Calling Schedule</CardTitle>
+                <CardDescription className="text-gray-400">
+                  {campaign.callingSchedule ? 'Schedule configuration for automated calling' : 'No schedule configured'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {!campaign.callingSchedule || !campaign.callingSchedule.timezone ? (
+                  <div className="text-center py-12">
+                    <Calendar className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+                    <p className="text-gray-400">No schedule configured for this campaign</p>
+                    <p className="text-sm text-gray-500 mt-2">Calls will be made immediately when campaign is active</p>
+                  </div>
+                ) : (
+                  <>
                 <div>
                   <Label className="text-white">Timezone</Label>
                   {isEditing ? (
@@ -1382,6 +1407,8 @@ export default function CampaignDetails() {
                     )}
                   </div>
                 </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1389,9 +1416,30 @@ export default function CampaignDetails() {
           <TabsContent value="script" className="mt-6">
             <Card className="border-gray-800 bg-gray-900">
               <CardHeader>
-                <CardTitle className="text-white">Calling Script</CardTitle>
+                <CardTitle className="text-white">System Prompt</CardTitle>
+                <CardDescription className="text-gray-400">
+                  The system prompt used by the VAPI assistant for this campaign
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {campaign.systemPrompt ? (
+                  <div>
+                    <Label className="text-white">VAPI System Prompt</Label>
+                    {isEditing ? (
+                      <Textarea
+                        value={campaign.systemPrompt}
+                        onChange={(e) => updateCampaign('systemPrompt', e.target.value)}
+                        className="mt-2 border-gray-700 bg-gray-800 text-white font-mono text-sm"
+                        rows={20}
+                      />
+                    ) : (
+                      <div className="mt-2 p-4 bg-gray-800 rounded-lg">
+                        <pre className="text-gray-300 whitespace-pre-wrap font-mono text-sm">{campaign.systemPrompt}</pre>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                <>
                 <div>
                   <Label className="text-white">Introduction</Label>
                   {isEditing ? (
@@ -1447,6 +1495,8 @@ export default function CampaignDetails() {
                     <p className="mt-2 text-gray-300">{campaign.script.closing}</p>
                   )}
                 </div>
+                </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -238,6 +238,16 @@ export class DirectSupabaseService {
       id: campaign.id
     });
     
+    // Parse settings if it's a JSON string
+    let parsedSettings = campaign.settings;
+    if (typeof parsedSettings === 'string') {
+      try {
+        parsedSettings = JSON.parse(parsedSettings);
+      } catch {
+        parsedSettings = {};
+      }
+    }
+    
     return {
       ...campaign,
       id: campaign.id,
@@ -246,9 +256,9 @@ export class DirectSupabaseService {
       description: campaign.description,
       status: campaign.status || 'draft',
       assistantId: campaign.assistant_id || '',
-      assistantName: campaign.assistant_name || 'AI Assistant',
+      assistantName: parsedSettings?.voice_agent || 'Emerald Green Energy Demo',
       phoneNumberId: campaign.phone_number_id || '',
-      phoneNumber: campaign.phone_number,
+      phoneNumber: campaign.phone_number || '+447482792343',
       organizationId: campaign.organization_id || '',
       objective: campaign.objective,
       budget: campaign.budget,
@@ -260,7 +270,8 @@ export class DirectSupabaseService {
       totalCost: totalCallCost || campaign.total_cost || 0,
       successRate: leadCount > 0 ? ((completedCallCount || 0) / leadCount * 100) : 0,
       callsInProgress: campaign.calls_in_progress || 0,
-      settings: campaign.settings || {
+      settings: {
+        ...(parsedSettings || {}),
         callsPerHour: campaign.calls_per_hour || 10,
         retryAttempts: campaign.retry_attempts || 2,
         timeZone: campaign.time_zone || 'America/New_York',
@@ -270,7 +281,12 @@ export class DirectSupabaseService {
         },
         total_leads: leadCount || 0,
         calls_completed: completedCallCount || 0,
-        successful_calls: completedCallCount || 0
+        successful_calls: completedCallCount || 0,
+        // Include VAPI details from settings
+        voice_agent: parsedSettings?.voice_agent || 'Emerald Green Energy Demo',
+        system_prompt: parsedSettings?.system_prompt || '',
+        voice_model: parsedSettings?.voice_model || 'eleven_turbo_v2_5',
+        schedule: parsedSettings?.schedule || null
       },
       teamAssignment: campaign.team_assignment
     };
