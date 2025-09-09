@@ -1019,7 +1019,7 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
               </TabsList>
             </div>
 
-            <div className="mx-6 mb-6 mt-6 flex min-h-0 w-auto flex-1 flex-col rounded-2xl border border-gray-700/30 bg-gray-900/40 px-6 py-4 backdrop-blur-sm overflow-hidden">
+            <div className="mx-6 mb-6 mt-6 flex min-h-0 w-auto flex-1 flex-col rounded-2xl border border-gray-700/30 bg-gray-900/40 px-6 py-4 backdrop-blur-sm">
               <TabsContent
                 value="transcripts"
                 className="mt-2 flex flex-1 flex-col"
@@ -1029,11 +1029,19 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                     <h3 className="text-lg font-semibold text-white">Transcript</h3>
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-2" style={{ maxHeight: '500px' }}>
+                  <div 
+                    ref={transcriptContainerRef}
+                    className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" 
+                    style={{ maxHeight: 'calc(100vh - 400px)', minHeight: '200px' }}
+                  >
                     {callData && callData.transcript && Array.isArray(callData.transcript) ? (
                       <>
                         {callData.transcript.map((item, index) => (
-                          <div key={index} className="flex flex-col space-y-2">
+                          <div 
+                            key={index} 
+                            ref={el => transcriptItemsRef.current[index] = el}
+                            className="flex flex-col space-y-2"
+                          >
                             <div className="flex items-center justify-between">
                               <strong className={`text-sm font-bold ${
                                 item.speaker === 'user' ? 'text-blue-400' : 'text-green-400'
