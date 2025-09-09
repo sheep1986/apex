@@ -77,7 +77,6 @@ import { useUser } from '../hooks/auth';
 
 // Import Supabase client
 import { supabase } from '../services/supabase-client';
-import { RealDataBanner } from '../components/RealDataBanner';
 
 
 const conversionData = [
