@@ -117,6 +117,11 @@ export class DirectSupabaseService {
   async getCampaignById(campaignId: string) {
     console.log('🔄 DirectSupabaseService: Fetching campaign by ID:', campaignId);
     
+    if (!campaignId) {
+      console.error('❌ No campaign ID provided');
+      return null;
+    }
+    
     // Get campaign data
     const { data: campaign, error } = await supabase
       .from('campaigns')
@@ -125,9 +130,16 @@ export class DirectSupabaseService {
       .single();
     
     if (error) {
-      console.error('❌ Supabase error:', error);
+      console.error('❌ Supabase error fetching campaign:', error);
       return null;
     }
+    
+    if (!campaign) {
+      console.error('❌ No campaign found with ID:', campaignId);
+      return null;
+    }
+    
+    console.log('✅ Found campaign:', campaign.name)
     
     // Get lead count
     const { count: leadCount } = await supabase

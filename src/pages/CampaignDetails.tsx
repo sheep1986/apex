@@ -351,22 +351,29 @@ export default function CampaignDetails() {
       setIsLoading(true);
       
       let campaignData;
-      try {
-        // Try API first
-        const response = await apiClient.get(`/vapi-outbound/campaigns/${id}`);
-        campaignData = response.data.campaign;
-      } catch (apiError) {
-        console.log('❌ API call failed, falling back to direct Supabase service:', apiError);
-        
-        // Use the direct Supabase service which includes counts
-        campaignData = await directSupabaseService.getCampaignById(id);
-        
-        if (!campaignData) {
-          throw new Error('Campaign not found');
-        }
-        
-        // The directSupabaseService already returns the data in the right format
-        // with totalLeads, callsCompleted, etc. properly calculated
+      
+      // Always use direct Supabase service since Railway doesn't have the endpoint
+      console.log('📊 Fetching campaign details for ID:', id);
+      campaignData = await directSupabaseService.getCampaignById(id);
+      
+      if (!campaignData) {
+        console.error('❌ Campaign not found in database');
+        // Create a minimal campaign object to prevent undefined errors
+        campaignData = {
+          id: id,
+          name: 'Campaign Not Found',
+          status: 'draft',
+          totalLeads: 0,
+          callsCompleted: 0,
+          totalCost: 0,
+          successRate: 0,
+          settings: {
+            total_leads: 0,
+            calls_completed: 0,
+            totalLeads: 0,
+            callsCompleted: 0
+          }
+        };
       }
       
       console.log('📊 Campaign data from backend:', campaignData);
