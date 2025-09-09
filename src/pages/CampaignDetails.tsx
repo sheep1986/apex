@@ -156,11 +156,11 @@ export default function CampaignDetails() {
       transcriptPreview: call.transcript?.substring(0, 50)
     });
     
-    // If we have a call ID, fetch the full details from the API
+    // If we have a call ID, fetch the full details
     if (call.id) {
       try {
-        const response = await apiClient.get(`/vapi-outbound/calls/${call.id}`);
-        const fullCallData = response.data.call;
+        // Skip API call and use the data we already have from the calls list
+        const fullCallData = call; // We already have all the data from directSupabaseService
         console.log('Full call data from API:', fullCallData);
         console.log('🔍 DEBUG - Transcript check:', {
           hasTranscript: !!fullCallData.transcript,
@@ -208,7 +208,7 @@ export default function CampaignDetails() {
           vapiCallId: fullCallData.vapiCallId || fullCallData.vapi_call_id,
           transcript: (fullCallData.transcript || call.transcript) ? 
             // Parse transcript if it's a string with "User: " and "AI: " format
-            (fullCallData.transcript || call.transcript).split('\n')
+            String(fullCallData.transcript || call.transcript || '').split('\n')
               .filter((line: string) => line.trim())
               .map((line: string, index: number) => {
                 // Check for explicit speaker markers at the start of the line
@@ -301,12 +301,40 @@ export default function CampaignDetails() {
         setSelectedCall(transformedCallData);
         setIsCallModalOpen(true);
       } catch (error) {
-        console.error('Error fetching full call details:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load call details',
-          variant: 'destructive',
-        });
+        console.error('Error processing call details:', error);
+        // Use the call data we already have as fallback
+        const fallbackData = {
+          id: call.id || 'unknown',
+          duration: call.duration || 0,
+          recording: call.recording_url || call.recording,
+          cost: call.cost || 0,
+          customerName: call.contactName || 'Unknown',
+          customerPhone: call.phoneNumber || '',
+          status: call.status || 'completed',
+          transcript: call.transcript ? 
+            String(call.transcript).split('\n')
+              .filter(line => line.trim())
+              .map((line, index) => ({
+                speaker: line.startsWith('User:') ? 'user' : 'ai',
+                text: line.replace(/^(User|AI):\s*/i, '').trim(),
+                timestamp: Date.now() - (call.duration || 0) * 1000 + (index * 1000),
+                startTime: index * 2,
+                endTime: (index + 1) * 2
+              })) :
+            [{ 
+              speaker: 'ai', 
+              text: 'Transcript not available',
+              timestamp: Date.now()
+            }],
+          analysis: {
+            sentiment: 0.5,
+            keywords: [],
+            summary: call.summary || 'No summary available',
+          },
+        };
+        
+        setSelectedCall(fallbackData);
+        setIsCallModalOpen(true);
       }
     } else {
       // Fallback for calls without full data
