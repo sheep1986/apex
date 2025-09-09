@@ -79,6 +79,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '../services/MinimalUserProvider';
 import { vapiOutboundService, VapiOutboundCampaign } from '@/services/vapi-outbound.service';
+import { directSupabaseService } from '@/services/direct-supabase.service';
 import { SimpleCampaignWizard } from '@/components/ai-crm/SimpleCampaignWizard';
 import { CampaignEditWizard } from '@/components/ai-crm/CampaignEditWizard';
 import { DynamicConcurrencyManager } from '@/components/ai-crm/DynamicConcurrencyManager';
@@ -190,9 +191,10 @@ const VapiDashboard: React.FC = () => {
     try {
       console.log('📞 VapiDashboard: Loading real campaigns data...');
 
-      // Load real campaigns data from API
-      const campaignsData = await vapiOutboundService.getCampaigns();
-      console.log('✅ VapiDashboard: Real campaigns loaded:', campaignsData);
+      // TEMPORARY: Use direct Supabase service until API is fixed
+      // TODO: Switch back to vapiOutboundService.getCampaigns() once Railway is working
+      const campaignsData = await directSupabaseService.getCampaigns();
+      console.log('✅ VapiDashboard: Real campaigns loaded from Supabase:', campaignsData);
 
       // Set campaigns from API data
       if (campaignsData && Array.isArray(campaignsData)) {
@@ -203,9 +205,10 @@ const VapiDashboard: React.FC = () => {
         setCampaigns([]);
       }
 
-      // Load recent calls data from API
-      const recentCallsData = await vapiOutboundService.getRecentCalls(10);
-      console.log('✅ VapiDashboard: Recent calls loaded:', recentCallsData);
+      // TEMPORARY: Use direct Supabase service until API is fixed
+      // TODO: Switch back to vapiOutboundService.getRecentCalls() once Railway is working
+      const recentCallsData = await directSupabaseService.getRecentCalls(10);
+      console.log('✅ VapiDashboard: Recent calls loaded from Supabase:', recentCallsData);
       setRecentCalls(recentCallsData || []);
 
       // Calculate analytics data from campaigns
