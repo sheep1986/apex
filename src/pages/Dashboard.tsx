@@ -88,13 +88,7 @@ const conversionData = [
   { stage: 'Closed Won', value: 10 },
 ];
 
-const campaignData = [
-  { name: 'Summer Sale', success: 78 },
-  { name: 'Product Launch', success: 65 },
-  { name: 'Customer Win-back', success: 82 },
-  { name: 'Holiday Promo', success: 91 },
-  { name: 'Lead Nurture', success: 73 },
-];
+// Campaign data now comes from database via state
 
 const recentCalls = [
   { id: 1, contact: 'John Smith', campaign: 'Summer Sale', duration: '3:45', status: 'completed' },
