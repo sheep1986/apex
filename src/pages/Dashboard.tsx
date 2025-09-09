@@ -294,8 +294,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-black">
       <div className="w-full mt-8 space-y-6 px-4 sm:px-6 lg:px-8">
-      {/* Real Data Banner */}
-      <RealDataBanner hasData={realStats.totalCalls > 0} />
       
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
