@@ -192,17 +192,10 @@ const VapiDashboard: React.FC = () => {
     try {
       console.log('📞 VapiDashboard: Loading real campaigns data...');
 
-      // Try API first, then fall back to direct Supabase
-      let campaignsData;
-      try {
-        console.log('🔄 Trying API with authentication...');
-        campaignsData = await vapiOutboundService.getCampaigns();
-        console.log('✅ VapiDashboard: Campaigns loaded from API:', campaignsData);
-      } catch (apiError) {
-        console.log('⚠️ API failed, using direct Supabase:', apiError);
-        campaignsData = await directSupabaseService.getCampaigns();
-        console.log('✅ VapiDashboard: Campaigns loaded from Supabase:', campaignsData);
-      }
+      // Always use direct Supabase since Railway API is not working
+      console.log('🔄 Using direct Supabase service...');
+      const campaignsData = await directSupabaseService.getCampaigns();
+      console.log('✅ VapiDashboard: Campaigns loaded from Supabase:', campaignsData);
 
       // Set campaigns from API data
       if (campaignsData && Array.isArray(campaignsData)) {
@@ -213,8 +206,7 @@ const VapiDashboard: React.FC = () => {
         setCampaigns([]);
       }
 
-      // TEMPORARY: Use direct Supabase service until API is fixed
-      // TODO: Switch back to vapiOutboundService.getRecentCalls() once Railway is working
+      // Use direct Supabase service for recent calls
       const recentCallsData = await directSupabaseService.getRecentCalls(10);
       console.log('✅ VapiDashboard: Recent calls loaded from Supabase:', recentCallsData);
       setRecentCalls(recentCallsData || []);
