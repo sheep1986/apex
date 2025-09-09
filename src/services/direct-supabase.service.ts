@@ -43,6 +43,14 @@ export class DirectSupabaseService {
           .eq('campaign_id', campaign.id)
           .in('status', ['completed', 'ended', 'initiated']);
         
+        // Get total cost from all calls
+        const { data: callsWithCost } = await supabase
+          .from('calls')
+          .select('cost')
+          .eq('campaign_id', campaign.id);
+        
+        const totalCallCost = callsWithCost?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
+        
         console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
     console.log('📊 Returning data with:', {
       totalLeads: leadCount || 0,
@@ -78,7 +86,7 @@ export class DirectSupabaseService {
           updatedAt: campaign.updated_at,
           totalLeads: leadCount || 0,
           callsCompleted: completedCallCount || 0,
-          totalCost: campaign.total_cost || (callCount ? callCount * 0.05 : 0), // Estimate $0.05 per call
+          totalCost: totalCallCost || campaign.total_cost || 0, // Use actual cost from calls
           successRate: leadCount > 0 ? ((completedCallCount || 0) / leadCount * 100) : 0,
           callsInProgress: campaign.calls_in_progress || 0,
           settings: {
@@ -153,15 +161,19 @@ export class DirectSupabaseService {
     
     console.log(`✅ Found ${calls?.length || 0} calls for campaign`);
     
-    // Include all calls, even with initiated status
+    // Include all calls with proper formatting
     return (calls || []).map(call => ({
       ...call,
       // Add display-friendly status
-      displayStatus: call.status === 'initiated' ? 'connected' : call.status,
-      // Add placeholder data for initiated calls
-      transcript: call.transcript || (call.status === 'initiated' ? 'Call connected but transcript not yet available' : ''),
+      displayStatus: call.status === 'completed' ? 'Completed' : 
+                    call.status === 'initiated' ? 'In Progress' : 
+                    call.status === 'failed' ? 'Failed' : call.status,
+      // Ensure all fields are present
+      transcript: call.transcript || '',
       recording_url: call.recording_url || '',
-      summary: call.summary || (call.status === 'initiated' ? 'Call was successfully initiated' : '')
+      summary: call.summary || '',
+      cost: call.cost || 0,
+      duration: call.duration || 0
     }));
   }
   
@@ -211,6 +223,14 @@ export class DirectSupabaseService {
       .eq('campaign_id', campaignId)
       .in('status', ['completed', 'ended', 'initiated']);
     
+    // Get total cost from all calls
+    const { data: callsWithCost } = await supabase
+      .from('calls')
+      .select('cost')
+      .eq('campaign_id', campaignId);
+    
+    const totalCallCost = callsWithCost?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
+    
     console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
     console.log('📊 Returning data with:', {
       totalLeads: leadCount || 0,
@@ -237,7 +257,7 @@ export class DirectSupabaseService {
       updatedAt: campaign.updated_at,
       totalLeads: leadCount || 0,
       callsCompleted: completedCallCount || 0,
-      totalCost: campaign.total_cost || (callCount ? callCount * 0.05 : 0),
+      totalCost: totalCallCost || campaign.total_cost || 0,
       successRate: leadCount > 0 ? ((completedCallCount || 0) / leadCount * 100) : 0,
       callsInProgress: campaign.calls_in_progress || 0,
       settings: campaign.settings || {
