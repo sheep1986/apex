@@ -469,34 +469,9 @@ export default function CampaignDetails() {
       setIsLoadingCalls(true);
       console.log('🔍 Fetching calls for campaign:', id);
       
-      // Try API first, then fallback to Supabase
-      let callsData = [];
-      
-      try {
-        const response = await apiClient.get(`/vapi-outbound/campaigns/${id}/calls`);
-        console.log('📊 Raw API response:', response);
-        console.log('📊 Response data:', response.data);
-        
-        // Handle different response formats
-        if (response.data) {
-          if (Array.isArray(response.data)) {
-            callsData = response.data;
-          } else if (response.data.calls && Array.isArray(response.data.calls)) {
-            callsData = response.data.calls;
-          } else if (response.data.data && Array.isArray(response.data.data)) {
-            callsData = response.data.data;
-          }
-        }
-      } catch (apiError) {
-        console.error('❌ API call failed, falling back to Supabase:', apiError);
-        
-        // Import supabase from vapiOutboundService 
-        const { vapiOutboundService } = await import('@/services/vapi-outbound.service');
-        
-        // Use the getCampaignResults method which has Supabase fallback
-        callsData = await vapiOutboundService.getCampaignResults(id);
-        console.log('✅ Fetched calls from Supabase fallback:', callsData);
-      }
+      // Always use direct Supabase service since Railway API is not working
+      const callsData = await directSupabaseService.getCampaignCalls(id);
+      console.log('✅ Fetched calls from direct Supabase:', callsData);
       
       console.log('📊 Extracted calls data:', callsData);
       

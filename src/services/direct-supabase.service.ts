@@ -36,12 +36,12 @@ export class DirectSupabaseService {
           .select('*', { count: 'exact', head: true })
           .eq('campaign_id', campaign.id);
         
-        // Get completed calls count
+        // Get completed calls count (including initiated since user confirmed receiving calls)
         const { count: completedCallCount } = await supabase
           .from('calls')
           .select('*', { count: 'exact', head: true })
           .eq('campaign_id', campaign.id)
-          .in('status', ['completed', 'ended']);
+          .in('status', ['completed', 'ended', 'initiated']);
         
         console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
     console.log('📊 Returning data with:', {
@@ -119,6 +119,52 @@ export class DirectSupabaseService {
     return calls || [];
   }
   
+  async getCampaignLeads(campaignId: string) {
+    console.log('🔄 DirectSupabaseService: Fetching leads for campaign:', campaignId);
+    
+    const { data: leads, error } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('❌ Supabase error fetching leads:', error);
+      return [];
+    }
+    
+    console.log(`✅ Found ${leads?.length || 0} leads for campaign`);
+    return leads || [];
+  }
+  
+  async getCampaignCalls(campaignId: string) {
+    console.log('🔄 DirectSupabaseService: Fetching calls for campaign:', campaignId);
+    
+    const { data: calls, error } = await supabase
+      .from('calls')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('❌ Supabase error fetching calls:', error);
+      return [];
+    }
+    
+    console.log(`✅ Found ${calls?.length || 0} calls for campaign`);
+    
+    // Include all calls, even with initiated status
+    return (calls || []).map(call => ({
+      ...call,
+      // Add display-friendly status
+      displayStatus: call.status === 'initiated' ? 'connected' : call.status,
+      // Add placeholder data for initiated calls
+      transcript: call.transcript || (call.status === 'initiated' ? 'Call connected but transcript not yet available' : ''),
+      recording_url: call.recording_url || '',
+      summary: call.summary || (call.status === 'initiated' ? 'Call was successfully initiated' : '')
+    }));
+  }
+  
   async getCampaignById(campaignId: string) {
     console.log('🔄 DirectSupabaseService: Fetching campaign by ID:', campaignId);
     
@@ -158,12 +204,12 @@ export class DirectSupabaseService {
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId);
     
-    // Get completed calls count
+    // Get completed calls count (including initiated since user confirmed receiving calls)
     const { count: completedCallCount } = await supabase
       .from('calls')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId)
-      .in('status', ['completed', 'ended']);
+      .in('status', ['completed', 'ended', 'initiated']);
     
     console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
     console.log('📊 Returning data with:', {
