@@ -167,8 +167,19 @@ class VapiOutboundService {
     try {
       console.log('🎯 VapiOutboundService: Fetching campaigns from:', this.baseURL);
       
-      // Make the actual API call - use /campaigns for our local API
-      const response = await this.apiClient.get('/campaigns');
+      // Try vapi-outbound endpoint first, fall back to regular campaigns
+      let response;
+      try {
+        response = await this.apiClient.get('/vapi-outbound/campaigns');
+      } catch (error: any) {
+        // If vapi-outbound endpoint doesn't exist, use regular campaigns endpoint
+        if (error.response?.status === 404) {
+          console.log('📡 Falling back to /campaigns endpoint...');
+          response = await this.apiClient.get('/campaigns');
+        } else {
+          throw error;
+        }
+      }
       console.log('📡 VapiOutboundService: API Response:', response);
       
       // The API returns {campaigns: [...], pagination: {...}}
@@ -456,7 +467,18 @@ class VapiOutboundService {
   async getRecentCalls(limit: number = 20): Promise<any[]> {
     try {
       console.log('📡 VapiOutboundService: Fetching recent calls...');
-      const response = await this.apiClient.get(`/vapi-outbound/calls/recent?limit=${limit}`);
+      let response;
+      try {
+        response = await this.apiClient.get(`/vapi-outbound/calls/recent?limit=${limit}`);
+      } catch (error: any) {
+        // If vapi-outbound endpoint doesn't exist, use regular calls endpoint
+        if (error.response?.status === 404) {
+          console.log('📡 Falling back to /calls endpoint...');
+          response = await this.apiClient.get(`/calls?limit=${limit}`);
+        } else {
+          throw error;
+        }
+      }
       console.log('📡 VapiOutboundService: Recent calls response:', response);
       return response.data.calls || response.data || [];
     } catch (error) {
