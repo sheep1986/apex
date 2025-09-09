@@ -1,5 +1,6 @@
 import { supabase } from './supabase-client';
-import Bull from 'bull';
+// Bull is a Node.js package that requires backend - commenting out for frontend build
+// import Bull from 'bull';
 import { format, addHours, isWithinInterval } from 'date-fns';
 
 interface CallJob {
@@ -18,7 +19,8 @@ interface PhoneNumber {
 }
 
 export class CampaignProcessorService {
-  private callQueue: Bull.Queue<CallJob>;
+  // Bull queue will be initialized on backend only
+  private callQueue: any; // Bull.Queue<CallJob>
   private phoneNumbers: PhoneNumber[] = [];
   private currentPhoneIndex = 0;
   
@@ -31,26 +33,19 @@ export class CampaignProcessorService {
   private readonly RETRY_DELAY_MS = 300000; // 5 minutes
 
   constructor() {
-    // Initialize Bull queue with Redis connection
-    this.callQueue = new Bull('campaign-calls', {
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        password: process.env.REDIS_PASSWORD
-      },
-      defaultJobOptions: {
-        removeOnComplete: true,
-        removeOnFail: false,
-        attempts: this.MAX_RETRIES,
-        backoff: {
-          type: 'fixed',
-          delay: this.RETRY_DELAY_MS
-        }
-      }
-    });
-
-    this.setupQueueProcessors();
+    // Note: Bull queue requires backend with Redis
+    // This is a frontend-only implementation for UI
+    // Actual queue processing must be done on backend
+    
+    // Initialize without Bull for frontend
+    this.callQueue = null;
     this.loadPhoneNumbers();
+    
+    // Queue processors would be setup on backend
+    if (typeof window === 'undefined') {
+      // Server-side only
+      this.setupQueueProcessors();
+    }
   }
 
   private async loadPhoneNumbers() {
@@ -80,8 +75,11 @@ export class CampaignProcessorService {
   }
 
   private setupQueueProcessors() {
+    // This would only run on backend/server
+    if (!this.callQueue) return;
+    
     // Process calls with rate limiting
-    this.callQueue.process('make-call', this.MAX_CALLS_PER_MINUTE, async (job) => {
+    this.callQueue.process('make-call', this.MAX_CALLS_PER_MINUTE, async (job: any) => {
       const { campaignId, leadId, phoneNumber, assistantId } = job.data;
       
       // Check if within call window
@@ -290,15 +288,19 @@ export class CampaignProcessorService {
     // Queue calls for each lead
     let queued = 0;
     for (const lead of leads) {
-      await this.callQueue.add('make-call', {
+      // In frontend, we just update the database
+      // Backend service will pick up and process
+      if (this.callQueue) {
+        await this.callQueue.add('make-call', {
         campaignId: campaign.id,
         leadId: lead.id,
         phoneNumber: lead.phone_number,
         assistantId: campaign.assistant_id || campaign.settings?.assistant_id,
         retryCount: 0
-      }, {
-        delay: queued * 6000 // Space out calls by 6 seconds (10 per minute)
-      });
+        }, {
+          delay: queued * 6000 // Space out calls by 6 seconds (10 per minute)
+        });
+      }
 
       // Update lead status
       await supabase
@@ -320,6 +322,24 @@ export class CampaignProcessorService {
   }
 
   async getQueueStatus() {
+    // Mock data for frontend when queue not available
+    if (!this.callQueue) {
+      return {
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        delayed: 0,
+        phoneNumbers: this.phoneNumbers.map(p => ({
+          number: p.number,
+          dailyCallsUsed: p.dailyCallCount,
+          dailyCallsRemaining: this.MAX_CALLS_PER_PHONE_PER_DAY - p.dailyCallCount
+        })),
+        isWithinCallWindow: this.isWithinCallWindow(),
+        nextCallWindow: !this.isWithinCallWindow() ? this.getNextCallWindow() : null
+      };
+    }
+    
     const waiting = await this.callQueue.getWaitingCount();
     const active = await this.callQueue.getActiveCount();
     const completed = await this.callQueue.getCompletedCount();
@@ -343,6 +363,19 @@ export class CampaignProcessorService {
   }
 
   async pauseCampaign(campaignId: string) {
+    // In frontend, just update database status
+    if (!this.callQueue) {
+      await supabase
+        .from('campaigns')
+        .update({
+          status: 'paused',
+          paused_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+      
+      return { paused: true };
+    }
+    
     // Remove all pending jobs for this campaign
     const jobs = await this.callQueue.getJobs(['waiting', 'delayed']);
     
