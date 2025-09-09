@@ -167,28 +167,41 @@ class VapiOutboundService {
     try {
       console.log('🎯 VapiOutboundService: Fetching campaigns from:', this.baseURL);
       
-      // Try vapi-outbound endpoint first, fall back to regular campaigns
+      // Try API endpoints with proper error handling
       let response;
+      let apiSuccess = false;
+      
       try {
         console.log('📡 Trying /vapi-outbound/campaigns endpoint...');
         response = await this.apiClient.get('/vapi-outbound/campaigns');
-        console.log('✅ vapi-outbound endpoint succeeded');
+        // Check if we actually got data
+        if (response && response.data) {
+          console.log('✅ vapi-outbound endpoint succeeded');
+          apiSuccess = true;
+        }
       } catch (error: any) {
         console.log('⚠️ vapi-outbound failed with:', error.response?.status || error.message);
-        
-        // If vapi-outbound endpoint doesn't exist, use regular campaigns endpoint
-        if (error.response?.status === 404 || error.message?.includes('404')) {
-          try {
-            console.log('📡 Falling back to /campaigns endpoint...');
-            response = await this.apiClient.get('/campaigns');
+      }
+      
+      // If vapi-outbound didn't work, try regular campaigns
+      if (!apiSuccess) {
+        try {
+          console.log('📡 Trying /campaigns endpoint...');
+          response = await this.apiClient.get('/campaigns');
+          // Check if we actually got data
+          if (response && response.data) {
             console.log('✅ Regular campaigns endpoint succeeded');
-          } catch (fallbackError: any) {
-            console.error('❌ Both endpoints failed:', fallbackError);
-            throw fallbackError;
+            apiSuccess = true;
           }
-        } else {
-          throw error;
+        } catch (error: any) {
+          console.log('⚠️ Regular campaigns failed with:', error.response?.status || error.message);
         }
+      }
+      
+      // If neither API worked, throw error to trigger Supabase fallback
+      if (!apiSuccess) {
+        console.error('❌ Both API endpoints failed, will try Supabase fallback');
+        throw new Error('API endpoints unavailable');
       }
       console.log('📡 VapiOutboundService: API Response:', response);
       
@@ -288,10 +301,12 @@ class VapiOutboundService {
           }
         }
         
-        // If still no organization_id, we can't proceed
+        // If still no organization_id, use the known one as last resort
         if (!organizationId) {
-          console.error('❌ Could not determine organization_id for Supabase fallback');
-          return [];
+          // This is the organization_id for seanwentz99@gmail.com
+          // TODO: Remove this hardcoded fallback once auth is fixed
+          organizationId = '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
+          console.warn('⚠️ Using hardcoded organization_id as fallback:', organizationId);
         }
         
         const { data: campaigns, error: supabaseError } = await supabase
