@@ -61,8 +61,8 @@ export class SupportService {
         id: 'TKT-001',
         clientName: 'Artificial Media',
         clientId: 'art-media-001',
-        title: 'VAPI Integration Not Working',
-        description: 'Cannot connect to VAPI API, getting 401 errors consistently',
+        title: 'Apex Integration Not Working',
+        description: 'Cannot connect to Apex API, getting 401 errors consistently',
         priority: 'high',
         status: 'in-progress',
         category: 'technical',
@@ -75,7 +75,7 @@ export class SupportService {
             author: 'Sean Wentz',
             authorType: 'client',
             message:
-              "Hi, we're having trouble with our VAPI integration. Getting consistent 401 errors.",
+              "Hi, we're having trouble with our Apex integration. Getting consistent 401 errors.",
             timestamp: '2024-01-20T10:30:00Z',
           },
           {
@@ -239,7 +239,7 @@ export class SupportService {
     if (lowerMessage.includes('vapi') || lowerMessage.includes('api')) {
       return {
         message:
-          "I see you're having an issue with VAPI integration. Let me check your API key status and run some diagnostics. This looks like it might need technical assistance.",
+          "I see you're having an issue with Apex integration. Let me check your API key status and run some diagnostics. This looks like it might need technical assistance.",
         confidence: 0.85,
         suggestedActions: ['Check API key', 'Verify webhooks', 'Test connection'],
         escalateToHuman: true,

@@ -69,7 +69,7 @@ apex_database/
 
 - **Server**: $50-100/month (shared across all clients)
 - **Database**: $30-50/month (shared)
-- **VAPI Credits**: $100-200/month (per client)
+- **Apex Credits**: $100-200/month (per client)
 - **Total**: ~$150-300/month per client
 
 ### **Your Revenue (Per Client)**

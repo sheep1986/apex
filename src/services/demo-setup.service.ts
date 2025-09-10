@@ -13,10 +13,10 @@ export class DemoSetupService {
   }
 
   /**
-   * Set up demo VAPI accounts
+   * Set up demo Apex accounts
    */
   private static async setupDemoVapiAccounts(): Promise<void> {
-    console.log('📞 Setting up demo VAPI accounts...');
+    console.log('📞 Setting up demo Apex accounts...');
 
     const demoAccounts = [
       {
@@ -162,7 +162,7 @@ export class DemoSetupService {
           notificationService.notifySystemAlert({
             message: 'High API usage detected - 85% of daily limit reached',
             severity: 'medium',
-            component: 'VAPI Integration',
+            component: 'Apex Integration',
           }),
       },
       {
@@ -180,7 +180,7 @@ export class DemoSetupService {
         delay: 10500,
         notification: () =>
           notificationService.notifyWebhookReceived({
-            source: 'VAPI',
+            source: 'Apex',
             event: 'call.completed',
             processed: true,
           }),
@@ -220,7 +220,7 @@ export class DemoSetupService {
         delay: 14500,
         notification: () =>
           notificationService.notifyApiLimitWarning({
-            service: 'VAPI',
+            service: 'Apex',
             usage: 8500,
             limit: 10000,
             resetTime: '12:00 AM UTC',
@@ -404,7 +404,7 @@ export class DemoSetupService {
     const { clearAll } = useNotificationStore.getState();
     clearAll();
 
-    // Clear VAPI accounts (in a real app, this would be more sophisticated)
+    // Clear Apex accounts (in a real app, this would be more sophisticated)
     localStorage.removeItem('vapi-accounts');
 
     console.log('✅ Demo data cleared');

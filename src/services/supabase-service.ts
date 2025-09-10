@@ -744,7 +744,7 @@ class SupabaseService {
     return data as Call;
   }
 
-  // VAPI Integrations
+  // Apex Integrations
   async getVapiIntegrations(organizationId: string) {
     const { data, error } = await supabase
       .from('vapi_integrations')
@@ -931,7 +931,7 @@ class SupabaseService {
   async getAssistants(organizationId: string) {
     try {
       // Since vapi_assistants table doesn't exist, return empty array
-      // In production, assistants should be fetched from VAPI API
+      // In production, assistants should be fetched from Apex API
       console.log('vapi_assistants table does not exist, returning empty array');
       return [];
     } catch (error) {

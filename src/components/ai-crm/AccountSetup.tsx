@@ -83,7 +83,7 @@ export const AccountSetup: React.FC<AccountSetupProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const steps = [
-    { title: 'VAPI Configuration', description: 'Connect your VAPI account' },
+    { title: 'Apex Configuration', description: 'Connect your Apex account' },
     { title: 'Organization Details', description: 'Basic information about your organization' },
     { title: 'Compliance Settings', description: 'Configure calling compliance rules' },
     { title: 'Verification', description: 'Verify your setup' }
@@ -91,7 +91,7 @@ export const AccountSetup: React.FC<AccountSetupProps> = ({
 
   const validateVapiKey = async () => {
     if (!config.vapiApiKey) {
-      setErrors({ vapiApiKey: 'VAPI API key is required' });
+      setErrors({ vapiApiKey: 'Apex API key is required' });
       return;
     }
 
@@ -131,7 +131,7 @@ export const AccountSetup: React.FC<AccountSetupProps> = ({
 
     switch (step) {
       case 0:
-        if (!config.vapiApiKey) newErrors.vapiApiKey = 'VAPI API key is required';
+        if (!config.vapiApiKey) newErrors.vapiApiKey = 'Apex API key is required';
         break;
       case 1:
         if (!config.organizationName) newErrors.organizationName = 'Organization name is required';
@@ -222,29 +222,29 @@ export const AccountSetup: React.FC<AccountSetupProps> = ({
           <p className="text-sm text-gray-400">{steps[currentStep].description}</p>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Step 0: VAPI Configuration */}
+          {/* Step 0: Apex Configuration */}
           {currentStep === 0 && (
             <div className="space-y-4">
               <div className="bg-gray-900/50 border border-gray-800/50 p-4 rounded-lg">
-                <h3 className="font-medium mb-2 text-white">Get Your VAPI API Key</h3>
+                <h3 className="font-medium mb-2 text-white">Get Your Apex API Key</h3>
                 <p className="text-sm text-gray-400 mb-3">
-                  You'll need a VAPI API key to connect your voice AI capabilities.
+                  You'll need an Apex API key to connect your voice AI capabilities.
                 </p>
                 <Button variant="outline" size="sm" asChild className="border-gray-700 text-gray-300 hover:text-white hover:border-amber-400">
                   <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Get VAPI API Key
+                    Get Apex API Key
                   </a>
                 </Button>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vapiApiKey" className="text-gray-300">VAPI API Key</Label>
+                <Label htmlFor="vapiApiKey" className="text-gray-300">Apex API Key</Label>
                 <div className="relative">
                   <Input
                     id="vapiApiKey"
                     type={showApiKey ? 'text' : 'password'}
-                    placeholder="Enter your VAPI API key"
+                    placeholder="Enter your Apex API key"
                     value={config.vapiApiKey}
                     onChange={(e) => updateConfig({ vapiApiKey: e.target.value })}
                     className={`bg-gray-900/50 border-gray-700 text-white placeholder-gray-500 ${errors.vapiApiKey ? 'border-red-500' : ''}`}
@@ -269,7 +269,7 @@ export const AccountSetup: React.FC<AccountSetupProps> = ({
                   <CheckCircle className="w-4 h-4" />
                   <AlertDescription>
                     <div className="space-y-2">
-                      <p className="font-medium">VAPI connection successful!</p>
+                      <p className="font-medium">Apex connection successful!</p>
                       <p className="text-sm">
                         Found {validationResult.assistants.length} assistants and {validationResult.phoneNumbers.length} phone numbers
                       </p>
@@ -472,7 +472,7 @@ export const AccountSetup: React.FC<AccountSetupProps> = ({
 
               {validationResult && (
                 <div className="space-y-2">
-                  <h4 className="font-medium">VAPI Resources</h4>
+                  <h4 className="font-medium">Apex Resources</h4>
                   <p className="text-sm">
                     {validationResult.assistants.length} assistants, {validationResult.phoneNumbers.length} phone numbers available
                   </p>

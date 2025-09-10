@@ -99,7 +99,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         audioRef.current.pause();
         setIsPlaying(false);
       } else {
-        // For VAPI URLs, we might need to handle CORS differently
+        // For Apex URLs, we might need to handle CORS differently
         if (url.includes('vapi.ai')) {
           // Try to play with crossOrigin set
           audioRef.current.crossOrigin = 'anonymous';
@@ -118,7 +118,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleDownload = () => {
     if (!url) return;
     
-    // For VAPI URLs, open in new tab as download might be restricted
+    // For Apex URLs, open in new tab as download might be restricted
     if (url.includes('vapi.ai')) {
       window.open(url, '_blank');
     } else {
@@ -282,7 +282,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           {/* URL info for debugging */}
           {url.includes('vapi.ai') && (
             <div className="text-xs text-gray-500">
-              <p>VAPI Recording - If playback fails, try opening in a new tab</p>
+              <p>Apex Recording - If playback fails, try opening in a new tab</p>
             </div>
           )}
         </div>

@@ -59,7 +59,7 @@ export interface ClientAccount {
     };
   };
 
-  // VAPI Integration
+  // Apex Integration
   vapiConfig?: {
     apiKey: string;
     assistants: string[];

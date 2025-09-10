@@ -72,11 +72,11 @@ export function UserDropdown() {
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Sync VAPI account data
+  // Sync Apex account data
   const syncVapiData = async () => {
     setIsRefreshing(true);
     try {
-      // Fetch real VAPI data
+      // Fetch real Apex data
       const calls = await vapiService.getCalls({ limit: 100 });
       const analytics = await vapiService.getCallAnalytics();
 
@@ -92,7 +92,7 @@ export function UserDropdown() {
 
       // Removed mock notification generation
     } catch (error) {
-      console.error('Failed to sync VAPI data:', error);
+      console.error('Failed to sync Apex data:', error);
       setVapiData((prev) => ({ ...prev, status: 'error' }));
 
       // Removed error notification generation
@@ -268,12 +268,12 @@ export function UserDropdown() {
             </Card>
           </div>
 
-          {/* VAPI Status */}
+          {/* Apex Status */}
           <div className="mt-3 flex items-center justify-between text-xs">
             <div className="flex items-center space-x-2">
               {getStatusIcon()}
               <span className="text-gray-400">
-                VAPI Status:{' '}
+                Apex Status:{' '}
                 {vapiData.status === 'connected'
                   ? 'Connected'
                   : vapiData.status === 'syncing'

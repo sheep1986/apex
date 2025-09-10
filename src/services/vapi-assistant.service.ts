@@ -1,17 +1,17 @@
 import { supabase } from './supabase-client';
 
-const VAPI_API_KEY = 'da8956d4-0508-474e-bd96-7eda82d2d943';
-const VAPI_BASE_URL = 'https://api.vapi.ai';
+const APEX_API_KEY = 'da8956d4-0508-474e-bd96-7eda82d2d943'; // Using VAPI infrastructure
+const APEX_BASE_URL = 'https://api.vapi.ai'; // Using VAPI infrastructure
 
 export class VapiAssistantService {
   async updateAssistantPrompt(assistantId: string, systemPrompt: string): Promise<boolean> {
     try {
       // First get the current assistant configuration
       const getResponse = await fetch(
-        `${VAPI_BASE_URL}/assistant/${assistantId}`,
+        `${APEX_BASE_URL}/assistant/${assistantId}`,
         {
           headers: {
-            'Authorization': `Bearer ${VAPI_API_KEY}`,
+            'Authorization': `Bearer ${APEX_API_KEY}`,
             'Content-Type': 'application/json'
           }
         }
@@ -27,11 +27,11 @@ export class VapiAssistantService {
       
       // Update the assistant with new system prompt
       const updateResponse = await fetch(
-        `${VAPI_BASE_URL}/assistant/${assistantId}`,
+        `${APEX_BASE_URL}/assistant/${assistantId}`,
         {
           method: 'PATCH',
           headers: {
-            'Authorization': `Bearer ${VAPI_API_KEY}`,
+            'Authorization': `Bearer ${APEX_API_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -54,10 +54,10 @@ export class VapiAssistantService {
         return false;
       }
       
-      console.log('Assistant updated successfully in VAPI');
+      console.log('Assistant updated successfully in Apex');
       return true;
     } catch (error) {
-      console.error('Error updating VAPI assistant:', error);
+      console.error('Error updating Apex assistant:', error);
       return false;
     }
   }
@@ -65,10 +65,10 @@ export class VapiAssistantService {
   async fetchAssistantDetails(assistantId: string) {
     try {
       const response = await fetch(
-        `${VAPI_BASE_URL}/assistant/${assistantId}`,
+        `${APEX_BASE_URL}/assistant/${assistantId}`,
         {
           headers: {
-            'Authorization': `Bearer ${VAPI_API_KEY}`,
+            'Authorization': `Bearer ${APEX_API_KEY}`,
             'Content-Type': 'application/json'
           }
         }

@@ -122,7 +122,7 @@ class VapiIntegrationService {
     try {
       this.updateAccountStatus(accountId, 'syncing');
 
-      // Create a temporary VAPI service instance with this account's API key
+      // Create a temporary Apex service instance with this account's API key
       const testService = new (vapiService.constructor as any)();
       testService.apiKey = account.apiKey;
 
@@ -223,7 +223,7 @@ class VapiIntegrationService {
       const activeAccounts = this.accounts.filter((acc) => acc.isActive);
 
       if (activeAccounts.length === 0) {
-        throw new Error('No active VAPI accounts configured');
+        throw new Error('No active Apex accounts configured');
       }
 
       // Sync all accounts in parallel
@@ -320,7 +320,7 @@ class VapiIntegrationService {
       try {
         callback(data);
       } catch (error) {
-        console.error('Error in VAPI data listener:', error);
+        console.error('Error in Apex data listener:', error);
       }
     });
   }
@@ -395,7 +395,7 @@ class VapiIntegrationService {
       }
 
       notificationService.notifyWebhookReceived({
-        source: accountId ? `VAPI (${accountId})` : 'VAPI',
+        source: accountId ? `Apex (${accountId})` : 'Apex',
         event: type,
         processed: true,
       });
@@ -409,7 +409,7 @@ class VapiIntegrationService {
     } catch (error) {
       console.error('Webhook processing error:', error);
       notificationService.notifyWebhookReceived({
-        source: accountId ? `VAPI (${accountId})` : 'VAPI',
+        source: accountId ? `Apex (${accountId})` : 'Apex',
         event: payload.type || 'unknown',
         processed: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -439,7 +439,7 @@ class VapiIntegrationService {
         this.accounts = JSON.parse(stored);
       }
     } catch (error) {
-      console.error('Failed to load VAPI account configs:', error);
+      console.error('Failed to load Apex account configs:', error);
       this.accounts = [];
     }
   }
@@ -448,7 +448,7 @@ class VapiIntegrationService {
     try {
       localStorage.setItem('vapi-accounts', JSON.stringify(this.accounts));
     } catch (error) {
-      console.error('Failed to save VAPI account configs:', error);
+      console.error('Failed to save Apex account configs:', error);
     }
   }
 
@@ -496,7 +496,7 @@ class VapiIntegrationService {
 
     if (this.accounts.length === 0) {
       recommendations.push(
-        'No VAPI accounts configured. Add at least one account to start syncing data.'
+        'No Apex accounts configured. Add at least one account to start syncing data.'
       );
     }
 

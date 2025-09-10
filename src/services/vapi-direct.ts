@@ -6,13 +6,13 @@
 
 import { supabase } from './supabase-client';
 
-const VAPI_BASE_URL = 'https://api.vapi.ai';
+const APEX_BASE_URL = 'https://api.vapi.ai'; // Using VAPI infrastructure
 
 // Cache for API key to reduce database calls
 let cachedApiKey: string | null = null;
 
 /**
- * Get VAPI Public API Key from organization settings
+ * Get Apex Public API Key from organization settings
  * Organization credentials are the primary source of truth
  */
 async function getVapiPublicKey(): Promise<string | null> {
@@ -27,7 +27,7 @@ async function getVapiPublicKey(): Promise<string | null> {
     // If no org ID, try the hardcoded one for Emerald Green Energy
     const organizationId = storedOrgId || '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
     
-    // Get organization's VAPI keys directly
+    // Get organization's Apex keys directly
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('vapi_api_key, vapi_private_key, vapi_public_key, name')
@@ -40,7 +40,7 @@ async function getVapiPublicKey(): Promise<string | null> {
       return null;
     }
     
-    // Check both private and public keys - private key is what VAPI actually uses
+    // Check both private and public keys - private key is what Apex actually uses
     const apiKey = org?.vapi_private_key || org?.vapi_api_key || org?.vapi_public_key;
     
     if (apiKey) {
@@ -57,7 +57,7 @@ async function getVapiPublicKey(): Promise<string | null> {
       return null;
     }
   } catch (error) {
-    console.error('Error fetching organization VAPI key:', error);
+    console.error('Error fetching organization Apex key:', error);
     
     // Check localStorage as fallback (if recently cached)
     const cachedKey = localStorage.getItem('vapi_public_key');
@@ -90,7 +90,7 @@ async function vapiRequest(
     throw new Error('Apex API keys not configured. Please contact your administrator to set up Apex integration in Organization Settings.');
   }
   
-  const response = await fetch(`${VAPI_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${APEX_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -107,7 +107,7 @@ async function vapiRequest(
 }
 
 /**
- * VAPI Direct API Methods
+ * Apex Direct API Methods
  */
 export const vapiDirect = {
   // Set API key manually
@@ -206,7 +206,7 @@ export const vapiDirect = {
     } catch (error: any) {
       return {
         success: false,
-        message: error.message || 'Failed to connect to VAPI',
+        message: error.message || 'Failed to connect to Apex',
       };
     }
   },

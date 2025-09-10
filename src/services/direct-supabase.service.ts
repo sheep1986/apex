@@ -282,7 +282,7 @@ export class DirectSupabaseService {
         total_leads: leadCount || 0,
         calls_completed: completedCallCount || 0,
         successful_calls: completedCallCount || 0,
-        // Include VAPI details from settings
+        // Include Apex details from settings
         voice_agent: parsedSettings?.voice_agent || 'Emerald Green Energy Demo',
         system_prompt: parsedSettings?.system_prompt || '',
         voice_model: parsedSettings?.voice_model || 'eleven_turbo_v2_5',

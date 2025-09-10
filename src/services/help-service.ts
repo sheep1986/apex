@@ -75,7 +75,7 @@ class HelpService {
       {
         id: 'integrations',
         name: 'Integrations',
-        description: 'Connect VAPI, Airtable, Make.com and other tools',
+        description: 'Connect Apex, Airtable, Make.com and other tools',
         icon: '🔗',
         articleCount: 12,
         order: 2,
@@ -151,12 +151,12 @@ Set up your basic information including:
 
 ## Step 2: Connect Your Integrations
 You'll need to connect:
-- **VAPI** (Required): Powers the AI voice calls
+- **Apex** (Required): Powers the AI voice calls
 - **Airtable** (Required): Stores call results and lead data
 - **Make.com** (Optional): Automates follow-up workflows
 
 ### Getting Your API Keys:
-1. **VAPI**: Go to [vapi.ai/dashboard](https://vapi.ai/dashboard) → API Keys
+1. **Apex**: Go to your Apex dashboard → API Keys
 2. **Airtable**: Visit [airtable.com/create/tokens](https://airtable.com/create/tokens)
 3. **Make.com**: Create a webhook in your Make.com account
 
@@ -194,13 +194,13 @@ Need help? Contact our support team anytime.
       },
       {
         id: 'vapi-integration-guide',
-        title: 'VAPI Integration: Complete Setup Guide',
+        title: 'Apex Integration: Complete Setup Guide',
         content: `
-# VAPI Integration: Complete Setup Guide
+# Apex Integration: Complete Setup Guide
 
-VAPI is the core engine that powers your AI voice calls. Here's how to set it up properly.
+Apex is the core engine that powers your AI voice calls. Here's how to set it up properly.
 
-## Getting Your VAPI API Key
+## Getting Your Apex API Key
 
 1. Sign up at [vapi.ai](https://vapi.ai)
 2. Navigate to your Dashboard
@@ -208,13 +208,13 @@ VAPI is the core engine that powers your AI voice calls. Here's how to set it up
 4. Create a new API key
 5. Copy the key (starts with "sk-")
 
-## Connecting VAPI to Apex
+## Connecting Your Apex API Key
 
-1. In your Apex onboarding, paste your VAPI API key
+1. In your Apex onboarding, paste your Apex API key
 2. Click "Test Connection"
 3. Wait for the green checkmark
 
-## VAPI Configuration Options
+## Apex Configuration Options
 
 ### Voice Selection
 - **Professional**: Best for business calls
@@ -236,12 +236,12 @@ VAPI is the core engine that powers your AI voice calls. Here's how to set it up
 ### "Invalid API Key" Error
 - Double-check your API key format
 - Ensure you copied the complete key
-- Verify your VAPI account is active
+- Verify your Apex account is active
 
 ### "Insufficient Credits" Error
-- Check your VAPI credit balance
-- Add credits to your VAPI account
-- Contact VAPI support if needed
+- Check your Apex credit balance
+- Add credits to your Apex account
+- Contact Apex support if needed
 
 ### Poor Call Quality
 - Check your internet connection
@@ -251,11 +251,11 @@ VAPI is the core engine that powers your AI voice calls. Here's how to set it up
 ## Best Practices
 
 1. **Test First**: Always test with sample calls
-2. **Monitor Usage**: Keep track of your VAPI credits
+2. **Monitor Usage**: Keep track of your Apex credits
 3. **Optimize Scripts**: Refine based on call performance
-4. **Regular Updates**: Keep your VAPI integration updated
+4. **Regular Updates**: Keep your Apex integration updated
 
-Need specific help with VAPI? Check their [documentation](https://docs.vapi.ai) or contact our support team.
+Need specific help with Apex? Contact our support team directly.
         `,
         category: 'integrations',
         tags: ['vapi', 'api-key', 'voice-ai'],
@@ -577,8 +577,8 @@ Need help? Our support team can assist with Airtable setup and optimization.
     return [
       {
         id: 'ticket_123',
-        subject: 'VAPI integration not working',
-        description: "I'm getting an invalid API key error when trying to connect VAPI.",
+        subject: 'Apex integration not working',
+        description: "I'm getting an invalid API key error when trying to connect Apex.",
         status: 'resolved',
         priority: 'medium',
         createdAt: new Date('2024-01-10'),
@@ -587,7 +587,7 @@ Need help? Our support team can assist with Airtable setup and optimization.
           {
             id: 'resp_1',
             message:
-              'Thanks for reaching out! Can you please double-check that you copied the complete API key from your VAPI dashboard?',
+              'Thanks for reaching out! Can you please double-check that you copied the complete API key from your Apex dashboard?',
             author: 'Sarah (Support)',
             timestamp: new Date('2024-01-10T14:30:00'),
             isStaff: true,

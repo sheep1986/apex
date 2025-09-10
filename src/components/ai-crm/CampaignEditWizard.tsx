@@ -135,8 +135,8 @@ export const CampaignEditWizard: React.FC<CampaignEditWizardProps> = ({
         setWorkingHours(defaults.defaultWorkingHours.hours);
       }
       
-      // Set cost per minute based on organization's VAPI pricing (if available)
-      // This could be fetched from VAPI API or stored in org settings
+      // Set cost per minute based on organization's Apex pricing (if available)
+      // This could be fetched from Apex API or stored in org settings
       
       toast({
         title: 'Organization Settings Loaded',
@@ -210,7 +210,7 @@ Rate limiting controls how quickly your campaign makes calls to prevent overwhel
 - 🤖 Rate limiting mimics human calling patterns to maintain good sender reputation
 
 **⚙️ API Optimization**
-- 🚫 Prevents hitting VAPI's API rate limits which could pause your campaign
+- 🚫 Prevents hitting Apex's API rate limits which could pause your campaign
 - 📈 Distributes calls evenly over time for better system performance
 - 🌐 Reduces network congestion and improves call quality
 
@@ -527,8 +527,8 @@ The "Concurrent Calls Limit" determines how many calls can be active simultaneou
 - 📊 10 concurrent calls ≈ 1 Mbps bandwidth minimum
 - 📶 Poor connections may require lower concurrency
 
-**🔌 VAPI API Limits**
-- 🏢 VAPI may have account-specific concurrency limits
+**🔌 Apex API Limits**
+- 🏢 Apex may have account-specific concurrency limits
 - ❌ Exceeding limits results in rejected call attempts
 - 🔍 Check your account tier for maximum allowed
 - ⬆️ Higher tiers typically support more concurrent calls
@@ -591,7 +591,7 @@ The "Concurrent Calls Limit" determines how many calls can be active simultaneou
 
 **❌ Calls Failing to Connect**
 - ⚠️ May indicate concurrency set too high
-- 🔍 Check VAPI account limits
+- 🔍 Check Apex account limits
 - 🌐 Verify internet bandwidth capacity
 - 📞 Review carrier-specific restrictions
 
@@ -1090,7 +1090,7 @@ The review section provides detailed estimates for your campaign including durat
   const handleUpdateCampaign = async () => {
     setIsLoading(true);
     try {
-      // Get organization VAPI credentials
+      // Get organization Apex credentials
       const orgDefaults = await organizationSettingsService.getCampaignDefaults();
       
       // Automatically add current user as campaign owner
@@ -2039,7 +2039,7 @@ The review section provides detailed estimates for your campaign including durat
                                   </button>
                                 </div>
                                 <p className="text-xs text-gray-400 mt-1">
-                                  Filter out contacts before sending to VAPI based on their local time
+                                  Filter out contacts before sending to Apex based on their local time
                                 </p>
                               </div>
                             </div>
