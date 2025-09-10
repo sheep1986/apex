@@ -1,6 +1,6 @@
 /**
- * Direct VAPI API Service
- * Uses VAPI Public API Key for frontend calls
+ * Direct Apex API Service
+ * Uses Apex Public API Key for frontend calls
  * Based on successful AppNoAuth implementation
  */
 
@@ -48,11 +48,11 @@ async function getVapiPublicKey(): Promise<string | null> {
       // Store in localStorage for quick access (with expiry)
       localStorage.setItem('vapi_public_key', apiKey);
       localStorage.setItem('vapi_key_cached_at', Date.now().toString());
-      console.log('✅ Loaded VAPI key from organization:', org.name);
+      console.log('✅ Loaded Apex key from organization:', org.name);
       console.log('🔑 Using key:', apiKey.substring(0, 10) + '...');
       return apiKey;
     } else {
-      console.warn('⚠️ Organization has no VAPI API key configured');
+      console.warn('⚠️ Organization has no Apex API key configured');
       console.log('📊 Org data:', org);
       return null;
     }
@@ -77,7 +77,7 @@ async function getVapiPublicKey(): Promise<string | null> {
 }
 
 /**
- * Make a direct VAPI API call
+ * Make a direct Apex API call
  */
 async function vapiRequest(
   endpoint: string,
@@ -86,8 +86,8 @@ async function vapiRequest(
   const apiKey = await getVapiPublicKey();
   
   if (!apiKey) {
-    console.warn('⚠️ No VAPI API key found for organization');
-    throw new Error('VAPI API keys not configured. Please contact your administrator to set up VAPI integration in Organization Settings.');
+    console.warn('⚠️ No Apex API key found for organization');
+    throw new Error('Apex API keys not configured. Please contact your administrator to set up Apex integration in Organization Settings.');
   }
   
   const response = await fetch(`${VAPI_BASE_URL}${endpoint}`, {
@@ -100,7 +100,7 @@ async function vapiRequest(
   });
   
   if (!response.ok) {
-    throw new Error(`VAPI API Error: ${response.status} ${response.statusText}`);
+    throw new Error(`Apex API Error: ${response.status} ${response.statusText}`);
   }
   
   return response.json();

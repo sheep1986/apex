@@ -443,8 +443,8 @@ const OrganizationSettingsV2: React.FC = () => {
       await sendVapiChangeNotification(pendingKeyUpdate.type, user.email);
       
       toast({
-        title: 'VAPI Credentials Updated',
-        description: `Your VAPI ${pendingKeyUpdate.type} key has been updated successfully. All administrators have been notified.`,
+        title: 'Apex Credentials Updated',
+        description: `Your Apex ${pendingKeyUpdate.type} key has been updated successfully. All administrators have been notified.`,
       });
       
       // Clear state
@@ -1073,16 +1073,16 @@ const OrganizationSettingsV2: React.FC = () => {
           <TabsContent value="details" className="space-y-6">
             <Card className="border-gray-800 bg-gray-900/50">
               <CardHeader>
-                <CardTitle className="text-white">VAPI API Keys</CardTitle>
-                <CardDescription>Use these keys for interacting with VAPI APIs</CardDescription>
+                <CardTitle className="text-white">Apex API Keys</CardTitle>
+                <CardDescription>Use these keys for interacting with Apex APIs</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Warning Alert */}
                 <Alert className="border-yellow-800 bg-yellow-900/20">
                   <AlertCircle className="h-4 w-4 text-yellow-400" />
                   <AlertDescription className="text-yellow-200">
-                    <strong>Critical Configuration:</strong> Changing VAPI API keys will immediately affect all active campaigns and ongoing calls. 
-                    Ensure you have the correct keys from your VAPI dashboard before making changes. All administrators will be notified of any modifications.
+                    <strong>Critical Configuration:</strong> Changing Apex API keys will immediately affect all active campaigns and ongoing calls. 
+                    Ensure you have the correct keys from your Apex dashboard before making changes. All administrators will be notified of any modifications.
                   </AlertDescription>
                 </Alert>
                 
@@ -1092,7 +1092,7 @@ const OrganizationSettingsV2: React.FC = () => {
                   <div className="flex space-x-2">
                     <Input
                       type={showVapiPrivateKey ? "text" : "password"}
-                      placeholder="Enter your VAPI Private API Key"
+                      placeholder="Enter your Apex Private API Key"
                       className="bg-gray-800 border-gray-700 text-white font-mono"
                       value={vapiPrivateKey}
                       onChange={(e) => setVapiPrivateKey(e.target.value)}
@@ -1121,7 +1121,7 @@ const OrganizationSettingsV2: React.FC = () => {
                   <div className="flex space-x-2">
                     <Input
                       type={showVapiPublicKey ? "text" : "password"}
-                      placeholder="Enter your VAPI Public API Key"
+                      placeholder="Enter your Apex Public API Key"
                       className="bg-gray-800 border-gray-700 text-white font-mono"
                       value={vapiPublicKey}
                       onChange={(e) => setVapiPublicKey(e.target.value)}
@@ -1288,9 +1288,9 @@ const OrganizationSettingsV2: React.FC = () => {
       <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <AlertDialogContent className="bg-gray-900 border-gray-800">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Confirm VAPI Credential Update</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Confirm Apex Credential Update</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400 space-y-3">
-              <p>You are about to update your organization's VAPI {pendingKeyUpdate?.type} API key.</p>
+              <p>You are about to update your organization's Apex {pendingKeyUpdate?.type} API key.</p>
               
               <Alert className="border-orange-800 bg-orange-900/20">
                 <AlertCircle className="h-4 w-4 text-orange-400" />

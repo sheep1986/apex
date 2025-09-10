@@ -286,7 +286,7 @@ const Layout: React.FC = () => {
       addNotification({
         type: 'warning',
         title: 'Low Credit Balance',
-        message: 'VAPI credits running low. Current balance: 150 credits. Consider topping up.',
+        message: 'Apex credits running low. Current balance: 150 credits. Consider topping up.',
         category: 'billing',
         priority: 'high',
         source: 'Billing System',
