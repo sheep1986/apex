@@ -2413,7 +2413,7 @@ export default function CRM() {
                 className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
               >
                 <Download className="mr-2 h-4 w-4" />
-                {t('common:export')}
+                Export
               </Button>
               <SolidDropdown
                 trigger={
@@ -2430,11 +2430,11 @@ export default function CRM() {
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 }
-                title={t('common:table.table_view')}
-                options={[t('common:table.table_view'), t('common:table.tile_view')]}
+                title="View Mode"
+                options={['Table View', 'Tile View']}
                 onOptionSelect={(option) => {
-                  if (option === t('common:table.table_view')) setViewMode('table');
-                  if (option === t('common:table.tile_view')) setViewMode('tile');
+                  if (option === 'Table View') setViewMode('table');
+                  if (option === 'Tile View') setViewMode('tile');
                 }}
               />
               <SolidDropdown
@@ -2445,12 +2445,12 @@ export default function CRM() {
                     className="border-amber-600 text-xs text-amber-400 transition-all hover:bg-amber-600 hover:text-white"
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    {t('crm:lead.new_lead')}
+                    New Lead
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 }
-                title={t('crm:sections.leads')}
-                options={[t('crm:import_export.import_leads'), t('crm:lead.new_lead')]}
+                title="Add Lead"
+                options={['Import Leads', 'New Lead']}
               />
               <Button
                 variant="outline"
@@ -2459,7 +2459,7 @@ export default function CRM() {
                 onClick={() => setShowAddColumnsModal(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                {t('common:actions.add')} {t('common:table.columns')}
+                Add Columns
               </Button>
               {hiddenColumns.length > 0 && (
                 <SolidDropdown
