@@ -223,13 +223,24 @@ export default function Dashboard() {
       
       setCampaignData(campaignPerf);
       
-      // Generate call volume data
+      // Generate call volume data from real calls
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - i));
+        const dayStart = new Date(date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(date);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        // Count calls for this specific day
+        const callsForDay = allCallsArray.filter(call => {
+          const callDate = new Date(call.created_at);
+          return callDate >= dayStart && callDate <= dayEnd;
+        }).length;
+        
         return {
-          day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          calls: Math.floor(Math.random() * 10), // Will be replaced with real data
+          date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          calls: callsForDay
         };
       });
       
