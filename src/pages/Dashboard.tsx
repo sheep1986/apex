@@ -89,32 +89,6 @@ const conversionData = [
 
 // Campaign data now comes from database via state
 
-const recentCalls = [
-  { id: 1, contact: 'John Smith', campaign: 'Summer Sale', duration: '3:45', status: 'completed' },
-  {
-    id: 2,
-    contact: 'Sarah Johnson',
-    campaign: 'Product Launch',
-    duration: '2:30',
-    status: 'in-progress',
-  },
-  {
-    id: 3,
-    contact: 'Mike Davis',
-    campaign: 'Customer Win-back',
-    duration: '5:12',
-    status: 'completed',
-  },
-  {
-    id: 4,
-    contact: 'Emily Brown',
-    campaign: 'Holiday Promo',
-    duration: '1:55',
-    status: 'completed',
-  },
-  { id: 5, contact: 'David Wilson', campaign: 'Lead Nurture', duration: '4:20', status: 'missed' },
-];
-
 export default function Dashboard() {
   console.log('Dashboard component rendering...');
 
@@ -193,6 +167,7 @@ export default function Dashboard() {
   });
   const [campaignData, setCampaignData] = useState<any[]>([]);
   const [callVolumeData, setCallVolumeData] = useState<any[]>([]);
+  const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -206,17 +181,28 @@ export default function Dashboard() {
         .from('campaigns')
         .select('*');
       
-      // Fetch calls
-      const { data: calls } = await supabase
+      // Fetch all calls for stats
+      const { data: allCalls } = await supabase
         .from('calls')
         .select('*');
       
+      // Fetch recent calls with lead info for display
+      const { data: recentCallsData } = await supabase
+        .from('calls')
+        .select(`
+          *,
+          leads:lead_id(name, phone_number),
+          campaigns:campaign_id(name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
       // Calculate real stats
       const activeCampaigns = campaigns?.filter(c => c.status === 'active').length || 0;
-      const totalCalls = calls?.length || 0;
-      const successfulCalls = calls?.filter(c => c.status === 'completed').length || 0;
+      const totalCalls = allCalls?.length || 0;
+      const successfulCalls = allCalls?.filter(c => c.status === 'completed').length || 0;
       const conversionRate = totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0;
-      const totalCost = calls?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
+      const totalCost = allCalls?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
       
       setRealStats({
         totalCalls,
@@ -245,11 +231,39 @@ export default function Dashboard() {
       });
       
       setCallVolumeData(last7Days);
+      
+      // Format recent calls for display
+      const formattedCalls = recentCallsData?.map((call, index) => ({
+        id: call.id || index + 1,
+        contact: call.leads?.name || call.phone_number || 'Unknown',
+        campaign: call.campaigns?.name || 'Direct Call',
+        duration: formatDuration(call.duration || 0),
+        status: call.status || 'unknown'
+      })) || [];
+      
+      // If no real calls, show a message
+      if (formattedCalls.length === 0) {
+        setRecentCalls([{
+          id: 1,
+          contact: 'No calls yet',
+          campaign: 'Import leads to start',
+          duration: '0:00',
+          status: 'pending'
+        }]);
+      } else {
+        setRecentCalls(formattedCalls);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
       setLoading(false);
     }
+  };
+  
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
   const stats = [
