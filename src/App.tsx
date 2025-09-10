@@ -56,6 +56,7 @@ import CampaignProcessor from './pages/CampaignProcessor';
 import CallDetails from './pages/CallDetails';
 import CampaignCalls from './pages/CampaignCalls';
 import LeadPage from './pages/LeadPage';
+import Appointments from './pages/Appointments';
 import AgencyDashboard from './pages/AgencyDashboard';
 import AcceptInvitation from './pages/AcceptInvitation';
 import ForceLogout from './pages/ForceLogout';
@@ -110,6 +111,7 @@ function App() {
             <Route path="/crm" element={<CRM />} />
             <Route path="/phone-numbers" element={<PhoneNumbers />} />
             <Route path="/messaging" element={<Messaging />} />
+            <Route path="/appointments" element={<Appointments />} />
             <Route path="/settings" element={<Settings />} />
             <Route
               path="/organization-settings"
