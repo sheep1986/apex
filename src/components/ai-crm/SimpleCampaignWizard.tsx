@@ -41,10 +41,10 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
   const [timezone, setTimezone] = useState('Europe/Malta (GMT+2)');
   const [csvData, setCsvData] = useState<any[]>([]);
   
-  // VAPI data states
+  // Apex data states
   const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
   const [assistants, setAssistants] = useState<any[]>([]);
-  const [loadingVapiData, setLoadingVapiData] = useState(true);
+  const [loadingApexData, setLoadingApexData] = useState(true);
   
   // Rate limiting state
   const [callsPerMinute, setCallsPerMinute] = useState(5);
@@ -107,7 +107,7 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
   const [avgCallDuration, setAvgCallDuration] = useState(2); // minutes
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
   const [costPerMinute, setCostPerMinute] = useState(0.18); // default
-  const [concurrentCalls, setConcurrentCalls] = useState(10); // default from Vapi
+  const [concurrentCalls, setConcurrentCalls] = useState(10); // default from Apex
   const [estimatedMetrics, setEstimatedMetrics] = useState<{
     totalAttempts: number;
     totalMinutes: number;
@@ -164,24 +164,24 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
 
   // Load organization defaults on component mount
   useEffect(() => {
-    // Store organization ID for VAPI service to use
+    // Store organization ID for Apex service to use
     if (userContext?.organization_id) {
       localStorage.setItem('organization_id', userContext.organization_id);
       console.log('📝 Stored organization ID:', userContext.organization_id);
     }
     
     loadOrganizationDefaults();
-    // Load VAPI data with a small delay to ensure component is ready
+    // Load Apex data with a small delay to ensure component is ready
     const timer = setTimeout(() => {
-      loadVapiData();
+      loadApexData();
     }, 500);
     return () => clearTimeout(timer);
   }, [userContext]);
 
-  // Load VAPI assistants and phone numbers using organization's VAPI credentials
-  const loadVapiData = async () => {
+  // Load Apex assistants and phone numbers using organization's Apex credentials
+  const loadApexData = async () => {
     try {
-      setLoadingVapiData(true);
+      setLoadingApexData(true);
       
       // Fetch both assistants and phone numbers using org credentials
       const [assistantsData, phoneNumbersData] = await Promise.all([
@@ -199,31 +199,31 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
       // Show success message if we got data
       if (assistantsData.length > 0 || phoneNumbersData.length > 0) {
         toast({
-          title: 'VAPI Connected',
+          title: 'Apex Connected',
           description: `Loaded ${assistantsData.length} assistants and ${phoneNumbersData.length} phone numbers`,
           variant: 'default'
         });
       } else {
         toast({
-          title: 'No VAPI Resources',
-          description: 'Please create assistants and phone numbers in your VAPI dashboard',
+          title: 'No Apex Resources',
+          description: 'Please create assistants and phone numbers in your Apex dashboard',
           variant: 'default'
         });
       }
     } catch (err) {
-      console.error('❌ Failed to load VAPI data:', err);
+      console.error('❌ Failed to load Apex data:', err);
       
       // Set empty arrays on error
       setAssistants([]);
       setPhoneNumbers([]);
       
       toast({
-        title: 'VAPI Configuration Required',
-        description: 'Your organization admin needs to add VAPI API keys in Settings > Details > VAPI API Keys',
+        title: 'Apex Configuration Required',
+        description: 'Your organization admin needs to add Apex API keys in Settings > Details > Apex API Keys',
         variant: 'destructive'
       });
     } finally {
-      setLoadingVapiData(false);
+      setLoadingApexData(false);
     }
   };
 
@@ -319,7 +319,7 @@ Rate limiting controls how quickly your campaign makes calls to prevent overwhel
 - 🤖 Rate limiting mimics human calling patterns to maintain good sender reputation
 
 **⚙️ API Optimization**
-- 🚫 Prevents hitting VAPI's API rate limits which could pause your campaign
+- 🚫 Prevents hitting Apex's API rate limits which could pause your campaign
 - 📈 Distributes calls evenly over time for better system performance
 - 🌐 Reduces network congestion and improves call quality
 
@@ -792,8 +792,8 @@ The "Concurrent Calls Limit" determines how many calls can be active simultaneou
 - 📊 10 concurrent calls ≈ 1 Mbps bandwidth minimum
 - 📶 Poor connections may require lower concurrency
 
-**🔌 VAPI API Limits**
-- 🏢 VAPI may have account-specific concurrency limits
+**🔌 Apex API Limits**
+- 🏢 Apex may have account-specific concurrency limits
 - ❌ Exceeding limits results in rejected call attempts
 - 🔍 Check your account tier for maximum allowed
 - ⬆️ Higher tiers typically support more concurrent calls
@@ -856,7 +856,7 @@ The "Concurrent Calls Limit" determines how many calls can be active simultaneou
 
 **❌ Calls Failing to Connect**
 - ⚠️ May indicate concurrency set too high
-- 🔍 Check VAPI account limits
+- 🔍 Check Apex account limits
 - 🌐 Verify internet bandwidth capacity
 - 📞 Review carrier-specific restrictions
 
@@ -1217,7 +1217,7 @@ The review section provides detailed estimates for your campaign including durat
 - Concurrent call throughput
 
 **💵 Cost Breakdown:**
-- Vapi hosting fees ($0.05/min)
+- Apex hosting fees ($0.05/min)
 - Speech-to-Text costs ($0.01/min)
 - Text-to-Speech costs ($0.05/min)
 - Language Model costs ($0.07/min)
@@ -1239,7 +1239,7 @@ The review section provides detailed estimates for your campaign including durat
 ### ⚡ **Key Factors:**
 
 - 📞 **Average Call Duration:** Default 2 minutes (adjustable)
-- 🔄 **Concurrent Calls:** Based on Vapi plan (10 default)
+- 🔄 **Concurrent Calls:** Based on Apex plan (10 default)
 - 🔁 **Retry Logic:** Impacts total attempts significantly
 - ⏰ **Working Hours:** Affects campaign timeline
 - 💳 **Credit Balance:** Determines if top-up needed
@@ -1251,7 +1251,7 @@ The review section provides detailed estimates for your campaign including durat
 - 📊 Use historical data for accurate duration
 - 🔄 Adjust concurrency for optimal throughput
 - 📈 Monitor actual vs. estimated costs
-- 🚨 Set up balance alerts in Vapi dashboard
+- 🚨 Set up balance alerts in Apex dashboard
       `
     }
   };
@@ -1471,7 +1471,7 @@ The review section provides detailed estimates for your campaign including durat
           type: campaignType,
           description: `Campaign with ${csvData.length} contacts`,
           settings: {
-            // VAPI Configuration
+            // Apex Configuration
             assistant_id: assistant,
             phone_number_id: phoneNumber,
             
@@ -1654,9 +1654,9 @@ The review section provides detailed estimates for your campaign including durat
               <Label htmlFor="phone-number" className="text-gray-300">
                 Phone Number
               </Label>
-              <Select value={phoneNumber} onValueChange={setPhoneNumber} disabled={loadingVapiData}>
+              <Select value={phoneNumber} onValueChange={setPhoneNumber} disabled={loadingApexData}>
                 <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue placeholder={loadingVapiData ? "Loading..." : "Select"} />
+                  <SelectValue placeholder={loadingApexData ? "Loading..." : "Select"} />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700">
                   {phoneNumbers.length === 0 ? (
@@ -1734,14 +1734,14 @@ The review section provides detailed estimates for your campaign including durat
             {/* Assistant */}
             <div className="space-y-2">
               <Label htmlFor="assistant" className="text-gray-300">Assistant</Label>
-              <Select value={assistant} onValueChange={setAssistant} disabled={loadingVapiData}>
+              <Select value={assistant} onValueChange={setAssistant} disabled={loadingApexData}>
                 <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue placeholder={loadingVapiData ? "Loading..." : "Select"} />
+                  <SelectValue placeholder={loadingApexData ? "Loading..." : "Select"} />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700">
                   {assistants.length === 0 ? (
                     <SelectItem value="none" disabled>
-                      {loadingVapiData ? "Loading..." : "No assistants available - Check VAPI configuration"}
+                      {loadingApexData ? "Loading..." : "No assistants available - Check Apex configuration"}
                     </SelectItem>
                   ) : (
                     assistants.map((asst) => (
@@ -2428,7 +2428,7 @@ The review section provides detailed estimates for your campaign including durat
                                   </button>
                                 </div>
                                 <p className="text-xs text-gray-400 mt-1">
-                                  Filter out contacts before sending to VAPI based on their local time
+                                  Filter out contacts before sending to Apex based on their local time
                                 </p>
                               </div>
                             </div>
@@ -2816,7 +2816,7 @@ The review section provides detailed estimates for your campaign including durat
                     <p className="text-sm font-medium text-gray-300 mb-3">Cost per Minute Breakdown</p>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">Vapi Hosting</span>
+                        <span className="text-gray-400">Apex Hosting</span>
                         <span className="text-white">$0.05</span>
                       </div>
                       <div className="flex justify-between">
@@ -2859,7 +2859,7 @@ The review section provides detailed estimates for your campaign including durat
                   
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-sm text-gray-400">Current Vapi Credit Balance</Label>
+                      <Label className="text-sm text-gray-400">Current Apex Credit Balance</Label>
                       <div className="flex items-center space-x-3 mt-1">
                         <Input
                           type="number"
@@ -2936,7 +2936,7 @@ The review section provides detailed estimates for your campaign including durat
                               rel="noopener noreferrer"
                               className="mt-3 inline-flex items-center text-sm text-blue-400 hover:text-blue-300"
                             >
-                              Add Credits in Vapi Dashboard
+                              Add Credits in Apex Dashboard
                               <ExternalLink className="w-3 h-3 ml-1" />
                             </a>
                           </div>
@@ -2955,7 +2955,7 @@ The review section provides detailed estimates for your campaign including durat
                       <ul className="space-y-1 list-disc list-inside">
                         <li>Estimates assume scrubbed contact lists and may vary based on actual call outcomes</li>
                         <li>No-answer and voicemail attempts count toward total minutes but may be shorter</li>
-                        <li>Consider upgrading your Vapi plan for better per-minute rates on high-volume campaigns</li>
+                        <li>Consider upgrading your Apex plan for better per-minute rates on high-volume campaigns</li>
                         <li>Monitor campaign progress to adjust estimates based on actual performance</li>
                       </ul>
                     </div>

@@ -333,28 +333,28 @@ export default function CampaignSetupWizard() {
     }
   };
 
-  // VAPI Data State
+  // Apex Data State
   const [voiceAgents, setVoiceAgents] = useState<any[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [loadingNumbers, setLoadingNumbers] = useState(false);
-  const [vapiErrors, setVapiErrors] = useState<string[]>([]);
-  const [vapiConnected, setVapiConnected] = useState(false);
+  const [apexErrors, setApexErrors] = useState<string[]>([]);
+  const [apexConnected, setApexConnected] = useState(false);
 
   const progressPercentage = (currentStep / STEPS.length) * 100;
 
-  // Load VAPI Data on Component Mount
+  // Load Apex Data on Component Mount
   useEffect(() => {
-    const loadVAPIData = async () => {
+    const loadApexData = async () => {
       try {
         setLoadingAgents(true);
         setLoadingNumbers(true);
-        setVapiErrors([]);
+        setApexErrors([]);
 
-        console.log('🔄 Loading VAPI data...');
+        console.log('🔄 Loading Apex data...');
 
         // Load assistants and phone numbers in parallel
-        console.log('🔄 Campaign Wizard: Loading VAPI data from backend...');
+        console.log('🔄 Campaign Wizard: Loading Apex data from backend...');
         console.log(
           '🔄 Campaign Wizard: API Base URL:',
           import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
@@ -386,25 +386,25 @@ export default function CampaignSetupWizard() {
 
         setVoiceAgents(assistants);
         setPhoneNumbers(phoneNums);
-        setVapiConnected(true);
+        setApexConnected(true);
 
         // Clear any previous errors if successful
         if (assistants.length > 0 || phoneNums.length > 0) {
-          setVapiErrors([]);
+          setApexErrors([]);
         }
       } catch (error) {
-        console.error('❌ Error loading VAPI data:', error);
-        setVapiErrors([
-          'Failed to connect to VAPI service. Please check your VAPI credentials in Settings.',
+        console.error('❌ Error loading Apex data:', error);
+        setApexErrors([
+          'Failed to connect to Apex service. Please check your Apex credentials in Settings.',
         ]);
-        setVapiConnected(false);
+        setApexConnected(false);
       } finally {
         setLoadingAgents(false);
         setLoadingNumbers(false);
       }
     };
 
-    loadVAPIData();
+    loadApexData();
   }, []);
 
   // Load draft on component mount
@@ -752,11 +752,11 @@ export default function CampaignSetupWizard() {
                       <Label htmlFor="vapi" className="cursor-pointer">
                         <div className="mb-1 flex items-center gap-2">
                           <Phone className="h-4 w-4 text-emerald-500" />
-                          <span className="font-medium text-white">VAPI Phone Numbers</span>
+                          <span className="font-medium text-white">Apex Phone Numbers</span>
                           <Badge className="bg-emerald-600 text-white">Recommended</Badge>
                         </div>
                         <p className="text-sm text-gray-400">
-                          Use phone numbers provisioned through VAPI
+                          Use phone numbers provisioned through Apex
                         </p>
                       </Label>
                     </div>
@@ -779,7 +779,7 @@ export default function CampaignSetupWizard() {
 
               {!campaignData.twilioIntegration ? (
                 <div>
-                  <Label className="text-gray-300">Select VAPI Phone Number *</Label>
+                  <Label className="text-gray-300">Select Apex Phone Number *</Label>
 
                   {loadingNumbers && (
                     <div className="mb-2 flex items-center gap-2 text-blue-400">
@@ -812,7 +812,7 @@ export default function CampaignSetupWizard() {
                           </SelectItem>
                         ))
                       ) : (
-                        // Fallback to hardcoded numbers if VAPI fails
+                        // Fallback to hardcoded numbers if Apex fails
                         <>
                           <SelectItem value="+1-555-0123">+1 (555) 012-3456 - US</SelectItem>
                           <SelectItem value="+1-555-0124">+1 (555) 012-3457 - US</SelectItem>
@@ -827,7 +827,7 @@ export default function CampaignSetupWizard() {
 
                   {phoneNumbers.length === 0 && !loadingNumbers && (
                     <p className="mt-1 text-sm text-yellow-400">
-                      No VAPI phone numbers found. Using demo numbers. Please configure VAPI in
+                      No Apex phone numbers found. Using demo numbers. Please configure Apex in
                       Settings.
                     </p>
                   )}
@@ -857,12 +857,12 @@ export default function CampaignSetupWizard() {
                 </div>
               )}
 
-              {/* VAPI Connection Status for Phone Numbers */}
+              {/* Apex Connection Status for Phone Numbers */}
               {vapiErrors.length > 0 && (
                 <Alert className="border-red-500 bg-red-900/20">
                   <AlertCircle className="h-4 w-4 text-red-500" />
                   <AlertDescription className="text-red-300">
-                    VAPI Connection Issue: {vapiErrors.join(', ')}
+                    Apex Connection Issue: {apexErrors.join(', ')}
                   </AlertDescription>
                 </Alert>
               )}
@@ -870,8 +870,8 @@ export default function CampaignSetupWizard() {
               <div className="rounded-lg bg-gray-800/50 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <h4 className="font-medium text-white">Phone Number Features</h4>
-                  {vapiConnected && (
-                    <Badge className="bg-green-600 text-xs text-white">VAPI Connected</Badge>
+                  {apexConnected && (
+                    <Badge className="bg-green-600 text-xs text-white">Apex Connected</Badge>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -904,7 +904,7 @@ export default function CampaignSetupWizard() {
             </div>
 
             <div className="space-y-4">
-              {/* VAPI Connection Status */}
+              {/* Apex Connection Status */}
               {vapiErrors.length > 0 && (
                 <Alert className="border-red-500 bg-red-900/20">
                   <AlertCircle className="h-4 w-4 text-red-500" />
@@ -925,14 +925,14 @@ export default function CampaignSetupWizard() {
                 <Alert className="border-yellow-500 bg-yellow-900/20">
                   <AlertCircle className="h-4 w-4 text-yellow-500" />
                   <AlertDescription className="text-yellow-300">
-                    No VAPI assistants found. Using demo agents. Please configure VAPI credentials
+                    No Apex assistants found. Using demo agents. Please configure Apex credentials
                     in Settings.
                   </AlertDescription>
                 </Alert>
               )}
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {/* Show real VAPI agents if available, otherwise show hardcoded fallback */}
+                {/* Show real Apex agents if available, otherwise show hardcoded fallback */}
                 {(voiceAgents.length > 0 ? voiceAgents : VOICE_AGENTS).map((agent) => (
                   <div
                     key={agent.id}
