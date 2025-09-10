@@ -197,12 +197,15 @@ export default function Dashboard() {
         .order('created_at', { ascending: false })
         .limit(5);
       
-      // Calculate real stats
-      const activeCampaigns = campaigns?.filter(c => c.status === 'active').length || 0;
-      const totalCalls = allCalls?.length || 0;
-      const successfulCalls = allCalls?.filter(c => c.status === 'completed').length || 0;
+      // Calculate real stats - ensure arrays
+      const campaignsArray = Array.isArray(campaigns) ? campaigns : [];
+      const allCallsArray = Array.isArray(allCalls) ? allCalls : [];
+      
+      const activeCampaigns = campaignsArray.filter(c => c.status === 'active').length;
+      const totalCalls = allCallsArray.length;
+      const successfulCalls = allCallsArray.filter(c => c.status === 'completed').length;
       const conversionRate = totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0;
-      const totalCost = allCalls?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
+      const totalCost = allCallsArray.reduce((sum, call) => sum + (call.cost || 0), 0);
       
       setRealStats({
         totalCalls,
@@ -212,11 +215,11 @@ export default function Dashboard() {
       });
       
       // Set campaign data for chart
-      const campaignPerf = campaigns?.map(c => ({
+      const campaignPerf = campaignsArray.map(c => ({
         name: c.name,
         successRate: c.total_calls > 0 ? (c.successful_calls / c.total_calls) * 100 : 0,
         value: c.successful_calls || 0,
-      })) || [];
+      }));
       
       setCampaignData(campaignPerf);
       
@@ -232,14 +235,15 @@ export default function Dashboard() {
       
       setCallVolumeData(last7Days);
       
-      // Format recent calls for display
-      const formattedCalls = recentCallsData?.map((call, index) => ({
+      // Format recent calls for display - ensure array
+      const recentCallsArray = Array.isArray(recentCallsData) ? recentCallsData : [];
+      const formattedCalls = recentCallsArray.map((call, index) => ({
         id: call.id || index + 1,
         contact: call.leads?.name || call.phone_number || 'Unknown',
         campaign: call.campaigns?.name || 'Direct Call',
         duration: formatDuration(call.duration || 0),
         status: call.status || 'unknown'
-      })) || [];
+      }));
       
       // If no real calls, show a message
       if (formattedCalls.length === 0) {
@@ -486,7 +490,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-gray-800/30">
-            {recentCalls.map((call) => (
+            {recentCalls && recentCalls.length > 0 && recentCalls.map((call) => (
               <div
                 key={call.id}
                 className="group flex cursor-pointer items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-gray-800/30"
