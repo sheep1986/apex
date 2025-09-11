@@ -35,6 +35,10 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     // Get user email for filtering
     const userEmail = req.user?.primaryEmailAddress?.emailAddress || req.user?.email;
     
+    console.log('🔍 AllCalls API: User authenticated:', !!req.user);
+    console.log('🔍 AllCalls API: User email:', userEmail);
+    console.log('🔍 AllCalls API: Request query params:', req.query);
+    
     if (!userEmail) {
       return res.status(400).json({
         error: 'User email not found'
@@ -56,8 +60,11 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
       ...(outcome !== 'all' && { callStatus: outcome }),
     });
 
+    console.log('🔍 AllCalls API: Webhook query result - total:', total, 'data count:', webhookData?.length);
+    console.log('🔍 AllCalls API: First webhook record:', webhookData?.[0]);
+    
     if (error) {
-      console.error('Error fetching webhook data:', error);
+      console.error('❌ AllCalls API: Error fetching webhook data:', error);
       return res.status(500).json({ error: 'Failed to fetch calls' });
     }
 
@@ -91,6 +98,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 
     // Calculate metrics from the data
     const metrics = calculateCallMetrics(calls);
+
+    console.log('✅ AllCalls API: Sending response - calls count:', calls.length, 'metrics:', metrics);
 
     res.json({
       success: true,
