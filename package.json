@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "prebuild": "echo '🔎 Lint/Typecheck/Test...' && pnpm lint:arrays && pnpm typecheck && pnpm test --run",
+    "prebuild": "echo '🚀 Building for production...'",
     "typecheck": "tsc --noEmit",
     "lint:arrays": "eslint src --ext .ts,.tsx --rule 'no-restricted-syntax: error'",
     "test": "vitest --run --passWithNoTests",

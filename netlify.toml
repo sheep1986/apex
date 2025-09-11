@@ -1,8 +1,8 @@
 [build]
   base = ""
   publish = "dist"
-  command = "npm install && npm run build"
-  environment = { CI = "true", NODE_VERSION = "18" }
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm run build"
+  environment = { CI = "true", NODE_VERSION = "20" }
 
 [[redirects]]
   from = "/api/*"
