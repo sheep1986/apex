@@ -32,77 +32,75 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
       sortOrder = 'desc'
     } = req.query;
 
-    // For now, return mock data that matches the frontend structure
-    const mockCalls = [
-      {
-        id: 'call-1',
-        type: 'outbound',
-        contact: {
-          name: 'John Smith',
-          phone: '+1234567890',
-          company: 'ABC Corp'
-        },
-        agent: {
-          name: 'AI Assistant',
-          type: 'ai'
-        },
-        campaign: {
-          name: 'Summer Campaign',
-          id: 'campaign-1'
-        },
-        startTime: new Date(Date.now() - 3600000).toISOString(),
-        duration: 180,
-        outcome: 'connected',
-        sentiment: 'positive',
-        cost: 0.25,
-        recording: 'recording-url',
-        transcript: 'Hello, this is a test call...',
-        status: 'completed'
-      },
-      {
-        id: 'call-2',
-        type: 'outbound',
-        contact: {
-          name: 'Jane Doe',
-          phone: '+1234567891',
-          company: 'XYZ Inc'
-        },
-        agent: {
-          name: 'AI Assistant',
-          type: 'ai'
-        },
-        campaign: {
-          name: 'Summer Campaign',
-          id: 'campaign-1'
-        },
-        startTime: new Date(Date.now() - 7200000).toISOString(),
-        duration: 120,
-        outcome: 'voicemail',
-        sentiment: 'neutral',
-        cost: 0.15,
-        status: 'completed'
-      }
-    ];
+    // Get user email for filtering
+    const userEmail = req.user?.primaryEmailAddress?.emailAddress || req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(400).json({
+        error: 'User email not found'
+      });
+    }
 
-    const mockMetrics = {
-      totalCalls: mockCalls.length,
-      connectedCalls: mockCalls.filter(c => c.outcome === 'connected').length,
-      totalDuration: mockCalls.reduce((sum, call) => sum + call.duration, 0),
-      totalCost: mockCalls.reduce((sum, call) => sum + call.cost, 0),
-      averageDuration: mockCalls.reduce((sum, call) => sum + call.duration, 0) / mockCalls.length,
-      connectionRate: (mockCalls.filter(c => c.outcome === 'connected').length / mockCalls.length) * 100,
-      positiveRate: (mockCalls.filter(c => c.sentiment === 'positive').length / mockCalls.length) * 100
-    };
+    // Calculate pagination
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Get webhook data with pagination and filtering
+    const { data: webhookData, total, error } = await StableVapiDataService.getWebhookData({
+      userEmail,
+      limit: limitNum,
+      offset,
+      ...(search && { searchTerm: search }),
+      ...(type !== 'all' && { callDirection: type === 'outbound' ? 'outbound' : 'inbound' }),
+      ...(outcome !== 'all' && { callStatus: outcome }),
+    });
+
+    if (error) {
+      console.error('Error fetching webhook data:', error);
+      return res.status(500).json({ error: 'Failed to fetch calls' });
+    }
+
+    // Transform webhook data to match frontend CallRecord interface
+    const calls = webhookData.map(webhook => ({
+      id: webhook.vapi_call_id || webhook.id,
+      type: webhook.call_direction || 'outbound',
+      contact: {
+        name: extractNameFromTranscript(webhook.transcript) || 'Unknown',
+        phone: webhook.caller_number || webhook.phone_number || 'Unknown',
+        company: extractCompanyFromTranscript(webhook.transcript)
+      },
+      agent: {
+        name: 'AI Assistant',
+        type: 'ai' as const
+      },
+      campaign: webhook.user_email ? {
+        name: `Campaign for ${webhook.user_email}`,
+        id: `campaign-${webhook.user_email.split('@')[0]}`
+      } : undefined,
+      startTime: webhook.call_started_at || webhook.webhook_timestamp,
+      duration: webhook.call_duration || 0,
+      outcome: mapCallStatusToOutcome(webhook.call_status || webhook.end_reason),
+      sentiment: analyzeSentimentFromTranscript(webhook.transcript || webhook.summary),
+      cost: webhook.call_cost || 0,
+      recording: webhook.recording_url,
+      transcript: webhook.transcript,
+      notes: webhook.summary,
+      status: webhook.call_status === 'ended' || webhook.call_ended_at ? 'completed' : 'in-progress' as const
+    }));
+
+    // Calculate metrics from the data
+    const metrics = calculateCallMetrics(calls);
 
     res.json({
       success: true,
-      calls: mockCalls,
-      metrics: mockMetrics,
+      calls,
+      metrics,
       pagination: {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        total: mockCalls.length,
-        totalPages: 1
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -113,27 +111,150 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// Helper functions for data transformation
+function extractNameFromTranscript(transcript?: string): string | undefined {
+  if (!transcript) return undefined;
+  // Simple name extraction - could be enhanced with better parsing
+  const nameMatch = transcript.match(/(?:my name is|I'm|this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+  return nameMatch ? nameMatch[1] : undefined;
+}
+
+function extractCompanyFromTranscript(transcript?: string): string | undefined {
+  if (!transcript) return undefined;
+  // Simple company extraction - could be enhanced
+  const companyMatch = transcript.match(/(?:from|at|with)\s+([A-Z][a-zA-Z\s&]+(?:Inc|LLC|Corp|Company|Ltd))/i);
+  return companyMatch ? companyMatch[1] : undefined;
+}
+
+function mapCallStatusToOutcome(status?: string): string {
+  if (!status) return 'unknown';
+  
+  const statusMap: Record<string, string> = {
+    'ended': 'connected',
+    'completed': 'connected', 
+    'no-answer': 'no_answer',
+    'busy': 'busy',
+    'failed': 'failed',
+    'voicemail': 'voicemail',
+    'hangup': 'connected',
+    'answered': 'connected'
+  };
+  
+  return statusMap[status.toLowerCase()] || 'unknown';
+}
+
+function analyzeSentimentFromTranscript(text?: string): 'positive' | 'neutral' | 'negative' {
+  if (!text) return 'neutral';
+  
+  // Simple sentiment analysis - could be enhanced with AI
+  const positiveWords = /\b(great|good|yes|interested|perfect|awesome|wonderful|excellent|thank you)\b/gi;
+  const negativeWords = /\b(no|not interested|busy|stop|remove|don't|won't|can't|bad)\b/gi;
+  
+  const positiveCount = (text.match(positiveWords) || []).length;
+  const negativeCount = (text.match(negativeWords) || []).length;
+  
+  if (positiveCount > negativeCount) return 'positive';
+  if (negativeCount > positiveCount) return 'negative';
+  return 'neutral';
+}
+
+function calculateCallMetrics(calls: any[]) {
+  const totalCalls = calls.length;
+  const connectedCalls = calls.filter(c => c.outcome === 'connected').length;
+  const totalDuration = calls.reduce((sum, call) => sum + call.duration, 0);
+  const totalCost = calls.reduce((sum, call) => sum + call.cost, 0);
+  const positiveCalls = calls.filter(c => c.sentiment === 'positive').length;
+  
+  return {
+    totalCalls,
+    connectedCalls,
+    totalDuration,
+    totalCost,
+    averageDuration: totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0,
+    connectionRate: totalCalls > 0 ? Math.round((connectedCalls / totalCalls) * 100) : 0,
+    positiveRate: totalCalls > 0 ? Math.round((positiveCalls / totalCalls) * 100) : 0
+  };
+}
+
 /**
  * GET /api/calls/metrics
  * Get call metrics summary
  */
 router.get('/metrics', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const mockMetrics = {
-      totalCalls: 150,
-      connectedCalls: 120,
-      totalDuration: 18000, // 5 hours in seconds
-      totalCost: 45.50,
-      averageDuration: 120, // 2 minutes average
-      connectionRate: 80,
-      positiveRate: 65
+    // Get user email for filtering
+    const userEmail = req.user?.primaryEmailAddress?.emailAddress || req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(400).json({
+        error: 'User email not found'
+      });
+    }
+
+    // Get user call statistics from the service
+    const stats = await StableVapiDataService.getUserCallStats(userEmail);
+    
+    if (!stats) {
+      return res.json({
+        totalCalls: 0,
+        connectedCalls: 0,
+        totalDuration: 0,
+        totalCost: 0,
+        averageDuration: 0,
+        connectionRate: 0,
+        positiveRate: 0
+      });
+    }
+
+    // Transform to match frontend expectations
+    const metrics = {
+      totalCalls: stats.totalCalls,
+      connectedCalls: stats.completedCalls,
+      totalDuration: stats.totalDuration,
+      totalCost: stats.totalCost,
+      averageDuration: Math.round(stats.avgCallDuration),
+      connectionRate: Math.round(stats.completionRate),
+      positiveRate: 50 // Default to 50% as we don't have sentiment in stats yet
     };
 
-    res.json(mockMetrics);
+    res.json(metrics);
   } catch (error) {
     console.error('Error fetching call metrics:', error);
     res.status(500).json({ 
       error: 'Failed to fetch call metrics' 
+    });
+  }
+});
+
+/**
+ * POST /api/calls/export
+ * Export calls to CSV
+ */
+router.post('/export', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    // Get user email for filtering
+    const userEmail = req.user?.primaryEmailAddress?.emailAddress || req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(400).json({
+        error: 'User email not found'
+      });
+    }
+
+    const { filters = {}, searchTerm = '' } = req.body;
+
+    // Generate CSV data using the service
+    const csvData = await StableVapiDataService.exportCallsToCSV(userEmail);
+    
+    // Set CSV headers
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=calls-export.csv');
+    
+    res.send(csvData);
+  } catch (error) {
+    console.error('Error exporting calls:', error);
+    res.status(500).json({ 
+      error: 'Failed to export calls' 
     });
   }
 });
@@ -152,7 +273,7 @@ router.get('/user/:email', async (req: Request, res: Response) => {
       });
     }
 
-    const calls = await StableVapiDataService.getUserCalls(email);
+    const calls = await StableVapiDataService.getUserRecentCalls(email, 100);
     
     res.json({
       success: true,
