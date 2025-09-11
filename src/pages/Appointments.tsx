@@ -30,7 +30,8 @@ export default function Appointments() {
 
       // Fetch all appointments
       const response = await apiClient.get('/appointments');
-      const appointments = response.data || [];
+      const appointments = Array.isArray(response.data) ? response.data : 
+                          Array.isArray(response) ? response : [];
 
       // Calculate stats
       const stats = appointments.reduce((acc: any, apt: any) => {

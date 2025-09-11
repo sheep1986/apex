@@ -26,11 +26,15 @@ export class CampaignProcessorFrontendService {
   }
 
   private async loadPhoneNumbers() {
-    const { data: numbers } = await supabase
+    const { data: numbers, error } = await supabase
       .from('phone_numbers')
       .select('*')
       .eq('status', 'active')
-      .eq('country', 'UK');
+      .eq('country', 'GB'); // Use ISO country code
+    
+    if (error) {
+      console.error('Error loading phone_numbers:', error);
+    }
 
     if (numbers && numbers.length > 0) {
       this.phoneNumbers = numbers.map(n => ({

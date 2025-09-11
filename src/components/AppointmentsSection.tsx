@@ -98,7 +98,9 @@ export const AppointmentsSection: React.FC<AppointmentsSectionProps> = ({
       if (!showAll) params.append('limit', '5');
       
       const response = await apiClient.get(`${endpoint}?${params}`);
-      setAppointments(response.data || []);
+      const data = Array.isArray(response.data) ? response.data : 
+                   Array.isArray(response) ? response : [];
+      setAppointments(data);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({
@@ -192,7 +194,8 @@ export const AppointmentsSection: React.FC<AppointmentsSectionProps> = ({
     return format(appointmentDate, 'MMM d, yyyy');
   };
 
-  const filteredAppointments = appointments.filter(appointment => {
+  const appointmentsArray = Array.isArray(appointments) ? appointments : [];
+  const filteredAppointments = appointmentsArray.filter(appointment => {
     const matchesSearch = 
       appointment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       appointment.lead_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||

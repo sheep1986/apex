@@ -379,7 +379,8 @@ export default function CampaignManagement() {
     }
   };
 
-  const filteredCampaigns = campaigns.filter(campaign => {
+  const campaignsArray = Array.isArray(campaigns) ? campaigns : [];
+  const filteredCampaigns = campaignsArray.filter(campaign => {
     const matchesFilter = filter === 'all' || campaign.status === filter;
     const matchesSearch = campaign.name.toLowerCase().includes(search.toLowerCase()) ||
                          campaign.description.toLowerCase().includes(search.toLowerCase());
@@ -442,9 +443,9 @@ export default function CampaignManagement() {
               <Target className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{campaigns.length}</div>
+              <div className="text-2xl font-bold text-white">{campaignsArray.length}</div>
               <p className="text-xs text-gray-500">
-                {campaigns.filter(c => c.status === 'active').length} active
+                {campaignsArray.filter(c => c.status === 'active').length} active
               </p>
             </CardContent>
           </Card>

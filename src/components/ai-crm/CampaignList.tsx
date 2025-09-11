@@ -131,7 +131,8 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
   };
 
   const applyFilters = () => {
-    let filtered = [...campaigns];
+    const campaignsArray = Array.isArray(campaigns) ? campaigns : [];
+    let filtered = [...campaignsArray];
 
     // Search filter
     if (filters.search) {
