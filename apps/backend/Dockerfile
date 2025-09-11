@@ -1,20 +1,25 @@
 # Use official Node.js runtime
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
-COPY package*.json ./
+# Pin pnpm via Corepack
+ARG PNPM_VERSION=10.13.1
+RUN npm install -g corepack@0.24.1 && corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
-# Install dependencies using npm
-RUN npm install
+# Copy manifests first
+COPY package.json pnpm-lock.yaml ./
 
-# Copy source code
+# Then install with frozen lockfile
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store/v3 \
+    pnpm install --frozen-lockfile
+
+# Finally copy the rest of the source
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN pnpm run build
 
 # Expose port
 EXPOSE 3001
