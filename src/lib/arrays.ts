@@ -2,21 +2,36 @@
  * Array utility functions for safe array operations
  */
 
+// Type guard for array checking
+export const isArray = <T>(value: unknown): value is T[] => {
+  return Array.isArray(value);
+};
+
+// Type for extracting array element type
+type ArrayElement<T> = T extends readonly (infer U)[] ? U : T;
+
 /**
- * Ensures a value is always an array
- * - If already an array, returns as-is
+ * Ensures a value is always an array with proper type inference
+ * - If already an array, returns as-is with proper typing
  * - If object, returns Object.values()
  * - Otherwise returns empty array
+ * 
+ * @example
+ * const data: unknown = await api.get('/users');
+ * const users = asArray<User>(data); // User[]
  */
-export const asArray = <T = any>(v: unknown): T[] => {
-  if (Array.isArray(v)) {
-    return v as T[];
+export function asArray<T>(value: T[]): T[];
+export function asArray<T>(value: Record<string, T>): T[];
+export function asArray<T>(value: unknown): T[];
+export function asArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
   }
-  if (v && typeof v === 'object' && v !== null) {
-    return Object.values(v as Record<string, any>) as T[];
+  if (value && typeof value === 'object' && value !== null) {
+    return Object.values(value as Record<string, any>) as T[];
   }
   return [];
-};
+}
 
 /**
  * Safe filter operation that ensures value is an array first

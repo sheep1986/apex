@@ -65,7 +65,7 @@ export default function ClerkLogin() {
                 showOptionalFields: true
               }
             }}
-            afterSignInUrl="/platform"
+            fallbackRedirectUrl="/platform"
             forceRedirectUrl="/platform"
             signUpUrl="/signup"
           />

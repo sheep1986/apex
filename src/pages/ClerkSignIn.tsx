@@ -9,7 +9,7 @@ export default function ClerkSignIn() {
           <p className="text-gray-400">Sign in to access your platform</p>
         </div>
         <SignIn 
-          afterSignInUrl="/auth/redirect"
+          fallbackRedirectUrl="/auth/redirect"
           appearance={{
             elements: {
               rootBox: "w-full",
