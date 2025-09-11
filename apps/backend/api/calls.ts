@@ -1,5 +1,5 @@
 import { Request, Response, Router } from 'express';
-import { StableVapiDataService } from '../services/stable-vapi-data-service';
+import CallsDataService from '../services/calls-data-service';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -32,16 +32,18 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
       sortOrder = 'desc'
     } = req.query;
 
-    // Get user email for filtering
+    // Get organization ID for filtering
+    const organizationId = req.user?.organizationId;
     const userEmail = req.user?.primaryEmailAddress?.emailAddress || req.user?.email;
     
     console.log('🔍 AllCalls API: User authenticated:', !!req.user);
+    console.log('🔍 AllCalls API: Organization ID:', organizationId);
     console.log('🔍 AllCalls API: User email:', userEmail);
     console.log('🔍 AllCalls API: Request query params:', req.query);
     
-    if (!userEmail) {
+    if (!organizationId) {
       return res.status(400).json({
-        error: 'User email not found'
+        error: 'Organization ID not found'
       });
     }
 
@@ -50,50 +52,52 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     const limitNum = parseInt(limit as string);
     const offset = (pageNum - 1) * limitNum;
 
-    // Get webhook data with pagination and filtering
-    const { data: webhookData, total, error } = await StableVapiDataService.getWebhookData({
-      userEmail,
+    // Get calls data from the calls table
+    const { data: callsData, total, error } = await CallsDataService.getOrganizationCalls({
+      organizationId,
+      page: pageNum,
       limit: limitNum,
-      offset,
-      ...(search && { searchTerm: search }),
-      ...(type !== 'all' && { callDirection: type === 'outbound' ? 'outbound' : 'inbound' }),
-      ...(outcome !== 'all' && { callStatus: outcome }),
+      search,
+      type,
+      outcome,
+      sortBy,
+      sortOrder
     });
 
-    console.log('🔍 AllCalls API: Webhook query result - total:', total, 'data count:', webhookData?.length);
-    console.log('🔍 AllCalls API: First webhook record:', webhookData?.[0]);
+    console.log('🔍 AllCalls API: Calls query result - total:', total, 'data count:', callsData?.length);
+    console.log('🔍 AllCalls API: First call record:', callsData?.[0]);
     
     if (error) {
-      console.error('❌ AllCalls API: Error fetching webhook data:', error);
+      console.error('❌ AllCalls API: Error fetching calls data:', error);
       return res.status(500).json({ error: 'Failed to fetch calls' });
     }
 
-    // Transform webhook data to match frontend CallRecord interface
-    const calls = webhookData.map(webhook => ({
-      id: webhook.vapi_call_id || webhook.id,
-      type: webhook.call_direction || 'outbound',
+    // Transform call data to match frontend CallRecord interface
+    const calls = callsData.map(call => ({
+      id: call.vapi_call_id || call.id,
+      type: call.direction === 'inbound' ? 'inbound' as const : 'outbound' as const,
       contact: {
-        name: extractNameFromTranscript(webhook.transcript) || 'Unknown',
-        phone: webhook.caller_number || webhook.phone_number || 'Unknown',
-        company: extractCompanyFromTranscript(webhook.transcript)
+        name: call.customer_name || extractNameFromTranscript(call.transcript) || 'Unknown',
+        phone: call.phone_number || 'Unknown',
+        company: extractCompanyFromTranscript(call.transcript)
       },
       agent: {
         name: 'AI Assistant',
         type: 'ai' as const
       },
-      campaign: webhook.user_email ? {
-        name: `Campaign for ${webhook.user_email}`,
-        id: `campaign-${webhook.user_email.split('@')[0]}`
+      campaign: call.campaign_id ? {
+        name: `Campaign ${call.campaign_id}`,
+        id: call.campaign_id
       } : undefined,
-      startTime: webhook.call_started_at || webhook.webhook_timestamp,
-      duration: webhook.call_duration || 0,
-      outcome: mapCallStatusToOutcome(webhook.call_status || webhook.end_reason),
-      sentiment: analyzeSentimentFromTranscript(webhook.transcript || webhook.summary),
-      cost: webhook.call_cost || 0,
-      recording: webhook.recording_url,
-      transcript: webhook.transcript,
-      notes: webhook.summary,
-      status: webhook.call_status === 'ended' || webhook.call_ended_at ? 'completed' : 'in-progress' as const
+      startTime: call.started_at,
+      duration: call.duration || 0,
+      outcome: call.outcome || mapCallStatusToOutcome(call.status),
+      sentiment: call.sentiment || analyzeSentimentFromTranscript(call.transcript || call.summary),
+      cost: call.cost || 0,
+      recording: call.recording_url,
+      transcript: call.transcript,
+      notes: call.summary,
+      status: call.status === 'completed' || call.ended_at ? 'completed' : 'in-progress' as const
     }));
 
     // Calculate metrics from the data
@@ -191,17 +195,17 @@ function calculateCallMetrics(calls: any[]) {
  */
 router.get('/metrics', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // Get user email for filtering
-    const userEmail = req.user?.primaryEmailAddress?.emailAddress || req.user?.email;
+    // Get organization ID for filtering
+    const organizationId = req.user?.organizationId;
     
-    if (!userEmail) {
+    if (!organizationId) {
       return res.status(400).json({
-        error: 'User email not found'
+        error: 'Organization ID not found'
       });
     }
 
-    // Get user call statistics from the service
-    const stats = await StableVapiDataService.getUserCallStats(userEmail);
+    // Get call metrics from the service
+    const stats = await CallsDataService.getOrganizationCallMetrics(organizationId);
     
     if (!stats) {
       return res.json({
@@ -215,16 +219,8 @@ router.get('/metrics', async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    // Transform to match frontend expectations
-    const metrics = {
-      totalCalls: stats.totalCalls,
-      connectedCalls: stats.completedCalls,
-      totalDuration: stats.totalDuration,
-      totalCost: stats.totalCost,
-      averageDuration: Math.round(stats.avgCallDuration),
-      connectionRate: Math.round(stats.completionRate),
-      positiveRate: 50 // Default to 50% as we don't have sentiment in stats yet
-    };
+    // Stats already match frontend expectations
+    const metrics = stats;
 
     res.json(metrics);
   } catch (error) {
@@ -241,19 +237,19 @@ router.get('/metrics', async (req: AuthenticatedRequest, res: Response) => {
  */
 router.post('/export', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // Get user email for filtering
-    const userEmail = req.user?.primaryEmailAddress?.emailAddress || req.user?.email;
+    // Get organization ID for filtering
+    const organizationId = req.user?.organizationId;
     
-    if (!userEmail) {
+    if (!organizationId) {
       return res.status(400).json({
-        error: 'User email not found'
+        error: 'Organization ID not found'
       });
     }
 
     const { filters = {}, searchTerm = '' } = req.body;
 
     // Generate CSV data using the service
-    const csvData = await StableVapiDataService.exportCallsToCSV(userEmail);
+    const csvData = await CallsDataService.exportCallsToCSV(organizationId);
     
     // Set CSV headers
     res.setHeader('Content-Type', 'text/csv');
