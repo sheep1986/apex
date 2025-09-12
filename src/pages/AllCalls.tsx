@@ -168,6 +168,8 @@ export default function AllCalls() {
         ...filters,
       });
 
+      console.log('🔍 DEBUGGING: About to fetch calls from:', `${API_BASE_URL}/calls?${queryParams}`);
+
       const response = await fetch(`${API_BASE_URL}/calls?${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -175,17 +177,23 @@ export default function AllCalls() {
         },
       });
 
+      console.log('🔍 DEBUGGING: Response status:', response.status);
+      console.log('🔍 DEBUGGING: Response URL:', response.url);
+
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Calls fetched from API:', data);
+        console.log('✅ DEBUGGING: Full response data:', data);
+        console.log('✅ DEBUGGING: First call data:', data.calls?.[0]);
         setCalls(data.calls || []);
         setMetrics(data.metrics || metrics);
       } else {
         const errorData = await response.json();
+        console.log('❌ DEBUGGING: Error response:', errorData);
         throw new Error(errorData.message || 'Failed to fetch calls');
       }
     } catch (error) {
       console.error('❌ Error fetching calls:', error);
+      console.log('❌ DEBUGGING: Using fallback/mock data?');
       toast({
         title: 'Error',
         description: 'Failed to fetch calls. Please try again.',
