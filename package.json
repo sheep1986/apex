@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.13.1",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --force",
     "preview": "vite preview",
     "prebuild": "echo '🚀 Building for production...'",
     "typecheck": "tsc --noEmit",
