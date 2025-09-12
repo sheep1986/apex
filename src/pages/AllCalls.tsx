@@ -91,7 +91,7 @@ const isNetlify = window.location.hostname.includes('netlify.app') || window.loc
 const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 const API_BASE_URL = isNetlify 
-  ? '/api'  // Use Netlify proxy (configured in netlify.toml)
+  ? 'https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/api'  // Direct to Vercel (temporary test)
   : isLocalDev 
     ? 'http://localhost:3001/api'  // Local development
     : import.meta.env.VITE_API_URL || 'http://localhost:3001/api';  // Fallback to env var
