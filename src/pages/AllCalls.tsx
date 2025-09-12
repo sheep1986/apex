@@ -185,7 +185,15 @@ export default function AllCalls() {
         console.log('✅ DEBUGGING: Full response data:', data);
         console.log('✅ DEBUGGING: First call data:', data.calls?.[0]);
         setCalls(data.calls || []);
-        setMetrics(data.metrics || metrics);
+        setMetrics({
+          totalCalls: data.metrics?.totalCalls || 0,
+          connectedCalls: data.metrics?.connectedCalls || 0,
+          totalDuration: data.metrics?.totalDuration || 0,
+          totalCost: data.metrics?.totalCost || 0,
+          averageDuration: data.metrics?.averageDuration || 0,
+          connectionRate: data.metrics?.connectionRate || 0,
+          positiveRate: data.metrics?.positiveRate || 0,
+        });
       } else {
         const errorData = await response.json();
         console.log('❌ DEBUGGING: Error response:', errorData);
@@ -352,7 +360,7 @@ export default function AllCalls() {
               <div>
                 <p className="text-sm font-medium text-zinc-400">Total Calls</p>
                 <p className="text-2xl font-bold text-white">
-                  {metrics.totalCalls.toLocaleString()}
+                  {(metrics?.totalCalls || 0).toLocaleString()}
                 </p>
               </div>
               <Phone className="h-8 w-8 text-emerald-500" />
@@ -366,9 +374,9 @@ export default function AllCalls() {
               <div>
                 <p className="text-sm font-medium text-zinc-400">Connected</p>
                 <p className="text-2xl font-bold text-white">
-                  {metrics.connectedCalls.toLocaleString()}
+                  {(metrics?.connectedCalls || 0).toLocaleString()}
                 </p>
-                <p className="text-xs text-zinc-500">{metrics.connectionRate.toFixed(1)}% connection rate</p>
+                <p className="text-xs text-zinc-500">{(metrics?.connectionRate || 0).toFixed(1)}% connection rate</p>
               </div>
               <PhoneCall className="h-8 w-8 text-green-500" />
             </div>
@@ -381,10 +389,10 @@ export default function AllCalls() {
               <div>
                 <p className="text-sm font-medium text-zinc-400">Total Duration</p>
                 <p className="text-2xl font-bold text-white">
-                  {formatDuration(metrics.totalDuration)}
+                  {formatDuration(metrics?.totalDuration || 0)}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  Avg: {formatDuration(metrics.averageDuration)}
+                  Avg: {formatDuration(metrics?.averageDuration || 0)}
                 </p>
               </div>
             </div>
@@ -396,8 +404,8 @@ export default function AllCalls() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-zinc-400">Total Cost</p>
-                <p className="text-2xl font-bold text-white">{formatCost(metrics.totalCost)}</p>
-                <p className="text-xs text-zinc-500">{metrics.positiveRate.toFixed(1)}% positive rate</p>
+                <p className="text-2xl font-bold text-white">{formatCost(metrics?.totalCost || 0)}</p>
+                <p className="text-xs text-zinc-500">{(metrics?.positiveRate || 0).toFixed(1)}% positive rate</p>
               </div>
               <DollarSign className="h-8 w-8 text-yellow-500" />
             </div>
