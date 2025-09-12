@@ -86,7 +86,16 @@ interface CallMetrics {
   positiveRate: number;
 }
 
+// Debug: Log all environment variables
+console.log('🔍 AllCalls Environment Variables:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  VITE_BACKEND_URL: import.meta.env.VITE_BACKEND_URL,
+  NODE_ENV: import.meta.env.NODE_ENV,
+  MODE: import.meta.env.MODE
+});
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+console.log('🎯 AllCalls using API_BASE_URL:', API_BASE_URL);
 
 const outcomeColors = {
   connected: 'bg-green-500',
