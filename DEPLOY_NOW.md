@@ -46,4 +46,4 @@ git push origin main
 4. Check Campaigns page shows data
 5. Create new campaign - phone numbers should appear
 
-The build is production-ready and tested!
+The build is production-ready and tested!# Trigger Netlify rebuild - Fri Sep 12 02:43:55 CEST 2025
