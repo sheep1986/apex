@@ -86,16 +86,22 @@ interface CallMetrics {
   positiveRate: number;
 }
 
-// Debug: Log all environment variables
-console.log('🔍 AllCalls Environment Variables:', {
-  VITE_API_URL: import.meta.env.VITE_API_URL,
-  VITE_BACKEND_URL: import.meta.env.VITE_BACKEND_URL,
-  NODE_ENV: import.meta.env.NODE_ENV,
-  MODE: import.meta.env.MODE
-});
+// Smart API detection (same as api-client.ts)
+const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('netlify.com');
+const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-console.log('🎯 AllCalls using API_BASE_URL:', API_BASE_URL);
+const API_BASE_URL = isNetlify 
+  ? '/api'  // Use Netlify proxy (configured in netlify.toml)
+  : isLocalDev 
+    ? 'http://localhost:3001/api'  // Local development
+    : import.meta.env.VITE_API_URL || 'http://localhost:3001/api';  // Fallback to env var
+
+console.log('🎯 AllCalls using smart API detection:', {
+  hostname: window.location.hostname,
+  isNetlify,
+  isLocalDev,
+  API_BASE_URL
+});
 
 const outcomeColors = {
   connected: 'bg-green-500',
