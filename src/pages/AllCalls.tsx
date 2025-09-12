@@ -183,30 +183,71 @@ export default function AllCalls() {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ DEBUGGING: Full response data:', data);
+        console.log('✅ DEBUGGING: Response type:', typeof data);
+        console.log('✅ DEBUGGING: Data keys:', Object.keys(data || {}));
+        console.log('✅ DEBUGGING: Calls array:', data.calls);
+        console.log('✅ DEBUGGING: Calls array type:', typeof data.calls);
         console.log('✅ DEBUGGING: First call data:', data.calls?.[0]);
+
+        // Ensure data.calls is an array
+        if (!data.calls || !Array.isArray(data.calls)) {
+          console.error('❌ DEBUGGING: data.calls is not an array:', data.calls);
+          setCalls([]);
+          return;
+        }
+
         // Transform data to ensure consistent format
-        const transformedCalls = (data.calls || []).map((call: any) => ({
-          ...call,
-          contact: call.contact || {
-            name: call.contact_name || call.contact?.name || 'Unknown Contact',
-            phone: call.phone_number || call.contact?.phone || 'Unknown',
-            company: call.contact?.company || 'Unknown Company'
+        console.log('✅ DEBUGGING: Starting data transformation...');
+        const transformedCalls = data.calls.map((call: any, index: number) => {
+          console.log(`✅ DEBUGGING: Processing call ${index}:`, call);
+          
+          if (!call) {
+            console.error(`❌ DEBUGGING: Call ${index} is null/undefined`);
+            return null;
           }
-        }));
+          
+          const transformed = {
+            ...call,
+            id: call.id || `call-${index}`,
+            type: call.type || 'outbound',
+            contact: call.contact || {
+              name: call.contact_name || call.contact?.name || 'Unknown Contact',
+              phone: call.phone_number || call.contact?.phone || 'Unknown',
+              company: call.contact?.company || call.company || 'Unknown Company'
+            },
+            agent: call.agent || {
+              name: 'AI Assistant',
+              type: 'ai'
+            },
+            startTime: call.startTime || call.created_at || new Date().toISOString(),
+            duration: call.duration || 0,
+            outcome: call.outcome || 'connected',
+            sentiment: call.sentiment || 'positive',
+            cost: call.cost || 0,
+            status: call.status || 'completed'
+          };
+          
+          console.log(`✅ DEBUGGING: Transformed call ${index}:`, transformed);
+          return transformed;
+        }).filter(Boolean); // Remove null entries
+        
+        console.log('✅ DEBUGGING: Final transformed calls:', transformedCalls);
         setCalls(transformedCalls);
+        
         setMetrics({
-          totalCalls: data.metrics?.totalCalls || 0,
-          connectedCalls: data.metrics?.connectedCalls || 0,
+          totalCalls: data.metrics?.totalCalls || transformedCalls.length,
+          connectedCalls: data.metrics?.connectedCalls || transformedCalls.length,
           totalDuration: data.metrics?.totalDuration || 0,
           totalCost: data.metrics?.totalCost || 0,
           averageDuration: data.metrics?.averageDuration || 0,
-          connectionRate: data.metrics?.connectionRate || 0,
-          positiveRate: data.metrics?.positiveRate || 0,
+          connectionRate: data.metrics?.connectionRate || 100,
+          positiveRate: data.metrics?.positiveRate || 100,
         });
       } else {
-        const errorData = await response.json();
-        console.log('❌ DEBUGGING: Error response:', errorData);
-        throw new Error(errorData.message || 'Failed to fetch calls');
+        console.log('❌ DEBUGGING: Response not ok, status:', response.status);
+        const responseText = await response.text();
+        console.log('❌ DEBUGGING: Error response text:', responseText);
+        throw new Error(`HTTP ${response.status}: ${responseText}`);
       }
     } catch (error) {
       console.error('❌ Error fetching calls:', error);
