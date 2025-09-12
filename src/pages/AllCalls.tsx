@@ -39,6 +39,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/auth';
 import { CallLogDetailsModal } from '@/components/CallLogDetailsModal';
+import { analyzeTranscriptWithOpenAI, type TranscriptAnalysis } from '@/services/openai-transcript-analyzer';
 
 interface CallRecord {
   id: string;
@@ -149,6 +150,35 @@ function parseTranscript(transcript: string): Array<{ speaker: 'user' | 'ai'; te
   return conversation;
 }
 
+// Analyze call with OpenAI and update outcome/sentiment
+async function enhanceCallWithAI(call: any): Promise<any> {
+  if (!call.transcript) return call;
+  
+  console.log(`🤖 Analyzing call ${call.id} with OpenAI...`);
+  
+  try {
+    const analysis = await analyzeTranscriptWithOpenAI(call.transcript);
+    
+    console.log(`✅ OpenAI Analysis for call ${call.id}:`, {
+      outcome: analysis.outcome,
+      sentiment: analysis.sentiment,
+      confidence: analysis.confidence,
+      summary: analysis.summary
+    });
+    
+    return {
+      ...call,
+      outcome: analysis.outcome,
+      sentiment: analysis.sentiment,
+      summary: analysis.summary,
+      ai_analysis: analysis
+    };
+  } catch (error) {
+    console.error(`❌ Failed to analyze call ${call.id} with OpenAI:`, error);
+    return call; // Return original call if analysis fails
+  }
+}
+
 export default function AllCalls() {
   const navigate = useNavigate();
   const [showCallDetails, setShowCallDetails] = useState(false);
@@ -208,19 +238,26 @@ export default function AllCalls() {
 
       console.log(`✅ Found ${calls.length} real calls from Supabase directly`);
 
+      // Analyze calls with OpenAI for better outcomes/sentiment
+      console.log('🤖 Starting OpenAI analysis for all calls...');
+      const enhancedCalls = await Promise.all(
+        calls.map(call => enhanceCallWithAI(call))
+      );
+      console.log('✅ OpenAI analysis complete for all calls');
+
       // Transform to fake a successful API response
       const response = {
         ok: true,
         json: async () => ({
           success: true,
-          calls: calls,
+          calls: enhancedCalls,
           metrics: {
-            totalCalls: calls.length,
-            connectedCalls: calls.filter(c => c.status === 'completed').length,
-            totalDuration: calls.reduce((sum, call) => sum + (call.duration || 0), 0),
-            totalCost: calls.reduce((sum, call) => sum + (call.cost || 0), 0),
-            averageDuration: calls.length > 0 ? Math.round(calls.reduce((sum, call) => sum + (call.duration || 0), 0) / calls.length) : 0,
-            connectionRate: calls.length > 0 ? Math.round((calls.filter(c => c.status === 'completed').length / calls.length) * 100) : 0,
+            totalCalls: enhancedCalls.length,
+            connectedCalls: enhancedCalls.filter(c => c.status === 'completed').length,
+            totalDuration: enhancedCalls.reduce((sum, call) => sum + (call.duration || 0), 0),
+            totalCost: enhancedCalls.reduce((sum, call) => sum + (call.cost || 0), 0),
+            averageDuration: enhancedCalls.length > 0 ? Math.round(enhancedCalls.reduce((sum, call) => sum + (call.duration || 0), 0) / enhancedCalls.length) : 0,
+            connectionRate: enhancedCalls.length > 0 ? Math.round((enhancedCalls.filter(c => c.status === 'completed').length / enhancedCalls.length) * 100) : 0,
             positiveRate: 100
           }
         })
