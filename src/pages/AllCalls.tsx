@@ -184,7 +184,16 @@ export default function AllCalls() {
         const data = await response.json();
         console.log('✅ DEBUGGING: Full response data:', data);
         console.log('✅ DEBUGGING: First call data:', data.calls?.[0]);
-        setCalls(data.calls || []);
+        // Transform data to ensure consistent format
+        const transformedCalls = (data.calls || []).map((call: any) => ({
+          ...call,
+          contact: call.contact || {
+            name: call.contact_name || call.contact?.name || 'Unknown Contact',
+            phone: call.phone_number || call.contact?.phone || 'Unknown',
+            company: call.contact?.company || 'Unknown Company'
+          }
+        }));
+        setCalls(transformedCalls);
         setMetrics({
           totalCalls: data.metrics?.totalCalls || 0,
           connectedCalls: data.metrics?.connectedCalls || 0,
