@@ -120,6 +120,35 @@ const sentimentColors = {
   negative: 'bg-red-500',
 };
 
+// Parse transcript string into conversation format
+function parseTranscript(transcript: string): Array<{ speaker: 'user' | 'ai'; text: string }> {
+  if (!transcript) return [];
+  
+  const lines = transcript.split('\n');
+  const conversation: Array<{ speaker: 'user' | 'ai'; text: string }> = [];
+  
+  for (const line of lines) {
+    if (line.trim()) {
+      if (line.startsWith('User:') || line.startsWith('user:')) {
+        conversation.push({
+          speaker: 'user',
+          text: line.replace(/^(User:|user:)\s*/, '').trim()
+        });
+      } else if (line.startsWith('AI:') || line.startsWith('ai:') || line.startsWith('Assistant:')) {
+        conversation.push({
+          speaker: 'ai',
+          text: line.replace(/^(AI:|ai:|Assistant:)\s*/, '').trim()
+        });
+      } else if (conversation.length > 0) {
+        // Append to the last message if no speaker prefix
+        conversation[conversation.length - 1].text += ' ' + line.trim();
+      }
+    }
+  }
+  
+  return conversation;
+}
+
 export default function AllCalls() {
   const navigate = useNavigate();
   const [showCallDetails, setShowCallDetails] = useState(false);
@@ -751,16 +780,20 @@ export default function AllCalls() {
                 id: selectedCall.id,
                 duration: selectedCall.duration,
                 transcript: selectedCall.transcript
-                  ? [
-                      {
-                        speaker: 'ai',
-                        text: 'Call transcript would be parsed and displayed here...',
-                      },
-                      { speaker: 'user', text: 'User responses would be shown alternately.' },
-                    ]
+                  ? parseTranscript(selectedCall.transcript)
                   : [],
                 recording: selectedCall.recording,
                 cost: selectedCall.cost,
+                // Add customer information
+                customerName: selectedCall.contact.name,
+                customerPhone: selectedCall.contact.phone,
+                customerCompany: selectedCall.contact.company,
+                // Add call metadata
+                status: selectedCall.status,
+                startedAt: selectedCall.startTime,
+                campaignName: selectedCall.campaign?.name,
+                direction: selectedCall.type,
+                // Add analysis
                 analysis: {
                   sentiment:
                     selectedCall.sentiment === 'positive'
@@ -769,7 +802,7 @@ export default function AllCalls() {
                         ? 0.2
                         : 0.5,
                   keywords: ['inquiry', 'interested', 'follow-up'],
-                  summary: `Call with ${selectedCall.contact.name} resulted in ${selectedCall.outcome}.`,
+                  summary: selectedCall.notes || `Call with ${selectedCall.contact.name} resulted in ${selectedCall.outcome}.`,
                 },
               }
             : undefined
