@@ -13,7 +13,7 @@ const API_BASE_URL = isNetlify
     ? 'http://localhost:3001/api'  // Local development
     : 'https://apex-backend-august-production.up.railway.app/api';  // Default to Railway
 
-console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Railway)' : isLocalDev ? '(local dev)' : '(Railway)');
+console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Netlify redirects to Vercel)' : isLocalDev ? '(local dev)' : '(fallback)');
 const API_TIMEOUT = 5000; // 5 seconds - fail fast to use Supabase fallback
 const MAX_RETRIES = 1; // Don't retry - use Supabase fallback quickly
 const RETRY_DELAY = 1000; // 1 second
