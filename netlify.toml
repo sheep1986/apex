@@ -1,7 +1,7 @@
 [build]
-  base = "apps/frontend"
+  base = ""
   publish = "apps/frontend/dist"
-  command = "cd ../../ && pnpm install --frozen-lockfile && cd apps/frontend && pnpm run build"
+  command = "pnpm install && cd apps/frontend && pnpm run build"
   environment = { CI = "true", NODE_VERSION = "20" }
 
 [[redirects]]
