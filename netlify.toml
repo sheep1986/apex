@@ -1,7 +1,7 @@
 [build]
   base = ""
   publish = "apps/frontend/dist"
-  command = "pnpm install && cd apps/frontend && pnpm run build"
+  command = "pnpm install && cd apps/frontend && pnpm install && pnpm run build"
   environment = { CI = "true", NODE_VERSION = "20" }
 
 [[redirects]]
