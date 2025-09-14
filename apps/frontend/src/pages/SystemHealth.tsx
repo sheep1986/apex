@@ -8,4 +8,3 @@ export default memo(function SystemHealth() {
     </div>
   );
 });
-TSX < /dev/null
