@@ -8,11 +8,11 @@ import { PlatformLayout } from './layouts/PlatformLayout';
 import { OrgLayout } from './layouts/OrgLayout';
 
 // Pages
-import { Landing } from './pages/Landing';
+import Landing from './pages/Landing';
 import PlatformOwnerDashboard from './pages/PlatformOwnerDashboard';
 import Dashboard from './pages/Dashboard';
-import { Campaigns } from './pages/Campaigns';
-import { Analytics } from './pages/Analytics';
+import Campaigns from './pages/Campaigns';
+import Analytics from './pages/Analytics';
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
