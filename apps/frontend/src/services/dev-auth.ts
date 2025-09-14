@@ -1,11 +1,8 @@
 // @ts-nocheck
-import type { ReactNode } from "react";
 
-/** Toggle via VITE_USE_DEV_AUTH="true" (but bundlers still need this file to exist) */
+/** Toggle via VITE_USE_DEV_AUTH="true" (bundlers still need this file to exist) */
 export const isDevAuth =
-  (typeof import.meta \!== "undefined" &&
-    import.meta.env &&
-    String(import.meta.env.VITE_USE_DEV_AUTH).toLowerCase() === "true") || false;
+  String(import.meta?.env?.VITE_USE_DEV_AUTH ?? '').toLowerCase() === 'true';
 
 export type DevUser = {
   id: string;
@@ -15,7 +12,7 @@ export type DevUser = {
 };
 
 export const getDevUser = (): DevUser | null =>
-  isDevAuth ? { id: "dev_user", email: "dev@example.com", name: "Dev User" } : null;
+  isDevAuth ? { id: 'dev_user', email: 'dev@example.com', name: 'Dev User' } : null;
 
 export const signInDev = async () => getDevUser();
 export const signOutDev = async () => true;
@@ -29,8 +26,9 @@ export function useDevAuth() {
   };
 }
 
-export const withDevAuth = (component: ReactNode) => component;
+export const withDevAuth = (component: any) => component;
 
-/** Default export with the same members for default-import callers */
+/** Default export for default-import callers */
 const devAuth = { isDevAuth, getDevUser, signInDev, signOutDev, useDevAuth, withDevAuth };
 export default devAuth;
+EOF < /dev/null
