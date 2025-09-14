@@ -28,7 +28,5 @@ export function useDevAuth() {
 
 export const withDevAuth = (component: any) => component;
 
-/** Default export for default-import callers */
 const devAuth = { isDevAuth, getDevUser, signInDev, signOutDev, useDevAuth, withDevAuth };
 export default devAuth;
-TS < /dev/null
