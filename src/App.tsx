@@ -70,7 +70,7 @@ function App() {
     <ContactsProvider>
       <ErrorBoundary>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Navigate to="/crm" replace />} />
           {/* Fixed: Removed routing="path" and path props as per Manu's solution */}
           <Route path="/login/*" element={<AuthRedirect><SignIn /></AuthRedirect>} />
           <Route path="/signup/*" element={<AuthRedirect><SignUp /></AuthRedirect>} />

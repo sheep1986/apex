@@ -69,17 +69,10 @@ export const ContactsProvider: React.FC<{ children: ReactNode }> = ({ children }
       console.log(`🔍 User: ${user.email} (${user.role})`);
       
       // Fetch from leads table instead of contacts
+      // Simplified query - removed complex joins that were causing 400 errors
       const { data, error: fetchError } = await supabaseService.client
         .from('leads')
-        .select(`
-          *,
-          campaigns(name),
-          uploaded_by:users!leads_uploaded_by_fkey(
-            id,
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
       
