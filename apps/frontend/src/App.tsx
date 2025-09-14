@@ -10,7 +10,7 @@ import './App.css';
 // Pages
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
-import { Landing } from './pages/Landing';
+import Landing from './pages/Landing';
 import ScaleArchitecture from './pages/ScaleArchitecture';
 import SupportTicketingSystem from './pages/SupportTicketingSystem';
 import PhoneNumbers from './pages/PhoneNumbers';
