@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "prebuild": "./scripts/check-no-heredoc-markers.sh"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.37.0",
