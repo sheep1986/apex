@@ -1,0 +1,46 @@
+{
+  "navigation": {
+    "dashboard": "Панель управления",
+    "campaigns": "Кампании",
+    "crm": "CRM",
+    "analytics": "Аналитика",
+    "settings": "Настройки",
+    "phone_numbers": "Номера телефонов",
+    "team_management": "Управление командой",
+    "billing": "Оплата",
+    "support": "Поддержка"
+  },
+  "user_dropdown": {
+    "profile": "Профиль",
+    "settings": "Настройки",
+    "billing": "Оплата",
+    "support": "Поддержка",
+    "sign_out": "Выйти"
+  },
+  "notifications": {
+    "mark_all_read": "Отметить все как прочитанные",
+    "no_notifications": "Нет новых уведомлений",
+    "view_all": "Посмотреть все уведомления"
+  },
+  "search": {
+    "placeholder": "Поиск...",
+    "no_results": "Ничего не найдено",
+    "searching": "Поиск..."
+  },
+  "table": {
+    "no_data": "Нет данных",
+    "loading": "Загрузка данных...",
+    "rows_per_page": "Строк на странице",
+    "of": "из",
+    "page": "Страница",
+    "previous": "Предыдущая",
+    "next": "Следующая"
+  },
+  "forms": {
+    "required": "Это поле обязательно",
+    "invalid_email": "Пожалуйста, введите действительный адрес электронной почты",
+    "invalid_phone": "Пожалуйста, введите действительный номер телефона",
+    "min_length": "Должно содержать минимум {{count}} символов",
+    "max_length": "Не должно превышать {{count}} символов"
+  }
+}

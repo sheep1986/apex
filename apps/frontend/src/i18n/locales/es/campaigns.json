@@ -1,0 +1,33 @@
+{
+  "title": "Campañas",
+  "create_campaign": "Crear campaña",
+  "campaign_wizard": "Asistente de campaña",
+  "campaign_settings": "Configuración de campaña",
+  "campaign_name": "Nombre de la campaña",
+  "status": {
+    "active": "Activa",
+    "paused": "Pausada",
+    "completed": "Completada",
+    "draft": "Borrador"
+  },
+  "analytics": {
+    "calls_made": "Llamadas realizadas",
+    "success_rate": "Tasa de éxito",
+    "leads_qualified": "Prospectos calificados",
+    "cost_per_lead": "Costo por prospecto",
+    "total_cost": "Costo total",
+    "duration": "Duración",
+    "contacts_called": "Contactos llamados",
+    "avg_call_duration": "Duración promedio de llamada"
+  },
+  "actions": {
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "stop": "Detener",
+    "edit": "Editar",
+    "duplicate": "Duplicar",
+    "archive": "Archivar",
+    "view_details": "Ver detalles"
+  }
+}

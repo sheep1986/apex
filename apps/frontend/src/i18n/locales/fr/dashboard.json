@@ -1,0 +1,35 @@
+{
+  "title": "Tableau de bord",
+  "overview": "Aperçu",
+  "analytics": "Analytiques",
+  "campaigns": {
+    "title": "Campagnes",
+    "active": "Campagnes actives",
+    "total": "Total des campagnes",
+    "running": "En cours",
+    "paused": "En pause",
+    "completed": "Terminées",
+    "create_new": "Créer une nouvelle campagne"
+  },
+  "calls": {
+    "title": "Appels",
+    "total": "Total des appels",
+    "successful": "Réussis",
+    "failed": "Échoués",
+    "in_progress": "En cours",
+    "success_rate": "Taux de réussite"
+  },
+  "leads": {
+    "title": "Prospects",
+    "qualified": "Prospects qualifiés",
+    "total": "Total des prospects",
+    "conversion_rate": "Taux de conversion",
+    "review_queue": "File d'attente de révision"
+  },
+  "quick_stats": {
+    "today": "Aujourd'hui",
+    "this_week": "Cette semaine",
+    "this_month": "Ce mois",
+    "all_time": "Tout le temps"
+  }
+}
