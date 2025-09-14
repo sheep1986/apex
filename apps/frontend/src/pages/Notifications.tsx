@@ -8,4 +8,3 @@ export default memo(function Notifications() {
     </div>
   );
 });
-TSX < /dev/null
