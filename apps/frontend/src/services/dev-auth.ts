@@ -1,4 +1,4 @@
-// @ts-nocheck
+/* @ts-nocheck */
 
 /** Toggle via VITE_USE_DEV_AUTH="true" (bundlers still need this file to exist) */
 export const isDevAuth =
@@ -31,4 +31,4 @@ export const withDevAuth = (component: any) => component;
 /** Default export for default-import callers */
 const devAuth = { isDevAuth, getDevUser, signInDev, signOutDev, useDevAuth, withDevAuth };
 export default devAuth;
-EOF < /dev/null
+TS < /dev/null
