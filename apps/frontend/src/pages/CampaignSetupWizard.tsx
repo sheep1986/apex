@@ -8,4 +8,3 @@ export default memo(function CampaignSetupWizard() {
     </div>
   );
 });
-TSX < /dev/null
