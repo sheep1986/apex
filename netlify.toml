@@ -11,7 +11,53 @@
   force = true
 
 [[redirects]]
-  from = "/*"
+[build]
+base = "apps/frontend"
+publish = "dist"
+[build]
+base = "apps/frontend"
+publish = "dist"
+command = "pnpm install && pnpm run build"
+environment = { CI = "true", NODE_VERSION = "20" }
+
+[[redirects]]
+from = "/api/*"
+to = "https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/:splat"
+status = 200
+force = true
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-XSS-Protection = "1; mode=block"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+environment = { CI = "true", NODE_VERSION = "20" }
+
+[[redirects]]
+from = "/api/*"
+to = "https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/:splat"
+status = 200
+force = true
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-XSS-Protection = "1; mode=block"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
   to = "/index.html"
   status = 200
 
