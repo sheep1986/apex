@@ -166,6 +166,29 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Diagnostic endpoint for deployment verification
+app.get('/__meta', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const distApi = path.join(__dirname, 'api');
+  let files: string[] = [];
+  try { 
+    files = fs.readdirSync(distApi); 
+  } catch {}
+  
+  res.json({
+    commit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
+    node: process.version,
+    distApiFiles: files,
+    now: new Date().toISOString(),
+    buildInfo: {
+      vercelBuild: !!process.env.VERCEL,
+      distExists: fs.existsSync(path.join(__dirname)),
+      apiDirExists: fs.existsSync(distApi)
+    }
+  });
+});
+
 // Public routes (no authentication required) - MUST come before authenticated routes
 app.post('/api/public/users', async (req: express.Request, res: express.Response) => {
   try {
