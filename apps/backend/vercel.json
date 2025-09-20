@@ -1,17 +1,15 @@
 {
   "version": 2,
-  "installCommand": "npm ci",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/dist/server.js"
+      "src": "./server-simple.js",
+      "use": "@vercel/node"
     }
   ],
-  "functions": {
-    "dist/server.js": {
-      "maxDuration": 60
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/server-simple.js"
     }
-  }
+  ]
 }
