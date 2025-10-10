@@ -136,6 +136,31 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Campaign executor endpoint for manual triggering or Vercel cron
+app.get('/api/trigger-campaign-executor', async (req, res) => {
+  console.log('🎯 Manually triggering campaign executor...');
+  
+  try {
+    // Import and run the campaign executor logic
+    const { campaignExecutor } = require('./services/campaign-executor');
+    
+    // Process campaigns once
+    await campaignExecutor.processCampaigns();
+    
+    res.json({ 
+      success: true, 
+      message: 'Campaign processing triggered',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Campaign executor error:', error);
+    res.status(500).json({ 
+      error: 'Campaign processing failed',
+      message: error.message 
+    });
+  }
+});
+
 // Export for Vercel
 module.exports = app;
 
@@ -145,5 +170,7 @@ if (require.main === module) {
     console.log(`🚀 Apex AI Calling Platform API Server (Simple) running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🔍 Meta endpoint: http://localhost:${PORT}/__meta`);
+    console.log(`⚠️  Note: Campaign executor is NOT running automatically on Vercel`);
+    console.log(`    Use /api/trigger-campaign-executor or set up Vercel Cron`);
   });
 }

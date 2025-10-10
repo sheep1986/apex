@@ -211,16 +211,19 @@ export class CampaignExecutor {
           continue; // Already processing this campaign
         }
 
+        let campaign: CampaignSettings | null = null;
         try {
           // Transform campaign data - handle both old structure and new settings-based structure
-          const campaign = this.transformCampaignData(rawCampaign);
+          campaign = this.transformCampaignData(rawCampaign);
           
           this.processingCampaigns.add(campaign.id);
           await this.processCampaign(campaign);
         } catch (error) {
-          console.error(`❌ Error processing campaign ${campaign.id}:`, error);
+          console.error(`❌ Error processing campaign ${campaign?.id || rawCampaign.id}:`, error);
         } finally {
-          this.processingCampaigns.delete(campaign.id);
+          if (campaign) {
+            this.processingCampaigns.delete(campaign.id);
+          }
         }
       }
     } catch (error) {
@@ -369,6 +372,19 @@ export class CampaignExecutor {
       // Start the campaign
       await this.startCampaign(campaign.id);
       campaign.status = 'active';
+    }
+    
+    // For active campaigns, check if call queue is empty and needs population
+    if (campaign.status === 'active') {
+      const { count: queueCount } = await supabase
+        .from('call_queue')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id);
+      
+      if (queueCount === 0) {
+        console.log(`📝 Campaign ${campaign.id} is active but has no queue items. Initializing...`);
+        await this.startCampaign(campaign.id);
+      }
     }
 
     // Check if we're in working hours
@@ -645,7 +661,41 @@ export class CampaignExecutor {
     } else if (campaign?.settings?.csv_data) {
       // Parse CSV data from settings
       console.log('📋 Parsing CSV data from campaign settings');
-      contacts = this.parseCSVData(campaign.settings.csv_data);
+      const parsedContacts = this.parseCSVData(campaign.settings.csv_data);
+      
+      // Create campaign_contacts entries first
+      if (parsedContacts.length > 0) {
+        const { randomUUID } = require('crypto');
+        const contactEntries = parsedContacts.map(contact => ({
+          id: randomUUID(),
+          campaign_id: campaignId,
+          phone: contact.phone,
+          // Note: campaign_contacts table may not have 'name' column
+          // Store in JSON or other available columns
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        
+        const { data: createdContacts, error: createError } = await supabase
+          .from('campaign_contacts')
+          .insert(contactEntries)
+          .select();
+          
+        if (createError) {
+          console.log('⚠️ Could not create campaign_contacts:', createError.message);
+          // Use parsed contacts directly with generated IDs
+          contacts = parsedContacts.map((contact, index) => ({
+            ...contact,
+            id: randomUUID()
+          }));
+        } else {
+          // Merge created contacts with parsed data for names
+          contacts = createdContacts.map((cc, index) => ({
+            ...cc,
+            name: parsedContacts[index].name || 'Contact'
+          }));
+        }
+      }
     }
 
     if (!contacts || contacts.length === 0) {
@@ -653,18 +703,25 @@ export class CampaignExecutor {
       return;
     }
 
-    // Create call queue entries
-    const queueEntries = contacts.map(contact => ({
-      campaign_id: campaignId,
-      contact_id: contact.id,
-      phone_number: contact.phone,
-      contact_name: contact.name || `${contact.first_name} ${contact.last_name}`,
-      attempt: 1,
-      scheduled_for: new Date().toISOString(),
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }));
+    // Create call queue entries - handle different schemas
+    const queueEntries = contacts.map(contact => {
+      const entry: any = {
+        campaign_id: campaignId,
+        contact_id: contact.id,
+        phone_number: contact.phone || contact.phone_number,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Add optional fields if they might exist in the schema
+      // These will be ignored if columns don't exist
+      if (contact.name || contact.first_name || contact.last_name) {
+        entry.contact_name = contact.name || `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Contact';
+      }
+      
+      return entry;
+    });
 
     const { error: insertError } = await supabase
       .from('call_queue')
@@ -672,18 +729,25 @@ export class CampaignExecutor {
 
     if (insertError) {
       console.error('❌ Error creating call queue:', insertError);
+      console.error('  Attempted to insert:', JSON.stringify(queueEntries[0], null, 2));
       return;
     }
 
-    // Update campaign status
-    await supabase
+    // Update campaign status (only update columns that exist)
+    const updateData: any = {
+      status: 'active',
+      updated_at: new Date().toISOString()
+    };
+    
+    // Try to update started_at if column exists
+    const { error: updateError } = await supabase
       .from('campaigns')
-      .update({ 
-        status: 'active',
-        started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', campaignId);
+      
+    if (updateError) {
+      console.log('⚠️ Could not update campaign fully:', updateError.message);
+    }
 
     console.log(`✅ Campaign ${campaignId} started with ${contacts.length} contacts`);
   }
@@ -789,14 +853,14 @@ export class CampaignExecutor {
     }
     
     const callRecord = {
-      id: vapiResult.call?.id || queuedCall.last_call_id,
+      id: vapiResult.call?.id || queuedCall.lastCallId,
       campaign_id: queuedCall.campaignId,
       customer_name: finalName,
       customer_phone: finalPhone,  // ⭐ FIXED ⭐
       outcome: outcome,
       duration: vapiResult.call?.duration || vapiResult.duration || 0,  // ⭐ FIXED: Use 'duration' not 'duration_seconds' ⭐
       cost: vapiResult.call?.cost || vapiResult.cost || 0,
-      started_at: vapiResult.call?.startedAt || queuedCall.last_attempt_at,  // ⭐ FIXED: Use 'started_at' not 'call_started_at' ⭐
+      started_at: vapiResult.call?.startedAt || queuedCall.lastAttemptAt,  // ⭐ FIXED: Use 'started_at' not 'call_started_at' ⭐
       ended_at: vapiResult.call?.endedAt || new Date().toISOString(),  // ⭐ FIXED: Use 'ended_at' not 'call_ended_at' ⭐
       transcript: vapiResult.transcript || vapiResult.call?.transcript || null,
       recording_url: vapiResult.recordingUrl || vapiResult.call?.recordingUrl || vapiResult.call?.stereoRecordingUrl || null,
