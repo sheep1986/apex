@@ -60,6 +60,7 @@ import Appointments from './pages/Appointments';
 import AgencyDashboard from './pages/AgencyDashboard';
 import AcceptInvitation from './pages/AcceptInvitation';
 import ForceLogout from './pages/ForceLogout';
+import Unauthorized from './pages/Unauthorized';
 import { RoleBasedRedirect } from './components/RoleBasedRedirect';
 import { RoleBasedRoute } from './components/RoleBasedRoute';
 import { ContactsProvider } from './contexts/ContactsContext';
@@ -76,6 +77,7 @@ function App() {
           <Route path="/signup/*" element={<AuthRedirect><SignUp /></AuthRedirect>} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
           <Route path="/force-logout" element={<ForceLogout />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
           <Route
             path="/portal"
             element={

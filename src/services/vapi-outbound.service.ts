@@ -301,12 +301,10 @@ class VapiOutboundService {
           }
         }
         
-        // If still no organization_id, use the known one as last resort
+        // If still no organization_id, throw error - user must be properly authenticated
         if (!organizationId) {
-          // This is the organization_id for seanwentz99@gmail.com
-          // TODO: Remove this hardcoded fallback once auth is fixed
-          organizationId = '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
-          console.warn('⚠️ Using hardcoded organization_id as fallback:', organizationId);
+          console.error('❌ No organization_id found. User must be logged in with proper organization context.');
+          throw new Error('Organization context required. Please ensure you are logged in and have an associated organization.');
         }
         
         const { data: campaigns, error: supabaseError } = await supabase

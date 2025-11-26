@@ -11,36 +11,42 @@ const USE_CLERK = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && !USE_DEV_AUTH;
 export function useUser() {
   const [dbUser, setDbUser] = useState<any>(null);
   const [hasFetched, setHasFetched] = useState(false);
-  
+  const [userNotFound, setUserNotFound] = useState(false);
+
   if (USE_DEV_AUTH) {
     return useDevUser();
   } else if (USE_CLERK) {
     const clerkUser = useClerkUser();
-    
+
     // Fetch database user when Clerk user is loaded (only once)
     useEffect(() => {
       if (clerkUser.isSignedIn && clerkUser.user && !hasFetched) {
         setHasFetched(true);
-        // console.log('🔍 Fetching DB user for Clerk ID:', clerkUser.user.id);
+        console.log('🔍 Fetching DB user for Clerk ID:', clerkUser.user.id);
+
         // Fetch user from database by clerk ID or email
         supabaseService.getUserByClerkId(clerkUser.user.id)
           .then(async (user) => {
-            // console.log('✅ DB user fetched by Clerk ID:', user);
             if (!user && clerkUser.user.primaryEmailAddress?.emailAddress) {
               // Fallback: try to fetch by email
-              // console.log('🔄 Trying to fetch by email:', clerkUser.user.primaryEmailAddress.emailAddress);
+              console.log('🔄 Trying to fetch by email:', clerkUser.user.primaryEmailAddress.emailAddress);
               const userByEmail = await supabaseService.getUserByEmail(clerkUser.user.primaryEmailAddress.emailAddress);
-              // console.log('✅ DB user fetched by email:', userByEmail);
-              setDbUser(userByEmail);
+
+              if (!userByEmail) {
+                // User doesn't exist in database at all
+                console.warn('⚠️ User not found in database. Account needs to be created by an administrator.');
+                setUserNotFound(true);
+                setDbUser(null);
+              } else {
+                setDbUser(userByEmail);
+              }
             } else {
               setDbUser(user);
             }
           })
           .catch(err => {
-            // Only log if it's not a 404 (user not found)
-            if (!err.message?.includes('404')) {
-              console.error('❌ Error fetching db user:', err);
-            }
+            console.error('❌ Error fetching db user:', err);
+            setUserNotFound(true);
           });
       }
     }, [clerkUser.isSignedIn, clerkUser.user?.id, hasFetched]);
@@ -48,40 +54,24 @@ export function useUser() {
     if (!clerkUser.isSignedIn || !clerkUser.user) {
       return { isSignedIn: false, user: null, isLoaded: clerkUser.isLoaded };
     }
-    
-    // If we don't have a database user yet, return basic info
+
+    // If user was not found in database after fetching
+    if (userNotFound) {
+      return {
+        isSignedIn: false,
+        isLoaded: true,
+        user: null,
+        error: 'USER_NOT_IN_DATABASE'
+      };
+    }
+
+    // If we don't have a database user yet, user is still loading
+    // Wait for database fetch to complete before allowing access
     if (!dbUser) {
-      // Suppress logs to avoid console spam
-      // console.log('⏳ DB user not loaded yet, returning default data');
-      const email = clerkUser.user.primaryEmailAddress?.emailAddress;
-      
-      // Hardcode roles and organization based on email
-      let role = 'client_user';
-      let organization_id = null;
-      if (email === 'sean@artificialmedia.co.uk') {
-        role = 'platform_owner';
-        organization_id = '47a8e3ea-cd34-4746-a786-dd31e8f8105e'; // Sean's actual organization
-      } else if (email === 'seanwentz99@gmail.com') {
-        role = 'client_admin';
-        organization_id = '2566d8c5-2245-4a3c-b539-4cea21a07d9b'; // Emerald Green Energy Ltd
-      }
-      
       return {
         isSignedIn: true,
-        isLoaded: true, // Mark as loaded with hardcoded role
-        user: {
-          id: clerkUser.user.id,
-          firstName: clerkUser.user.firstName || '',
-          lastName: clerkUser.user.lastName || '',
-          fullName: clerkUser.user.fullName || '',
-          email: email || '',
-          emailAddresses: clerkUser.user.emailAddresses,
-          primaryEmailAddress: clerkUser.user.primaryEmailAddress,
-          imageUrl: clerkUser.user.imageUrl,
-          role: role, // Hardcoded role based on email
-          organization_id: organization_id, // Hardcoded organization based on email
-          organizationName: null
-        }
+        isLoaded: false, // NOT loaded until DB user is fetched
+        user: null
       };
     }
     

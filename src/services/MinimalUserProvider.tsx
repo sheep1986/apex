@@ -53,6 +53,14 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       console.log('🎯 MinimalUserProvider: Setting user context:', userInfo);
 
+      // Store organization ID in localStorage for VAPI and other services
+      if (userInfo.organization_id) {
+        localStorage.setItem('organization_id', userInfo.organization_id);
+        console.log('📝 Stored organization ID in localStorage:', userInfo.organization_id);
+      } else {
+        console.warn('⚠️ No organization_id found in user data');
+      }
+
       // Set token for API calls (dev mode uses role-specific token, supabase uses JWT)
       if (import.meta.env.VITE_USE_DEV_AUTH === 'true') {
         // For dev mode, use the role-specific token

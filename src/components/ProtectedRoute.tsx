@@ -8,8 +8,8 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
-  const { isLoaded, isSignedIn } = useAuth();
-  
+  const { isLoaded, isSignedIn, user } = useAuth();
+
   // Show loading spinner while checking auth
   if (!isLoaded) {
     return (
@@ -20,6 +20,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         </div>
       </div>
     );
+  }
+
+  // Check if user authentication failed due to database issue
+  const authData = useUser() as any;
+  if (authData.error === 'USER_NOT_IN_DATABASE') {
+    return <Navigate to="/unauthorized" replace />;
   }
 
   // If not authenticated, redirect to login

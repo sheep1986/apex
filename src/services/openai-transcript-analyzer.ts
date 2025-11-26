@@ -1,5 +1,8 @@
 // OpenAI Transcript Analyzer Service
 // Analyzes call transcripts to determine outcomes and sentiment
+// Now uses secure backend endpoint instead of exposing API keys
+
+import { apiClient } from '../lib/api-client';
 
 export interface TranscriptAnalysis {
   outcome: 'connected' | 'voicemail' | 'no_answer' | 'busy' | 'failed' | 'interested' | 'not_interested' | 'callback' | 'hung_up';
@@ -11,95 +14,72 @@ export interface TranscriptAnalysis {
   callbackRequested: boolean;
   appointmentScheduled: boolean;
   interestedInProduct: boolean;
+  // Enhanced analysis fields
+  leadScore?: number;
+  nextBestAction?: string;
+  callbackTiming?: string;
+  keyObjections?: string[];
+  buyingSignals?: string[];
+  urgencyLevel?: string;
+  engagementLevel?: number;
 }
 
+/**
+ * Analyze transcript using backend API endpoint (secure)
+ * This keeps OpenAI API keys on the server, not in the frontend
+ */
 export async function analyzeTranscriptWithOpenAI(
   transcript: string,
-  apiKey?: string
+  callId?: string,
+  campaignId?: string,
+  apiKey?: string // Deprecated parameter for backwards compatibility
 ): Promise<TranscriptAnalysis> {
-  // Use environment variable if no API key provided
-  const openaiKey = apiKey || import.meta.env.VITE_OPENAI_API_KEY;
-  
-  if (!openaiKey) {
-    console.warn('No OpenAI API key found, using fallback analysis');
-    return fallbackAnalysis(transcript);
-  }
-
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert call analyst. Analyze the following call transcript and provide a detailed analysis in JSON format.
+    // Get organization ID from localStorage
+    const organizationId = localStorage.getItem('organization_id');
 
-Determine:
-1. Call outcome - Choose from: connected, voicemail, no_answer, busy, failed, interested, not_interested, callback, hung_up
-2. Sentiment - positive, neutral, or negative
-3. Whether a callback was requested
-4. Whether an appointment was scheduled
-5. Whether the customer showed interest in the product/service
-
-Rules for outcomes:
-- "interested": Customer shows clear interest in the product/service
-- "not_interested": Customer explicitly declines or shows no interest
-- "callback": Customer requests to be called back later
-- "hung_up": Call ended abruptly or customer hung up
-- "connected": Call was answered and completed normally
-- "voicemail": Left a voicemail message
-- "no_answer": No one answered
-- "busy": Line was busy
-- "failed": Technical failure
-
-Provide response in this exact JSON format:
-{
-  "outcome": "string",
-  "sentiment": "string",
-  "confidence": number (0-1),
-  "summary": "string",
-  "keyPoints": ["string"],
-  "nextSteps": "string",
-  "callbackRequested": boolean,
-  "appointmentScheduled": boolean,
-  "interestedInProduct": boolean
-}`
-          },
-          {
-            role: 'user',
-            content: `Analyze this call transcript:\n\n${transcript}`
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 500
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+    if (!organizationId) {
+      console.warn('No organization ID found, using fallback analysis');
+      return fallbackAnalysis(transcript);
     }
 
-    const data = await response.json();
-    const analysis = JSON.parse(data.choices[0].message.content);
-    
+    // Call backend API for analysis
+    const response = await apiClient.post('/transcript-analysis', {
+      transcript,
+      callId,
+      campaignId,
+      organizationId
+    });
+
+    if (!response.data.success) {
+      throw new Error('Analysis failed');
+    }
+
+    const analysis = response.data.analysis;
+
+    // Map backend response to our interface
     return {
       outcome: analysis.outcome || 'connected',
       sentiment: analysis.sentiment || 'neutral',
-      confidence: analysis.confidence || 0.5,
+      confidence: analysis.confidence || 0.8,
       summary: analysis.summary || 'Call completed',
       keyPoints: analysis.keyPoints || [],
-      nextSteps: analysis.nextSteps,
-      callbackRequested: analysis.callbackRequested || false,
-      appointmentScheduled: analysis.appointmentScheduled || false,
-      interestedInProduct: analysis.interestedInProduct || false
+      nextSteps: analysis.suggestedFollowUp,
+      callbackRequested: analysis.nextBestAction === 'call_back' || analysis.callbackTiming !== 'never',
+      appointmentScheduled: analysis.nextBestAction === 'schedule_meeting',
+      interestedInProduct: analysis.leadScore > 60,
+      // Enhanced fields
+      leadScore: analysis.leadScore,
+      nextBestAction: analysis.nextBestAction,
+      callbackTiming: analysis.callbackTiming,
+      keyObjections: analysis.keyObjections,
+      buyingSignals: analysis.buyingSignals,
+      urgencyLevel: analysis.urgencyLevel,
+      engagementLevel: analysis.engagementLevel
     };
-  } catch (error) {
-    console.error('OpenAI analysis failed:', error);
+  } catch (error: any) {
+    console.error('Backend transcript analysis failed:', error);
+    console.warn('Falling back to keyword-based analysis');
     return fallbackAnalysis(transcript);
   }
 }
@@ -205,25 +185,73 @@ function fallbackAnalysis(transcript: string): TranscriptAnalysis {
   };
 }
 
-// Analyze multiple calls in batch
+// Analyze multiple calls in batch using backend endpoint
 export async function analyzeCallsBatch(
-  calls: Array<{ id: string; transcript: string }>,
-  apiKey?: string
+  calls: Array<{ id: string; transcript: string; callId?: string; campaignId?: string }>,
+  apiKey?: string // Deprecated
 ): Promise<Map<string, TranscriptAnalysis>> {
-  const results = new Map<string, TranscriptAnalysis>();
-  
-  // Process in parallel but limit concurrency to avoid rate limits
-  const batchSize = 3;
-  for (let i = 0; i < calls.length; i += batchSize) {
-    const batch = calls.slice(i, i + batchSize);
-    const analyses = await Promise.all(
-      batch.map(call => analyzeTranscriptWithOpenAI(call.transcript, apiKey))
-    );
-    
-    batch.forEach((call, index) => {
-      results.set(call.id, analyses[index]);
+  try {
+    const organizationId = localStorage.getItem('organization_id');
+
+    if (!organizationId) {
+      console.warn('No organization ID, falling back to individual analysis');
+      return fallbackBatchAnalysis(calls);
+    }
+
+    // Use backend batch endpoint for better performance
+    const response = await apiClient.post('/transcript-analysis/batch', {
+      transcripts: calls.map(call => ({
+        callId: call.callId || call.id,
+        transcript: call.transcript,
+        campaignId: call.campaignId
+      })),
+      organizationId
     });
+
+    const results = new Map<string, TranscriptAnalysis>();
+
+    if (response.data.success && response.data.results) {
+      response.data.results.forEach((result: any) => {
+        if (result.analysis) {
+          const analysis = result.analysis;
+          results.set(result.callId, {
+            outcome: analysis.outcome || 'connected',
+            sentiment: analysis.sentiment || 'neutral',
+            confidence: analysis.confidence || 0.8,
+            summary: analysis.summary || 'Call completed',
+            keyPoints: analysis.keyPoints || [],
+            nextSteps: analysis.suggestedFollowUp,
+            callbackRequested: analysis.nextBestAction === 'call_back',
+            appointmentScheduled: analysis.nextBestAction === 'schedule_meeting',
+            interestedInProduct: analysis.leadScore > 60,
+            leadScore: analysis.leadScore,
+            nextBestAction: analysis.nextBestAction,
+            callbackTiming: analysis.callbackTiming,
+            keyObjections: analysis.keyObjections,
+            buyingSignals: analysis.buyingSignals,
+            urgencyLevel: analysis.urgencyLevel,
+            engagementLevel: analysis.engagementLevel
+          });
+        }
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Batch analysis failed:', error);
+    return fallbackBatchAnalysis(calls);
   }
-  
+}
+
+// Fallback batch analysis
+function fallbackBatchAnalysis(
+  calls: Array<{ id: string; transcript: string }>
+): Map<string, TranscriptAnalysis> {
+  const results = new Map<string, TranscriptAnalysis>();
+
+  calls.forEach(call => {
+    results.set(call.id, fallbackAnalysis(call.transcript));
+  });
+
   return results;
 }

@@ -2,11 +2,22 @@ import { supabase } from './supabase-client';
 
 // Direct Supabase service that bypasses the API
 export class DirectSupabaseService {
+  /**
+   * Get organization ID from localStorage or context
+   * @throws Error if no organization ID is found
+   */
+  private getOrganizationId(): string {
+    const organizationId = localStorage.getItem('organization_id');
+    if (!organizationId) {
+      throw new Error('Organization context required. Please ensure you are logged in.');
+    }
+    return organizationId;
+  }
+
   async getCampaigns() {
     console.log('🔄 DirectSupabaseService: Fetching campaigns directly from Supabase...');
-    
-    // Hardcoded organization_id for now
-    const organizationId = '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
+
+    const organizationId = this.getOrganizationId();
     
     const { data: campaigns, error } = await supabase
       .from('campaigns')
@@ -108,8 +119,8 @@ export class DirectSupabaseService {
   
   async getRecentCalls(limit: number = 20) {
     console.log('🔄 DirectSupabaseService: Fetching recent calls from Supabase...');
-    
-    const organizationId = '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
+
+    const organizationId = this.getOrganizationId();
     
     const { data: calls, error } = await supabase
       .from('calls')

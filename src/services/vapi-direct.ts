@@ -18,20 +18,22 @@ let cachedApiKey: string | null = null;
 async function getVapiPublicKey(): Promise<string | null> {
   // Check cache first
   if (cachedApiKey) return cachedApiKey;
-  
+
   try {
     // Try to get organization ID from localStorage (set by UserContext)
     const storedOrgId = localStorage.getItem('organization_id');
     console.log('🔍 Stored organization ID:', storedOrgId);
-    
-    // If no org ID, try the hardcoded one for Emerald Green Energy
-    const organizationId = storedOrgId || '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
-    
-    // Get organization's Apex keys directly
+
+    if (!storedOrgId) {
+      console.error('❌ No organization ID found. User must be logged in with proper organization context.');
+      return null;
+    }
+
+    // Get organization's VAPI keys directly
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('vapi_api_key, vapi_private_key, vapi_public_key, name')
-      .eq('id', organizationId)
+      .eq('id', storedOrgId)
       .single();
     
     console.log('🔍 Organization data:', org);

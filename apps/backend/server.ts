@@ -38,6 +38,7 @@ import debugVapiNoAuthRouter from './api/debug-vapi-no-auth';
 import organizationSettingsRouter from './api/organization-settings';
 import appointmentsRouter from './api/appointments';
 import platformMonitoringRouter from './api/platform-monitoring';
+import transcriptAnalysisRouter from './api/transcript-analysis';
 import { authenticateUser } from './middleware/clerk-auth';
 import { campaignExecutor } from './services/campaign-executor';
 import { callCleanupService } from './services/call-cleanup-service';
@@ -254,6 +255,7 @@ app.use('/api/team', authenticateUser, teamManagementRouter);
 app.use('/api/notifications', authenticateUser, notificationsRouter);
 app.use('/api/appointments', authenticateUser, appointmentsRouter);
 app.use('/api/platform-monitoring', authenticateUser, platformMonitoringRouter);
+app.use('/api/transcript-analysis', authenticateUser, transcriptAnalysisRouter);
 app.use('/api/billing', billingRouter); // Some endpoints don't require auth
 
 // API Configuration routes (user-based, authenticated)
