@@ -49,7 +49,7 @@ export function useUser() {
             setUserNotFound(true);
           });
       }
-    }, [clerkUser.isSignedIn, clerkUser.user?.id, hasFetched]);
+    }, [clerkUser.isSignedIn, clerkUser.user?.id]); // Removed hasFetched to prevent infinite loop
     
     if (!clerkUser.isSignedIn || !clerkUser.user) {
       return { isSignedIn: false, user: null, isLoaded: clerkUser.isLoaded };
