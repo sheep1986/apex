@@ -121,6 +121,168 @@ app.get('/api/vapi-data', (req, res) => {
   });
 });
 
+// Transcript Analysis endpoint - AI-powered call analysis
+app.post('/api/transcript-analysis', async (req, res) => {
+  try {
+    const OpenAI = require('openai');
+    const { createClient } = require('@supabase/supabase-js');
+
+    const { transcript, callId, campaignId, organizationId } = req.body;
+
+    // Validation
+    if (!transcript || typeof transcript !== 'string') {
+      return res.status(400).json({
+        error: 'Invalid request',
+        message: 'Transcript text is required'
+      });
+    }
+
+    if (transcript.length < 10) {
+      return res.status(400).json({
+        error: 'Invalid request',
+        message: 'Transcript too short for analysis'
+      });
+    }
+
+    console.log('📝 Analyzing transcript...', {
+      transcriptLength: transcript.length,
+      callId,
+      campaignId
+    });
+
+    // Initialize OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+
+    // System prompt for GPT-4
+    const systemPrompt = `You are an expert sales call analyst. Analyze the following sales call transcript and provide comprehensive insights.
+
+Your analysis should include:
+1. Overall sentiment (positive, neutral, or negative)
+2. Call outcome (interested, not_interested, callback, voicemail, etc.)
+3. Lead score (0-100) - likelihood of conversion
+4. Next best action (call_back, email, schedule_meeting, no_action, close_deal)
+5. When to follow up (immediate, 1_day, 3_days, 1_week, never)
+6. Key objections raised by the prospect
+7. Buying signals (indicators they're interested)
+8. Competitors mentioned
+9. Urgency level (high, medium, low)
+10. Talk-to-listen ratio (estimate percentage AI talked vs. listened)
+11. Engagement level (0-100)
+12. A concise summary
+13. Key points from the conversation
+14. Suggested follow-up message
+
+Return your analysis as valid JSON matching this structure:
+{
+  "sentiment": "positive|neutral|negative",
+  "outcome": "interested|not_interested|callback|voicemail|no_answer|gatekeeper|wrong_number",
+  "confidence": 0.0-1.0,
+  "leadScore": 0-100,
+  "nextBestAction": "call_back|email|schedule_meeting|no_action|close_deal",
+  "callbackTiming": "immediate|1_day|3_days|1_week|never",
+  "keyObjections": ["objection1", "objection2"],
+  "buyingSignals": ["signal1", "signal2"],
+  "competitorsMentioned": ["competitor1"],
+  "urgencyLevel": "high|medium|low",
+  "talkToListenRatio": 0.0-1.0,
+  "engagementLevel": 0-100,
+  "summary": "Brief summary",
+  "keyPoints": ["point1", "point2"],
+  "suggestedFollowUp": "Follow-up message"
+}`;
+
+    // Call OpenAI GPT-4
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4-turbo',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Analyze this call transcript:\n\n${transcript}` }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    const analysis = JSON.parse(response.choices[0].message.content || '{}');
+
+    // Structure the response
+    const enhancedAnalysis = {
+      sentiment: analysis.sentiment || 'neutral',
+      outcome: analysis.outcome || 'unknown',
+      confidence: analysis.confidence || 0.8,
+      leadScore: analysis.leadScore || 50,
+      nextBestAction: analysis.nextBestAction || 'no_action',
+      callbackTiming: analysis.callbackTiming || 'never',
+      keyObjections: analysis.keyObjections || [],
+      buyingSignals: analysis.buyingSignals || [],
+      competitorsMentioned: analysis.competitorsMentioned || [],
+      urgencyLevel: analysis.urgencyLevel || 'low',
+      talkToListenRatio: analysis.talkToListenRatio || 0.5,
+      engagementLevel: analysis.engagementLevel || 50,
+      summary: analysis.summary || '',
+      keyPoints: analysis.keyPoints || [],
+      suggestedFollowUp: analysis.suggestedFollowUp || ''
+    };
+
+    // Update database if callId provided
+    if (callId && organizationId) {
+      try {
+        const supabase = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_KEY
+        );
+
+        const { error: updateError } = await supabase
+          .from('calls')
+          .update({
+            sentiment: enhancedAnalysis.sentiment,
+            outcome: enhancedAnalysis.outcome,
+            summary: enhancedAnalysis.summary,
+            analysis: {
+              leadScore: enhancedAnalysis.leadScore,
+              nextBestAction: enhancedAnalysis.nextBestAction,
+              callbackTiming: enhancedAnalysis.callbackTiming,
+              keyObjections: enhancedAnalysis.keyObjections,
+              buyingSignals: enhancedAnalysis.buyingSignals,
+              competitorsMentioned: enhancedAnalysis.competitorsMentioned,
+              urgencyLevel: enhancedAnalysis.urgencyLevel,
+              talkToListenRatio: enhancedAnalysis.talkToListenRatio,
+              engagementLevel: enhancedAnalysis.engagementLevel,
+              keyPoints: enhancedAnalysis.keyPoints,
+              suggestedFollowUp: enhancedAnalysis.suggestedFollowUp
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', callId)
+          .eq('organization_id', organizationId);
+
+        if (updateError) {
+          console.error('❌ Error updating call record:', updateError);
+        } else {
+          console.log('✅ Call record updated with analysis');
+        }
+      } catch (dbError) {
+        console.error('❌ Database error:', dbError);
+        // Don't fail the request if DB update fails
+      }
+    }
+
+    res.json({
+      success: true,
+      analysis: enhancedAnalysis
+    });
+
+  } catch (error) {
+    console.error('❌ Transcript analysis error:', error);
+    res.status(500).json({
+      error: 'Analysis failed',
+      message: error.message || 'Internal server error'
+    });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   console.log(`❌ 404: ${req.method} ${req.originalUrl}`);
