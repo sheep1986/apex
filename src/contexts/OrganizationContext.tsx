@@ -198,14 +198,14 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       hasFetched: hasFetched,
       condition: user && !isLoading && !organization && !hasFetched
     });
-    
+
     // Fetch if we have a user and haven't fetched yet OR if we have no organization data
     if (user && !isLoading && (!hasFetched || !organization)) {
       console.log('🚀 Triggering fetchOrganization from useEffect');
       setHasFetched(true);
       fetchOrganization();
     }
-  }, [user, hasFetched, organization, isLoading]);
+  }, [user, hasFetched, organization]); // Removed isLoading from dependencies to prevent infinite loop
 
   return (
     <OrganizationContext.Provider
