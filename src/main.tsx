@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { MinimalUserProvider } from './services/MinimalUserProvider';
-import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
 import App from './App';
 import './index.css';
 
@@ -36,11 +35,9 @@ function ClerkWithRouterBridge() {
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
     >
-      <SupabaseAuthProvider>
-        <MinimalUserProvider>
-          <App />
-        </MinimalUserProvider>
-      </SupabaseAuthProvider>
+      <MinimalUserProvider>
+        <App />
+      </MinimalUserProvider>
     </ClerkProvider>
   );
 }
