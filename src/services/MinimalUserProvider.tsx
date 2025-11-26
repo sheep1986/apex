@@ -23,10 +23,10 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
   useEffect(() => {
     // Only update if user ID changes to prevent infinite loops
     const currentUserId = user?.id || user?.email || null;
-    
+
     if (isLoaded && user && currentUserId !== lastUserId) {
       setLastUserId(currentUserId);
-      
+
       console.log('🔍 MinimalUserProvider: User data received:', {
         email: user.email,
         role: user.role,
@@ -34,13 +34,13 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
         lastName: user.lastName || user.last_name,
         organization_id: user.organization_id
       });
-      
+
       // Use data from the auth system (dev or supabase via useUser hook)
-      const email = user.primaryEmailAddress?.emailAddress || 
-                   user.emailAddresses?.[0]?.emailAddress || 
-                   user.email || 
+      const email = user.primaryEmailAddress?.emailAddress ||
+                   user.emailAddresses?.[0]?.emailAddress ||
+                   user.email ||
                    'user@example.com';
-      
+
       // Use actual user data from the authentication system
       const userInfo = {
         firstName: user.firstName || user.first_name || 'User',
@@ -50,7 +50,7 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
         email: email,
         role: user.role || 'client_user', // Use role from Supabase database
       };
-      
+
       console.log('🎯 MinimalUserProvider: Setting user context:', userInfo);
 
       // Store organization ID in localStorage for VAPI and other services
@@ -74,7 +74,7 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
       setLastUserId(null);
       setUserContext(null);
     }
-  }, [user?.id, user?.email, isLoaded, lastUserId]);
+  }, [user?.id, user?.email, isLoaded]); // Removed lastUserId to prevent infinite loop
 
   return (
     <UserContext.Provider value={{ userContext, setUserContext }}>{children}</UserContext.Provider>
