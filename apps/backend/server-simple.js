@@ -382,6 +382,69 @@ app.get('/api/organization-settings/:settingKey', async (req, res) => {
   }
 });
 
+// Campaign pause/resume endpoints
+app.post('/api/vapi-outbound/campaigns/:campaignId/pause', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    console.log(`⏸️ Pausing campaign: ${campaignId}`);
+
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
+    );
+
+    const { data, error } = await supabase
+      .from('campaigns')
+      .update({ status: 'paused' })
+      .eq('id', campaignId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error pausing campaign:', error);
+      return res.status(500).json({ error: 'Failed to pause campaign', message: error.message });
+    }
+
+    console.log(`✅ Campaign paused: ${campaignId}`);
+    res.json({ success: true, campaign: data });
+  } catch (error) {
+    console.error('❌ Error pausing campaign:', error);
+    res.status(500).json({ error: 'Failed to pause campaign', message: error.message });
+  }
+});
+
+app.post('/api/vapi-outbound/campaigns/:campaignId/resume', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    console.log(`▶️ Resuming campaign: ${campaignId}`);
+
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
+    );
+
+    const { data, error } = await supabase
+      .from('campaigns')
+      .update({ status: 'active' })
+      .eq('id', campaignId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error resuming campaign:', error);
+      return res.status(500).json({ error: 'Failed to resume campaign', message: error.message });
+    }
+
+    console.log(`✅ Campaign resumed: ${campaignId}`);
+    res.json({ success: true, campaign: data });
+  } catch (error) {
+    console.error('❌ Error resuming campaign:', error);
+    res.status(500).json({ error: 'Failed to resume campaign', message: error.message });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   console.log(`❌ 404: ${req.method} ${req.originalUrl}`);
