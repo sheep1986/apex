@@ -445,6 +445,110 @@ app.post('/api/vapi-outbound/campaigns/:campaignId/resume', async (req, res) => 
   }
 });
 
+// Lead upload endpoints
+app.post('/api/leads/upload-preview', async (req, res) => {
+  try {
+    console.log('📋 Lead upload preview requested');
+    // For now, just return success - actual preview logic can be added later
+    res.json({
+      success: true,
+      message: 'Preview functionality coming soon',
+      leads: []
+    });
+  } catch (error) {
+    console.error('❌ Error previewing leads:', error);
+    res.status(500).json({ error: 'Failed to preview leads', message: error.message });
+  }
+});
+
+app.post('/api/vapi-outbound/campaigns/:campaignId/upload-leads', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const { leads } = req.body;
+
+    console.log(`📤 Uploading ${leads?.length || 0} leads to campaign: ${campaignId}`);
+
+    if (!leads || !Array.isArray(leads) || leads.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid request',
+        message: 'Leads array is required and must not be empty'
+      });
+    }
+
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
+    );
+
+    // Get campaign to verify it exists and get organization_id
+    const { data: campaign, error: campaignError } = await supabase
+      .from('campaigns')
+      .select('id, organization_id')
+      .eq('id', campaignId)
+      .single();
+
+    if (campaignError || !campaign) {
+      console.error('❌ Campaign not found:', campaignError);
+      return res.status(404).json({
+        error: 'Campaign not found',
+        message: campaignError?.message || 'Campaign does not exist'
+      });
+    }
+
+    // Prepare leads for insert
+    const leadsToInsert = leads.map(lead => ({
+      id: require('uuid').v4(),
+      campaign_id: campaignId,
+      organization_id: campaign.organization_id,
+      first_name: lead.firstName || lead.first_name || 'Unknown',
+      last_name: lead.lastName || lead.last_name || '',
+      phone: lead.phone || lead.phoneNumber,
+      email: lead.email || null,
+      company: lead.company || null,
+      status: 'new',
+      lead_source: 'csv_upload',
+      created_at: new Date().toISOString()
+    }));
+
+    // Validate phone numbers (basic check)
+    const invalidLeads = leadsToInsert.filter(lead => !lead.phone || !lead.phone.startsWith('+'));
+    if (invalidLeads.length > 0) {
+      console.warn(`⚠️ ${invalidLeads.length} leads have invalid phone numbers`);
+    }
+
+    // Insert leads into database
+    const { data: insertedLeads, error: insertError } = await supabase
+      .from('leads')
+      .insert(leadsToInsert)
+      .select();
+
+    if (insertError) {
+      console.error('❌ Error inserting leads:', insertError);
+      return res.status(500).json({
+        error: 'Failed to insert leads',
+        message: insertError.message,
+        details: insertError
+      });
+    }
+
+    console.log(`✅ Successfully uploaded ${insertedLeads?.length || 0} leads to campaign ${campaignId}`);
+
+    res.json({
+      success: true,
+      leadsUploaded: insertedLeads?.length || 0,
+      campaignId,
+      leads: insertedLeads
+    });
+  } catch (error) {
+    console.error('❌ Error uploading leads:', error);
+    res.status(500).json({
+      error: 'Failed to upload leads',
+      message: error.message
+    });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   console.log(`❌ 404: ${req.method} ${req.originalUrl}`);
