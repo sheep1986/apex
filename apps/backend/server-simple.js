@@ -1,3 +1,6 @@
+// Enable TypeScript support for importing .ts files
+require('ts-node/register');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -283,6 +286,102 @@ Return your analysis as valid JSON matching this structure:
   }
 });
 
+// Organization Settings endpoints
+app.get('/api/organization-settings/:settingKey', async (req, res) => {
+  try {
+    const { settingKey } = req.params;
+    const organizationId = req.headers['x-organization-id'];
+
+    if (!organizationId) {
+      return res.status(400).json({
+        error: 'Missing organization ID',
+        message: 'x-organization-id header is required'
+      });
+    }
+
+    console.log(`🔍 Fetching setting "${settingKey}" for organization:`, organizationId);
+
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
+    );
+
+    // Get the organization
+    const { data: org, error: orgError } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', organizationId)
+      .single();
+
+    if (orgError || !org) {
+      console.error('❌ Error fetching organization:', orgError);
+      return res.status(404).json({
+        error: 'Organization not found',
+        message: orgError?.message || 'Organization does not exist'
+      });
+    }
+
+    // Setting defaults
+    const settingDefaults = {
+      'max_concurrent_calls': 5,
+      'default_working_hours': {
+        start: '09:00',
+        end: '17:00',
+        timezone: 'America/New_York'
+      },
+      'compliance_settings': {
+        enableDNC: true,
+        respectOptOuts: true,
+        recordCalls: true,
+        maxCallsPerContact: 3
+      },
+      'vapi/credentials': {
+        apiKey: org.vapi_api_key || '',
+        organizationId: organizationId
+      }
+    };
+
+    let settingValue = settingDefaults[settingKey];
+
+    // For VAPI credentials, pull from organization
+    if (settingKey === 'vapi/credentials') {
+      settingValue = {
+        apiKey: org.vapi_api_key || '',
+        organizationId: organizationId,
+        phoneNumberIds: org.vapi_phone_number_ids || [],
+        assistantIds: org.vapi_assistant_ids || []
+      };
+    }
+
+    // For max_concurrent_calls, check if org has a setting
+    if (settingKey === 'max_concurrent_calls') {
+      settingValue = org.max_concurrent_calls || settingDefaults[settingKey];
+    }
+
+    if (settingValue === undefined) {
+      return res.status(404).json({
+        error: 'Setting not found',
+        message: `Setting "${settingKey}" does not exist`
+      });
+    }
+
+    console.log(`✅ Setting "${settingKey}" retrieved`);
+
+    res.json({
+      settingKey,
+      value: settingValue,
+      organizationId
+    });
+  } catch (error) {
+    console.error('❌ Error fetching organization setting:', error);
+    res.status(500).json({
+      error: 'Failed to fetch setting',
+      message: error.message
+    });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   console.log(`❌ 404: ${req.method} ${req.originalUrl}`);
@@ -302,24 +401,21 @@ app.use((err, req, res, next) => {
 app.get('/api/trigger-campaign-executor', async (req, res) => {
   console.log('🎯 Campaign executor endpoint called...');
 
-  // NOTE: Campaign executor requires TypeScript compilation
-  // For now, return success without running
-  res.json({
-    success: true,
-    message: 'Campaign executor endpoint available (requires TypeScript build)',
-    timestamp: new Date().toISOString(),
-    note: 'Set up Vercel Cron to call this endpoint when campaign executor is compiled'
-  });
-
-  // TODO: Uncomment when campaign-executor is compiled to JavaScript
-  // try {
-  //   const { campaignExecutor } = require('./services/campaign-executor');
-  //   await campaignExecutor.processCampaigns();
-  //   res.json({ success: true, message: 'Campaign processing triggered', timestamp: new Date().toISOString() });
-  // } catch (error) {
-  //   console.error('❌ Campaign executor error:', error);
-  //   res.status(500).json({ error: 'Campaign processing failed', message: error.message });
-  // }
+  try {
+    const { campaignExecutor } = require('./services/campaign-executor');
+    await campaignExecutor.processCampaigns();
+    res.json({
+      success: true,
+      message: 'Campaign processing triggered',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Campaign executor error:', error);
+    res.status(500).json({
+      error: 'Campaign processing failed',
+      message: error.message
+    });
+  }
 });
 
 // Export for Vercel
