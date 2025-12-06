@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "installCommand": "corepack enable && pnpm install --frozen-lockfile",
+  "buildCommand": "echo 'No build needed for server-simple.js'",
   "builds": [
     {
       "src": "./server-simple.js",
