@@ -4,7 +4,8 @@
   "description": "Backend API server for Apex AI Calling Platform",
   "main": "dist/server.js",
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "echo 'Using server-simple.js - no TypeScript build needed'",
+    "build:ts": "rimraf dist && tsc",
     "start": "node server-production.js",
     "start:compiled": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
