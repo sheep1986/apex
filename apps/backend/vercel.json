@@ -1,17 +1,9 @@
 {
   "version": 2,
-  "installCommand": "rm -f ~/.npmrc /vercel/.npmrc 2>/dev/null; npm install --legacy-peer-deps",
-  "buildCommand": "echo 'No build needed for server-simple.js'",
-  "builds": [
+  "rewrites": [
     {
-      "src": "./server-simple.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/server-simple.js"
+      "source": "/(.*)",
+      "destination": "/server-simple.js"
     }
   ],
   "crons": [
