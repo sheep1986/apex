@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "npm install --legacy-peer-deps",
+  "installCommand": "rm -f ~/.npmrc /vercel/.npmrc 2>/dev/null; npm install --legacy-peer-deps",
   "buildCommand": "echo 'No build needed for server-simple.js'",
   "builds": [
     {
