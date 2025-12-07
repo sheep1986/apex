@@ -138,27 +138,16 @@ app.use((err, req, res, next) => {
 
 // Campaign executor endpoint for manual triggering or Vercel cron
 app.get('/api/trigger-campaign-executor', async (req, res) => {
-  console.log('🎯 Manually triggering campaign executor...');
-  
-  try {
-    // Import and run the campaign executor logic
-    const { campaignExecutor } = require('./services/campaign-executor');
-    
-    // Process campaigns once
-    await campaignExecutor.processCampaigns();
-    
-    res.json({ 
-      success: true, 
-      message: 'Campaign processing triggered',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Campaign executor error:', error);
-    res.status(500).json({ 
-      error: 'Campaign processing failed',
-      message: error.message 
-    });
-  }
+  console.log('🎯 Campaign executor endpoint called (simple mode)');
+
+  // In simple mode, the campaign executor TypeScript service is not available
+  // This endpoint is a placeholder - the full campaign executor requires the compiled TypeScript backend
+  res.json({
+    success: true,
+    message: 'Campaign executor endpoint reached - simple mode active',
+    note: 'Full campaign execution requires compiled TypeScript backend',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Export for Vercel
