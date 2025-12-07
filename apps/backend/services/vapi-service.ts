@@ -478,9 +478,10 @@ export class VapiService {
         return call.recordingUrl;
       }
       
-      if (call.stereoRecordingUrl) {
+      // Note: stereoRecordingUrl was removed from Vapi API - using recordingUrl only
+      if ((call as any).stereoRecordingUrl) {
         console.log(`✅ Found stereo recording URL for call ${callId}`);
-        return call.stereoRecordingUrl;
+        return (call as any).stereoRecordingUrl;
       }
       
       console.log(`⚠️ No recording URL found for call ${callId}`);
