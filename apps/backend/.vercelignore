@@ -1,12 +1,19 @@
-# Ignore TypeScript source files - using pre-built index.js
-server.ts
-services/*.ts
-middleware/*.ts
-types/*.ts
+# Ignore ALL TypeScript files
+**/*.ts
+**/*.tsx
+!api/index.js
 
 # Ignore TypeScript config
 tsconfig.json
 
-# Ignore dev dependencies
+# Ignore specific folders with TS files
+services/
+middleware/
+types/
+
+# Keep only JavaScript files
+# index.js and api/index.js are the only files we need
+
+# Ignore dev files
 .env.local
 *.log
