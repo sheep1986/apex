@@ -8,10 +8,17 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Supabase
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase with null checks
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+  console.log('✅ Supabase client initialized');
+} else {
+  console.warn('⚠️ Supabase not configured - SUPABASE_URL or SUPABASE_SERVICE_KEY missing');
+}
 
 // Trust proxy for Vercel
 app.set('trust proxy', true);
@@ -85,6 +92,10 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // ============================================
 
 async function getVapiCredentialsForOrganization(organizationId) {
+  if (!supabase) {
+    console.error('❌ Supabase not initialized');
+    return null;
+  }
   try {
     const { data: organization, error } = await supabase
       .from('organizations')
@@ -197,6 +208,11 @@ function isWithinWorkingHours(campaign) {
 
 async function processCampaigns() {
   console.log(`\n🔄 Processing campaigns at ${new Date().toISOString()}`);
+
+  if (!supabase) {
+    console.error('❌ Supabase not initialized - cannot process campaigns');
+    return { processed: 0, calls: 0, errors: [{ error: 'Supabase not initialized' }] };
+  }
 
   try {
     // Get all active campaigns
