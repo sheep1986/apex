@@ -1,0 +1,16 @@
+# Ignore TypeScript source files - using pre-built server-simple.js
+*.ts
+*.tsx
+server.ts
+services/*.ts
+api/*.ts
+middleware/*.ts
+types/*.ts
+
+# Ignore TypeScript config
+tsconfig.json
+
+# Ignore dev dependencies
+node_modules
+.env.local
+*.log
