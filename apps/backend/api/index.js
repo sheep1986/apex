@@ -1,4 +1,4 @@
 // Vercel serverless function wrapper
-const app = require('../server-simple.js');
+const app = require('../index.js');
 
 module.exports = app;
