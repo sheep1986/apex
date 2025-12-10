@@ -540,29 +540,32 @@ app.get('/api/debug/campaigns', async (req, res) => {
       diag.hasVapiCredentials = !!vapiKey;
       diag.vapiKeyPreview = vapiKey ? vapiKey.substring(0, 10) + '...' : null;
 
-      // Check leads
-      const { count: newLeads } = await supabase
+      // Check leads by status
+      const { data: leadsByStatus } = await supabase
         .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('campaign_id', campaign.id)
-        .eq('status', 'new');
-
-      const { count: allLeads } = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
+        .select('status')
         .eq('campaign_id', campaign.id);
 
-      diag.totalLeads = allLeads || 0;
-      diag.newLeads = newLeads || 0;
+      const statusCounts = {};
+      (leadsByStatus || []).forEach(lead => {
+        statusCounts[lead.status || 'unknown'] = (statusCounts[lead.status || 'unknown'] || 0) + 1;
+      });
+
+      diag.totalLeads = leadsByStatus?.length || 0;
+      diag.leadsByStatus = statusCounts;
 
       // Check queue
-      const { count: pendingQueue } = await supabase
+      const { data: queueByStatus } = await supabase
         .from('call_queue')
-        .select('*', { count: 'exact', head: true })
-        .eq('campaign_id', campaign.id)
-        .eq('status', 'pending');
+        .select('status')
+        .eq('campaign_id', campaign.id);
 
-      diag.pendingQueueItems = pendingQueue || 0;
+      const queueStatusCounts = {};
+      (queueByStatus || []).forEach(item => {
+        queueStatusCounts[item.status || 'unknown'] = (queueStatusCounts[item.status || 'unknown'] || 0) + 1;
+      });
+
+      diag.queueByStatus = queueStatusCounts;
 
       diagnostics.push(diag);
     }
@@ -580,6 +583,46 @@ app.get('/api/debug/campaigns', async (req, res) => {
       timeInfo,
       campaignCount: diagnostics.length,
       campaigns: diagnostics
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset leads for a campaign to 'new' status so they can be called again
+app.post('/api/campaigns/:id/reset-leads', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    // Reset leads to 'new' status
+    const { data: leads, error: leadError } = await supabase
+      .from('leads')
+      .update({ status: 'new', updated_at: new Date().toISOString() })
+      .eq('campaign_id', id)
+      .select('id');
+
+    if (leadError) {
+      return res.status(500).json({ error: leadError.message });
+    }
+
+    // Clear call queue for this campaign
+    const { error: queueError } = await supabase
+      .from('call_queue')
+      .delete()
+      .eq('campaign_id', id);
+
+    if (queueError) {
+      console.error('Error clearing queue:', queueError);
+    }
+
+    res.json({
+      success: true,
+      message: `Reset ${leads?.length || 0} leads to 'new' status`,
+      leadsReset: leads?.length || 0
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
