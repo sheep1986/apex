@@ -1760,26 +1760,38 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
               );
 
               // Update lead status
-              await supabase
+              const { error: leadUpdateError } = await supabase
                 .from('leads')
                 .update({ status: 'calling', updated_at: new Date().toISOString() })
                 .eq('id', lead.id);
 
-              // Create call record
-              await supabase
+              if (leadUpdateError) {
+                console.error(`❌ Error updating lead status:`, leadUpdateError);
+              }
+
+              // Create call record (use crypto.randomUUID for id if vapiCall.id isn't UUID format)
+              const callId = vapiCall.id;
+              console.log(`📝 Creating call record with VAPI ID: ${callId}`);
+
+              const { error: callInsertError } = await supabase
                 .from('calls')
                 .insert({
-                  id: vapiCall.id,
                   campaign_id: campaign.id,
                   lead_id: lead.id,
                   organization_id: campaign.organization_id,
                   customer_name: lead.name,
                   customer_phone: lead.phone,
                   status: 'in_progress',
-                  vapi_call_id: vapiCall.id,
+                  vapi_call_id: callId,
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
                 });
+
+              if (callInsertError) {
+                console.error(`❌ Error creating call record:`, callInsertError);
+              } else {
+                console.log(`✅ Call record created for VAPI call: ${callId}`);
+              }
 
               callsInitiated++;
               console.log(`✅ Call initiated: ${vapiCall.id}`);
