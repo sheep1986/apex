@@ -901,10 +901,16 @@ app.post('/api/campaigns/:id/skip-invalid-leads', async (req, res) => {
     }
 
     if (invalidLeadIds.length > 0) {
-      await supabase
+      // Use 'disqualified' which should be a valid status
+      const { error: updateError } = await supabase
         .from('leads')
-        .update({ status: 'invalid_phone', updated_at: new Date().toISOString() })
+        .update({ status: 'disqualified', updated_at: new Date().toISOString() })
         .in('id', invalidLeadIds);
+
+      if (updateError) {
+        console.error('Error updating leads:', updateError);
+        return res.status(500).json({ error: updateError.message });
+      }
     }
 
     res.json({
