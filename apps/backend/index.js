@@ -311,10 +311,29 @@ async function processCampaigns(forceRun = false) {
   }
 }
 
-async function processSingleCampaign(campaign, forceRun = false) {
+async function processSingleCampaign(campaign, forceRun = false, maxCallsLimit = null) {
   console.log(`\n📞 Processing campaign: ${campaign.name} (${campaign.id})`);
 
   const settings = campaign.settings || {};
+
+  // Check concurrency limit
+  const maxConcurrent = settings.maxConcurrentCalls || settings.concurrent_calls || 5;
+  const { count: activeCalls } = await supabase
+    .from('calls')
+    .select('*', { count: 'exact', head: true })
+    .eq('campaign_id', campaign.id)
+    .eq('status', 'in_progress');
+
+  const currentActiveCalls = activeCalls || 0;
+  console.log(`📊 Concurrency: ${currentActiveCalls}/${maxConcurrent} active calls`);
+
+  if (currentActiveCalls >= maxConcurrent) {
+    console.log(`⏸️ Campaign at max concurrency - skipping`);
+    return { calls: 0, skipped: 'max_concurrency', activeCalls: currentActiveCalls, maxConcurrent };
+  }
+
+  // Calculate available slots
+  const availableSlots = maxCallsLimit || (maxConcurrent - currentActiveCalls);
 
   // Check if within working hours (skip if force mode)
   if (!forceRun && !isWithinWorkingHours(campaign)) {
@@ -442,12 +461,13 @@ async function processSingleCampaign(campaign, forceRun = false) {
     return { calls: 0 };
   }
 
-  console.log(`📞 Making ${Math.min(queueItems.length, 5)} calls for campaign ${campaign.name}`);
+  const callsToMake = Math.min(queueItems.length, availableSlots);
+  console.log(`📞 Making ${callsToMake} calls for campaign ${campaign.name} (${availableSlots} slots available)`);
 
   let callsMade = 0;
 
-  // Process up to 5 calls per execution (to avoid timeouts)
-  for (const queueItem of queueItems.slice(0, 5)) {
+  // Process calls up to available concurrency slots
+  for (const queueItem of queueItems.slice(0, callsToMake)) {
     try {
       // Mark as calling
       await supabase
@@ -525,10 +545,14 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '1.4.0-simple-with-executor',
+    version: '2.0.0-with-webhooks-and-ai',
     features: {
       campaignExecutor: true,
-      vapiIntegration: true
+      vapiIntegration: true,
+      vapiWebhook: true,
+      aiAnalysis: true,
+      concurrencyControl: true,
+      autoLeadImport: true
     },
     cors: {
       configured: true,
@@ -1171,6 +1195,397 @@ app.get('/api/status', async (req, res) => {
     });
   }
 });
+
+// ============================================
+// VAPI WEBHOOK - Receives call events
+// ============================================
+
+// Analyze transcript with AI to determine lead sentiment
+async function analyzeTranscript(transcript, customerName) {
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  if (!openaiApiKey) {
+    console.log('⚠️ OpenAI API key not configured - skipping AI analysis');
+    return { sentiment: 'unknown', summary: 'AI analysis not available', isPositive: false };
+  }
+
+  try {
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an AI that analyzes sales call transcripts. Analyze the following transcript and determine:
+1. Whether the lead is POSITIVE (interested, wants callback, scheduled meeting, asked questions showing interest) or NEGATIVE (not interested, hung up, asked to be removed, hostile)
+2. A brief 1-2 sentence summary of the call outcome
+3. Key takeaways (what the lead is interested in, any objections, next steps mentioned)
+
+Respond in JSON format:
+{
+  "sentiment": "positive" or "negative" or "neutral",
+  "isPositive": true/false,
+  "summary": "Brief summary of call outcome",
+  "keyTakeaways": ["takeaway 1", "takeaway 2"],
+  "nextSteps": "Any next steps mentioned",
+  "interestLevel": 1-10
+}`
+        },
+        {
+          role: 'user',
+          content: `Customer: ${customerName}\n\nTranscript:\n${transcript}`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 500
+    }, {
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const content = response.data.choices[0]?.message?.content;
+    try {
+      return JSON.parse(content);
+    } catch {
+      return { sentiment: 'unknown', summary: content, isPositive: false };
+    }
+  } catch (error) {
+    console.error('❌ OpenAI analysis error:', error.message);
+    return { sentiment: 'error', summary: 'Failed to analyze transcript', isPositive: false };
+  }
+}
+
+// Push positive lead to CRM
+async function pushToCRM(callData, analysis, campaign) {
+  console.log(`📤 Pushing positive lead to CRM: ${callData.customer_name}`);
+
+  // Update lead status in database
+  if (callData.lead_id) {
+    await supabase
+      .from('leads')
+      .update({
+        status: 'qualified',
+        notes: `AI Analysis: ${analysis.summary}\nInterest Level: ${analysis.interestLevel}/10\nNext Steps: ${analysis.nextSteps || 'None specified'}`,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', callData.lead_id);
+  }
+
+  // Create CRM entry in crm_leads table if it exists
+  try {
+    await supabase
+      .from('crm_leads')
+      .insert({
+        organization_id: callData.organization_id,
+        campaign_id: callData.campaign_id,
+        lead_id: callData.lead_id,
+        name: callData.customer_name,
+        phone: callData.customer_phone,
+        call_id: callData.id,
+        sentiment: analysis.sentiment,
+        interest_level: analysis.interestLevel,
+        summary: analysis.summary,
+        key_takeaways: analysis.keyTakeaways,
+        next_steps: analysis.nextSteps,
+        transcript: callData.transcript,
+        created_at: new Date().toISOString()
+      });
+    console.log('✅ Lead pushed to CRM');
+  } catch (err) {
+    // Table might not exist, log and continue
+    console.log('⚠️ CRM table not available, storing in lead notes only');
+  }
+
+  return true;
+}
+
+// VAPI Webhook endpoint
+app.post('/api/vapi/webhook', async (req, res) => {
+  console.log('📥 VAPI webhook received:', JSON.stringify(req.body).substring(0, 500));
+
+  try {
+    const event = req.body;
+    const eventType = event.message?.type || event.type;
+
+    // Handle different VAPI event types
+    switch (eventType) {
+      case 'call-started':
+      case 'call.started':
+        console.log(`📞 Call started: ${event.call?.id || event.message?.call?.id}`);
+        break;
+
+      case 'call-ended':
+      case 'call.ended':
+      case 'end-of-call-report':
+        const call = event.call || event.message?.call || event;
+        const callId = call.id || call.call_id;
+
+        console.log(`📞 Call ended: ${callId}`);
+
+        if (callId && supabase) {
+          // Get transcript and recording
+          const transcript = call.transcript || call.messages?.map(m => `${m.role}: ${m.content}`).join('\n') || '';
+          const recordingUrl = call.recordingUrl || call.recording_url || null;
+          const duration = call.duration || call.endedAt ? Math.floor((new Date(call.endedAt) - new Date(call.startedAt)) / 1000) : 0;
+          const endedReason = call.endedReason || call.ended_reason || 'completed';
+
+          // Determine call outcome
+          let outcome = 'completed';
+          if (endedReason === 'customer-did-not-answer' || endedReason === 'no-answer') {
+            outcome = 'no_answer';
+          } else if (endedReason === 'voicemail') {
+            outcome = 'voicemail';
+          } else if (endedReason === 'customer-busy') {
+            outcome = 'busy';
+          } else if (endedReason === 'customer-ended-call' && duration < 30) {
+            outcome = 'hung_up';
+          }
+
+          // Update call record
+          const updateData = {
+            status: 'completed',
+            outcome: outcome,
+            ended_at: call.endedAt || new Date().toISOString(),
+            duration: duration,
+            transcript: transcript,
+            recording_url: recordingUrl,
+            ended_reason: endedReason,
+            updated_at: new Date().toISOString()
+          };
+
+          const { data: callRecord, error: updateError } = await supabase
+            .from('calls')
+            .update(updateData)
+            .eq('vapi_call_id', callId)
+            .select('*, campaign_id, lead_id, organization_id')
+            .single();
+
+          if (updateError) {
+            console.error('❌ Error updating call:', updateError);
+          } else if (callRecord && transcript && transcript.length > 50) {
+            // Analyze transcript with AI
+            console.log(`🤖 Analyzing transcript for call ${callId}...`);
+            const analysis = await analyzeTranscript(transcript, callRecord.customer_name);
+
+            // Update call with analysis
+            await supabase
+              .from('calls')
+              .update({
+                sentiment: analysis.sentiment,
+                ai_summary: analysis.summary,
+                interest_level: analysis.interestLevel,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', callRecord.id);
+
+            // If positive, push to CRM
+            if (analysis.isPositive || analysis.sentiment === 'positive' || (analysis.interestLevel && analysis.interestLevel >= 6)) {
+              console.log(`✅ Positive lead detected! Pushing to CRM...`);
+              await pushToCRM(callRecord, analysis, null);
+            } else {
+              // Update lead as contacted but not qualified
+              if (callRecord.lead_id) {
+                await supabase
+                  .from('leads')
+                  .update({
+                    status: 'contacted',
+                    notes: `Call completed. Outcome: ${outcome}. ${analysis.summary || ''}`,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', callRecord.lead_id);
+              }
+            }
+          }
+
+          // Update call queue status
+          await supabase
+            .from('call_queue')
+            .update({
+              status: outcome === 'completed' ? 'completed' : 'failed',
+              last_outcome: outcome,
+              updated_at: new Date().toISOString()
+            })
+            .eq('last_call_id', callId);
+        }
+        break;
+
+      case 'transcript':
+      case 'transcript-update':
+        // Real-time transcript update (optional to handle)
+        console.log('📝 Transcript update received');
+        break;
+
+      default:
+        console.log(`📥 Unhandled VAPI event: ${eventType}`);
+    }
+
+    res.json({ success: true, received: eventType });
+  } catch (error) {
+    console.error('❌ Webhook error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// AUTO-IMPORT LEADS ON CAMPAIGN CREATE/UPDATE
+// ============================================
+
+// Helper to import CSV leads
+async function importCsvLeadsForCampaign(campaignId) {
+  if (!supabase) return { imported: 0 };
+
+  const { data: campaign } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('id', campaignId)
+    .single();
+
+  if (!campaign) return { imported: 0 };
+
+  const csvData = campaign.settings?.csv_data;
+  if (!csvData) return { imported: 0, reason: 'no_csv_data' };
+
+  // Check if leads already exist for this campaign
+  const { count: existingCount } = await supabase
+    .from('leads')
+    .select('*', { count: 'exact', head: true })
+    .eq('campaign_id', campaignId);
+
+  if (existingCount > 0) {
+    return { imported: 0, reason: 'leads_already_exist', existingCount };
+  }
+
+  // Parse CSV
+  const lines = csvData.trim().split('\n');
+  if (lines.length < 2) return { imported: 0, reason: 'no_data_rows' };
+
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  const leads = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+
+    let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || '';
+    if (phone && !phone.startsWith('+')) phone = '+' + phone;
+
+    const name = row.name || row.full_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Unknown';
+
+    if (phone) {
+      leads.push({
+        organization_id: campaign.organization_id,
+        campaign_id: campaign.id,
+        name: name,
+        phone: phone,
+        email: row.email || null,
+        company: row.company || null,
+        source: 'manual',
+        status: 'new',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
+  }
+
+  if (leads.length === 0) return { imported: 0, reason: 'no_valid_phones' };
+
+  const { data: inserted, error } = await supabase
+    .from('leads')
+    .insert(leads)
+    .select('id');
+
+  if (error) {
+    console.error('❌ Error importing leads:', error);
+    return { imported: 0, error: error.message };
+  }
+
+  console.log(`✅ Auto-imported ${inserted?.length || 0} leads for campaign ${campaign.name}`);
+  return { imported: inserted?.length || 0 };
+}
+
+// Webhook/trigger for campaign creation
+app.post('/api/campaigns/:id/on-create', async (req, res) => {
+  const { id } = req.params;
+  console.log(`🆕 Campaign created/updated: ${id}`);
+
+  try {
+    // Auto-import CSV leads
+    const importResult = await importCsvLeadsForCampaign(id);
+
+    // If campaign is active and has leads, start processing
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (campaign && campaign.status === 'active' && importResult.imported > 0) {
+      // Trigger initial processing
+      console.log(`🚀 Auto-starting campaign ${campaign.name} with ${importResult.imported} leads`);
+
+      // Process the campaign (respecting concurrent limits)
+      const result = await processSingleCampaign(campaign, false);
+
+      res.json({
+        success: true,
+        leadsImported: importResult.imported,
+        callsInitiated: result.calls,
+        message: `Campaign started with ${importResult.imported} leads`
+      });
+    } else {
+      res.json({
+        success: true,
+        leadsImported: importResult.imported,
+        message: importResult.reason || 'Leads imported, campaign not started (not active or no leads)'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error in campaign on-create:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// CONCURRENT CALL LIMITING
+// ============================================
+
+async function getActiveCalls(campaignId) {
+  if (!supabase) return 0;
+
+  const { count } = await supabase
+    .from('calls')
+    .select('*', { count: 'exact', head: true })
+    .eq('campaign_id', campaignId)
+    .eq('status', 'in_progress');
+
+  return count || 0;
+}
+
+async function getCampaignConcurrencyLimit(campaign) {
+  // Get from campaign settings, default to 5
+  const settings = campaign.settings || {};
+  return settings.maxConcurrentCalls || settings.concurrent_calls || 5;
+}
+
+// Enhanced processSingleCampaign with concurrency check
+async function processSingleCampaignWithConcurrency(campaign, forceRun = false) {
+  const maxConcurrent = await getCampaignConcurrencyLimit(campaign);
+  const activeCalls = await getActiveCalls(campaign.id);
+
+  console.log(`📊 Concurrency check: ${activeCalls}/${maxConcurrent} active calls for ${campaign.name}`);
+
+  if (activeCalls >= maxConcurrent) {
+    console.log(`⏸️ Campaign ${campaign.name} at max concurrency (${activeCalls}/${maxConcurrent})`);
+    return { calls: 0, skipped: 'max_concurrency_reached', activeCalls, maxConcurrent };
+  }
+
+  const availableSlots = maxConcurrent - activeCalls;
+  console.log(`📞 ${availableSlots} call slots available for ${campaign.name}`);
+
+  // Call the original processor but limit calls to available slots
+  return processSingleCampaign(campaign, forceRun, availableSlots);
+}
 
 // 404 handler
 app.use('*', (req, res) => {
