@@ -953,6 +953,76 @@ app.get('/api/vapi-data', (req, res) => {
   });
 });
 
+// Quick status endpoint
+app.get('/api/status', async (req, res) => {
+  if (!supabase) {
+    return res.json({
+      status: 'error',
+      message: 'Supabase not configured',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  try {
+    // Count active campaigns with leads
+    const { data: campaigns } = await supabase
+      .from('campaigns')
+      .select('id, name, organization_id, settings')
+      .in('status', ['active', 'scheduled']);
+
+    const stats = {
+      activeCampaigns: campaigns?.length || 0,
+      campaignsWithLeads: 0,
+      campaignsReady: 0,
+      issues: []
+    };
+
+    for (const campaign of campaigns || []) {
+      const { count: leadCount } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'new');
+
+      if (leadCount > 0) {
+        stats.campaignsWithLeads++;
+
+        // Check if campaign is ready
+        const vapiKey = await getVapiCredentialsForOrganization(campaign.organization_id);
+        const settings = campaign.settings || {};
+        const assistantId = settings.assistant_id || campaign.assistant_id;
+        const phoneNumberId = settings.phone_number_id || campaign.phone_number_id;
+
+        if (vapiKey && assistantId && phoneNumberId) {
+          stats.campaignsReady++;
+        } else {
+          stats.issues.push({
+            campaign: campaign.name,
+            missing: [
+              !vapiKey && 'vapi_credentials',
+              !assistantId && 'assistant_id',
+              !phoneNumberId && 'phone_number_id'
+            ].filter(Boolean)
+          });
+        }
+      }
+    }
+
+    res.json({
+      status: 'ok',
+      version: '1.5.0',
+      timestamp: new Date().toISOString(),
+      stats
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   console.log(`❌ 404: ${req.method} ${req.originalUrl}`);
