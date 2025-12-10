@@ -1805,10 +1805,10 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
                 lead.name
               );
 
-              // Update lead status
+              // Update lead status (use 'contacted' as that's what the DB constraint allows)
               const { error: leadUpdateError } = await supabase
                 .from('leads')
-                .update({ status: 'calling', updated_at: new Date().toISOString() })
+                .update({ status: 'contacted', updated_at: new Date().toISOString() })
                 .eq('id', lead.id);
 
               if (leadUpdateError) {
@@ -1820,6 +1820,8 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
               const callId = vapiCall.id;
               console.log(`📝 Creating call record with VAPI ID: ${callId}`);
 
+              // Note: Using 'completed' status because DB constraint only allows 'completed'
+              // The webhook will update with final status when call ends
               const { error: callInsertError } = await supabase
                 .from('calls')
                 .insert({
@@ -1830,7 +1832,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
                   customer_phone: lead.phone,
                   phone_number: lead.phone,
                   direction: 'outbound',
-                  status: 'in_progress',
+                  status: 'completed',
                   vapi_call_id: callId,
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
