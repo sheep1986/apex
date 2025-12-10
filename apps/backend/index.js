@@ -735,6 +735,104 @@ app.get('/api/debug/campaigns/:id', async (req, res) => {
   }
 });
 
+// Import leads from CSV data stored in campaign settings
+app.post('/api/campaigns/:id/import-csv-leads', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    // Get campaign
+    const { data: campaign, error: campError } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (campError || !campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    const csvData = campaign.settings?.csv_data;
+    if (!csvData) {
+      return res.json({ success: false, error: 'No CSV data in campaign settings' });
+    }
+
+    // Parse CSV
+    const lines = csvData.trim().split('\n');
+    if (lines.length < 2) {
+      return res.json({ success: false, error: 'CSV has no data rows' });
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const leads = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const row = {};
+      headers.forEach((h, idx) => {
+        row[h] = values[idx] || '';
+      });
+
+      // Find phone number - check common column names
+      let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || '';
+
+      // Format phone number to E.164
+      if (phone && !phone.startsWith('+')) {
+        // Assume it's missing the + prefix
+        phone = '+' + phone;
+      }
+
+      // Find name
+      const name = row.name || row.full_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Unknown';
+
+      if (phone) {
+        leads.push({
+          organization_id: campaign.organization_id,
+          campaign_id: campaign.id,
+          name: name,
+          phone: phone,
+          email: row.email || null,
+          company: row.company || null,
+          source: 'csv_import',
+          status: 'new',
+          notes: Object.entries(row)
+            .filter(([k, v]) => !['phone', 'phone_number', 'number', 'mobile', 'cell', 'name', 'full_name', 'first_name', 'last_name', 'email', 'company'].includes(k) && v)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join('\n') || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+    }
+
+    if (leads.length === 0) {
+      return res.json({ success: false, error: 'No valid leads found in CSV (no phone numbers)' });
+    }
+
+    // Insert leads
+    const { data: inserted, error: insertError } = await supabase
+      .from('leads')
+      .insert(leads)
+      .select('id');
+
+    if (insertError) {
+      return res.status(500).json({ error: insertError.message });
+    }
+
+    res.json({
+      success: true,
+      message: `Imported ${inserted?.length || 0} leads from CSV`,
+      leadsImported: inserted?.length || 0,
+      sampleLead: leads[0]
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Reset leads for a campaign to 'new' status so they can be called again
 app.post('/api/campaigns/:id/reset-leads', async (req, res) => {
   if (!supabase) {
