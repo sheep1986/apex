@@ -243,8 +243,8 @@ function isWithinWorkingHours(campaign) {
   return true;
 }
 
-async function processCampaigns() {
-  console.log(`\n🔄 Processing campaigns at ${new Date().toISOString()}`);
+async function processCampaigns(forceRun = false) {
+  console.log(`\n🔄 Processing campaigns at ${new Date().toISOString()} (force=${forceRun})`);
 
   if (!supabase) {
     console.error('❌ Supabase not initialized - cannot process campaigns');
@@ -276,7 +276,7 @@ async function processCampaigns() {
 
     for (const campaign of campaigns) {
       try {
-        const result = await processSingleCampaign(campaign);
+        const result = await processSingleCampaign(campaign, forceRun);
         totalCalls += result.calls;
         if (result.error) errors.push(result.error);
       } catch (err) {
@@ -292,14 +292,18 @@ async function processCampaigns() {
   }
 }
 
-async function processSingleCampaign(campaign) {
+async function processSingleCampaign(campaign, forceRun = false) {
   console.log(`\n📞 Processing campaign: ${campaign.name} (${campaign.id})`);
 
   const settings = campaign.settings || {};
 
-  // Check if within working hours
-  if (!isWithinWorkingHours(campaign)) {
+  // Check if within working hours (skip if force mode)
+  if (!forceRun && !isWithinWorkingHours(campaign)) {
     return { calls: 0, skipped: 'outside_working_hours' };
+  }
+
+  if (forceRun) {
+    console.log(`⚠️ Force mode enabled - bypassing working hours check`);
   }
 
   // Get VAPI credentials for this organization
@@ -522,15 +526,18 @@ app.get('/__meta', (req, res) => {
 });
 
 // Campaign executor endpoint (triggered by Vercel Cron or manually)
+// Add ?force=true to bypass working hours check for testing
 app.get('/api/trigger-campaign-executor', async (req, res) => {
-  console.log('🎯 Campaign executor triggered');
+  const forceRun = req.query.force === 'true';
+  console.log(`🎯 Campaign executor triggered (force=${forceRun})`);
 
   try {
-    const result = await processCampaigns();
+    const result = await processCampaigns(forceRun);
 
     res.json({
       success: true,
       message: 'Campaign processing completed',
+      forceMode: forceRun,
       result,
       timestamp: new Date().toISOString()
     });
