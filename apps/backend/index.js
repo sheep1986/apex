@@ -508,6 +508,84 @@ app.get('/api/trigger-campaign-executor', async (req, res) => {
   }
 });
 
+// Debug endpoint to diagnose campaign issues
+app.get('/api/debug/campaigns', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  try {
+    // Get active campaigns
+    const { data: campaigns } = await supabase
+      .from('campaigns')
+      .select('id, name, status, organization_id, settings, assistant_id, phone_number_id')
+      .in('status', ['active', 'scheduled']);
+
+    const diagnostics = [];
+
+    for (const campaign of campaigns || []) {
+      const diag = {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        organization_id: campaign.organization_id,
+        assistant_id: campaign.settings?.assistant_id || campaign.assistant_id || null,
+        phone_number_id: campaign.settings?.phone_number_id || campaign.phone_number_id || null,
+        workingHours: campaign.settings?.workingHours || 'default (09:00-17:00 ET)',
+        isWithinWorkingHours: isWithinWorkingHours(campaign)
+      };
+
+      // Check VAPI credentials
+      const vapiKey = await getVapiCredentialsForOrganization(campaign.organization_id);
+      diag.hasVapiCredentials = !!vapiKey;
+      diag.vapiKeyPreview = vapiKey ? vapiKey.substring(0, 10) + '...' : null;
+
+      // Check leads
+      const { count: newLeads } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'new');
+
+      const { count: allLeads } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id);
+
+      diag.totalLeads = allLeads || 0;
+      diag.newLeads = newLeads || 0;
+
+      // Check queue
+      const { count: pendingQueue } = await supabase
+        .from('call_queue')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'pending');
+
+      diag.pendingQueueItems = pendingQueue || 0;
+
+      diagnostics.push(diag);
+    }
+
+    // Check current time info
+    const now = new Date();
+    const timeInfo = {
+      serverTime: now.toISOString(),
+      serverHour: now.getHours(),
+      serverDay: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()]
+    };
+
+    res.json({
+      success: true,
+      timeInfo,
+      campaignCount: diagnostics.length,
+      campaigns: diagnostics
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Manual campaign trigger endpoint
 app.post('/api/campaigns/:id/execute', async (req, res) => {
   const { id } = req.params;
