@@ -1738,6 +1738,9 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
     // Handle "call_anyway" for duplicates
     let duplicatesQueued = 0;
+    console.log(`🔍 handleDuplicates: ${handleDuplicates}`);
+    console.log(`🔍 duplicateInfo.hasDuplicates: ${duplicateInfo.hasDuplicates}`);
+    console.log(`🔍 duplicateInfo.duplicates count: ${duplicateInfo.duplicates?.length || 0}`);
     if (handleDuplicates === 'call_anyway' && duplicateInfo.hasDuplicates) {
       // Reset existing leads to 'new' status so they get called
       const dupPhones = duplicateInfo.duplicates.map(d => d.phone);
@@ -1774,13 +1777,17 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
       if (vapiKey && assistantId && phoneNumberId) {
         // Get leads with 'new' status for this campaign (including previously imported ones)
-        const { data: newLeads } = await supabase
+        console.log(`🔍 Querying leads with campaign_id=${campaign.id} and status='new'`);
+        const { data: newLeads, error: leadsQueryError } = await supabase
           .from('leads')
           .select('*')
           .eq('campaign_id', campaign.id)
           .eq('status', 'new')
           .limit(5); // Limit to 5 concurrent calls
 
+        if (leadsQueryError) {
+          console.error(`❌ Error querying leads:`, leadsQueryError);
+        }
         console.log(`📋 Found ${newLeads?.length || 0} new leads to call`);
 
         if (newLeads && newLeads.length > 0) {
