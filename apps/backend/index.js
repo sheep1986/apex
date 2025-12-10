@@ -174,16 +174,53 @@ function isWithinWorkingHours(campaign) {
   const now = new Date();
   const settings = campaign.settings || {};
 
-  // Default working hours if not set
-  const workingHours = settings.workingHours || { start: '09:00', end: '17:00', timezone: 'America/New_York' };
+  // Check day of week
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const currentDay = dayNames[now.getDay()];
+
+  // Handle new format: workingHours is an object with day names as keys
+  // e.g., { monday: { start: '09:00', end: '17:00', enabled: true }, ... }
+  const workingHours = settings.workingHours || {};
+
+  // Check if workingHours has day-based structure (new format)
+  if (workingHours[currentDay]) {
+    const dayConfig = workingHours[currentDay];
+
+    // Check if day is enabled
+    if (dayConfig.enabled === false) {
+      console.log(`⏰ Day ${currentDay} not enabled for campaign ${campaign.name}`);
+      return false;
+    }
+
+    // Get current time in UTC and convert to server comparison
+    const currentHour = now.getUTCHours();
+    const currentMinute = now.getUTCMinutes();
+    const currentTimeUTC = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+
+    // The times in DB are Eastern Time, convert UTC to Eastern (UTC-5 in winter, UTC-4 in summer)
+    // For simplicity, assume UTC-5 (Eastern Standard Time)
+    let easternHour = currentHour - 5;
+    if (easternHour < 0) easternHour += 24;
+    const currentTimeET = `${String(easternHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+
+    const startTime = dayConfig.start || '09:00';
+    const endTime = dayConfig.end || '17:00';
+
+    console.log(`⏰ Time check: UTC=${currentTimeUTC}, ET=${currentTimeET}, range=${startTime}-${endTime}`);
+
+    if (currentTimeET < startTime || currentTimeET > endTime) {
+      console.log(`⏰ Outside working hours for ${campaign.name} (${currentTimeET} not in ${startTime}-${endTime} ET)`);
+      return false;
+    }
+
+    return true;
+  }
+
+  // Legacy format: workingHours = { start, end, timezone } and separate workingDays object
   const workingDays = settings.workingDays || {
     monday: true, tuesday: true, wednesday: true, thursday: true, friday: true,
     saturday: false, sunday: false
   };
-
-  // Check day of week
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const currentDay = dayNames[now.getDay()];
 
   if (!workingDays[currentDay]) {
     console.log(`⏰ Outside working days (${currentDay})`);
