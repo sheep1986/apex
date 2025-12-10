@@ -796,7 +796,7 @@ app.post('/api/campaigns/:id/import-csv-leads', async (req, res) => {
           phone: phone,
           email: row.email || null,
           company: row.company || null,
-          source: 'csv_import',
+          source: 'csv',
           status: 'new',
           notes: Object.entries(row)
             .filter(([k, v]) => !['phone', 'phone_number', 'number', 'mobile', 'cell', 'name', 'full_name', 'first_name', 'last_name', 'email', 'company'].includes(k) && v)
