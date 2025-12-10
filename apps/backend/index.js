@@ -1722,21 +1722,82 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
     // If campaign is active and has leads, start processing
     const totalLeadsReady = importResult.imported + duplicatesQueued;
+    let callsInitiated = 0;
 
     if (campaign.status === 'active' && totalLeadsReady > 0) {
-      // Trigger initial processing
       console.log(`🚀 Auto-starting campaign ${campaign.name} with ${totalLeadsReady} leads`);
 
-      // Process the campaign (respecting concurrent limits)
-      const result = await processSingleCampaign(campaign, false);
+      // Get VAPI credentials
+      const vapiKey = await getVapiCredentialsForOrganization(campaign.organization_id);
+      const settings = campaign.settings || {};
+      const assistantId = settings.assistant_id || campaign.assistant_id;
+      const phoneNumberId = settings.phone_number_id || campaign.phone_number_id;
+
+      if (vapiKey && assistantId && phoneNumberId) {
+        // Get leads with 'new' status for this campaign
+        const { data: newLeads } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('campaign_id', campaign.id)
+          .eq('status', 'new')
+          .limit(5); // Limit to 5 concurrent calls
+
+        console.log(`📋 Found ${newLeads?.length || 0} new leads to call`);
+
+        if (newLeads && newLeads.length > 0) {
+          for (const lead of newLeads) {
+            try {
+              console.log(`📞 Initiating call to ${lead.name} (${lead.phone})`);
+
+              const vapiCall = await makeVapiCall(
+                vapiKey,
+                assistantId,
+                phoneNumberId,
+                lead.phone,
+                lead.name
+              );
+
+              // Update lead status
+              await supabase
+                .from('leads')
+                .update({ status: 'calling', updated_at: new Date().toISOString() })
+                .eq('id', lead.id);
+
+              // Create call record
+              await supabase
+                .from('calls')
+                .insert({
+                  id: vapiCall.id,
+                  campaign_id: campaign.id,
+                  lead_id: lead.id,
+                  organization_id: campaign.organization_id,
+                  customer_name: lead.name,
+                  customer_phone: lead.phone,
+                  status: 'in_progress',
+                  vapi_call_id: vapiCall.id,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                });
+
+              callsInitiated++;
+              console.log(`✅ Call initiated: ${vapiCall.id}`);
+            } catch (callError) {
+              console.error(`❌ Error calling ${lead.phone}:`, callError.message);
+            }
+          }
+        }
+      } else {
+        console.log('⚠️ Missing VAPI credentials or assistant/phone config');
+      }
 
       res.json({
         success: true,
         leadsImported: importResult.imported,
         duplicatesQueued: duplicatesQueued,
-        callsInitiated: result.calls,
+        callsInitiated: callsInitiated,
         message: `Campaign started with ${totalLeadsReady} leads` +
-                 (duplicateInfo.hasDuplicates ? ` (${importResult.skipped || 0} duplicates ${handleDuplicates === 'call_anyway' ? 're-queued' : 'skipped'})` : ''),
+                 (duplicateInfo.hasDuplicates ? ` (${importResult.skipped || 0} duplicates ${handleDuplicates === 'call_anyway' ? 're-queued' : 'skipped'})` : '') +
+                 (callsInitiated > 0 ? ` - ${callsInitiated} call(s) initiated` : ''),
         importDetails: importResult,
         duplicateInfo: duplicateInfo.hasDuplicates ? duplicateInfo : undefined
       });
