@@ -1566,24 +1566,26 @@ The review section provides detailed estimates for your campaign including durat
       }
 
       // Call backend on-create endpoint to import leads and check for duplicates
+      // First, send with handleDuplicates: 'ask' to check for duplicates before importing
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
       try {
-        console.log('📡 Calling backend on-create endpoint...');
+        console.log('📡 Calling backend on-create endpoint (checking for duplicates)...');
         const onCreateResponse = await fetch(`${API_BASE_URL}/api/campaigns/${campaign.id}/on-create`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            handleDuplicates: handleDuplicatesOption
+            handleDuplicates: 'ask' // Always ask first to check for duplicates
           }),
         });
 
         const onCreateResult = await onCreateResponse.json();
         console.log('📊 On-create result:', onCreateResult);
 
-        // Check if duplicates were found
-        if (onCreateResult.duplicateInfo?.hasDuplicates) {
+        // Check if duplicates were found and user needs to decide
+        if (onCreateResult.requiresAction && onCreateResult.action === 'duplicate_found') {
+          console.log('⚠️ Duplicates found, showing warning modal...');
           setDuplicateInfo(onCreateResult.duplicateInfo);
           setPendingCampaignId(campaign.id);
           setShowDuplicateWarning(true);
@@ -1593,9 +1595,13 @@ The review section provides detailed estimates for your campaign including durat
             description: onCreateResult.duplicateInfo.message,
             variant: 'default',
           });
+
+          // Don't close the wizard yet - wait for user to handle duplicates
+          setIsLoading(false);
+          return; // Exit early - user will choose Skip or Call Anyway
         }
 
-        // Show import results
+        // No duplicates found or already handled - show import results
         if (onCreateResult.leadsImported > 0 || onCreateResult.callsInitiated > 0) {
           toast({
             title: 'Campaign ready',
@@ -3255,10 +3261,34 @@ The review section provides detailed estimates for your campaign including durat
             {/* Modal Footer */}
             <div className="bg-gray-800/30 border-t border-gray-700/50 px-6 py-4 flex justify-end space-x-3">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  // Skip duplicates - call backend with 'skip' to import only new contacts
+                  if (pendingCampaignId) {
+                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
+                    try {
+                      const response = await fetch(`${API_BASE_URL}/api/campaigns/${pendingCampaignId}/on-create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ handleDuplicates: 'skip' }),
+                      });
+                      const result = await response.json();
+                      const newContacts = duplicateInfo.totalContacts - duplicateInfo.duplicateCount;
+                      toast({
+                        title: 'Campaign created',
+                        description: `Imported ${result.leadsImported || newContacts} new contact(s). ${duplicateInfo.duplicateCount} duplicate(s) skipped.`,
+                      });
+                    } catch (err) {
+                      console.error('Error completing campaign creation:', err);
+                    }
+                  }
+                  const campaignId = pendingCampaignId;
                   setShowDuplicateWarning(false);
                   setDuplicateInfo(null);
                   setPendingCampaignId(null);
+                  // Close wizard after handling
+                  if (campaignId) {
+                    onCampaignCreated({ id: campaignId, name: campaignName });
+                  }
                 }}
                 className="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-600 hover:border-gray-500 rounded-lg transition-colors"
               >
@@ -3276,16 +3306,21 @@ The review section provides detailed estimates for your campaign including durat
                       });
                       const result = await response.json();
                       toast({
-                        title: 'Duplicates re-queued',
-                        description: `${result.duplicatesQueued || duplicateInfo.duplicateCount} contact(s) will be called again.`,
+                        title: 'Campaign created',
+                        description: `${result.leadsImported || 0} new contact(s) imported. ${result.duplicatesQueued || duplicateInfo.duplicateCount} duplicate(s) re-queued for calling.`,
                       });
                     } catch (err) {
                       console.error('Error re-queuing duplicates:', err);
                     }
                   }
+                  const campaignId = pendingCampaignId;
                   setShowDuplicateWarning(false);
                   setDuplicateInfo(null);
                   setPendingCampaignId(null);
+                  // Close wizard after handling
+                  if (campaignId) {
+                    onCampaignCreated({ id: campaignId, name: campaignName });
+                  }
                 }}
                 className="px-4 py-2 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
               >
