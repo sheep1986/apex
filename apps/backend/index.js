@@ -1767,6 +1767,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
     // If campaign is active, check for leads to call (including existing 'new' leads)
     let callsInitiated = 0;
+    let callErrors = [];
 
     if (campaign.status === 'active') {
       // Get VAPI credentials
@@ -1812,6 +1813,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
               if (leadUpdateError) {
                 console.error(`❌ Error updating lead status:`, leadUpdateError);
+                callErrors.push({ type: 'lead_update', lead: lead.phone, error: leadUpdateError.message || leadUpdateError });
               }
 
               // Create call record (use crypto.randomUUID for id if vapiCall.id isn't UUID format)
@@ -1826,6 +1828,8 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
                   organization_id: campaign.organization_id,
                   customer_name: lead.name,
                   customer_phone: lead.phone,
+                  phone_number: lead.phone,
+                  direction: 'outbound',
                   status: 'in_progress',
                   vapi_call_id: callId,
                   created_at: new Date().toISOString(),
@@ -1834,6 +1838,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
               if (callInsertError) {
                 console.error(`❌ Error creating call record:`, callInsertError);
+                callErrors.push({ type: 'call_insert', lead: lead.phone, error: callInsertError.message || callInsertError });
               } else {
                 console.log(`✅ Call record created for VAPI call: ${callId}`);
               }
@@ -1842,6 +1847,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
               console.log(`✅ Call initiated: ${vapiCall.id}`);
             } catch (callError) {
               console.error(`❌ Error calling ${lead.phone}:`, callError.message);
+              callErrors.push({ type: 'vapi_call', lead: lead.phone, error: callError.message });
             }
           }
         }
@@ -1858,7 +1864,8 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
           ? `${callsInitiated} call(s) initiated` + (duplicateInfo.hasDuplicates ? ` (duplicates ${handleDuplicates === 'call_anyway' ? 're-queued' : 'skipped'})` : '')
           : 'Campaign active but no new leads to call',
         importDetails: importResult,
-        duplicateInfo: duplicateInfo.hasDuplicates ? duplicateInfo : undefined
+        duplicateInfo: duplicateInfo.hasDuplicates ? duplicateInfo : undefined,
+        errors: callErrors.length > 0 ? callErrors : undefined
       });
     } else {
       res.json({
