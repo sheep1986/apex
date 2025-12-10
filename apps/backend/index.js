@@ -724,6 +724,12 @@ app.get('/api/debug/campaigns/:id', async (req, res) => {
       .select('*')
       .eq('campaign_id', id);
 
+    // Get calls
+    const { data: calls, error: callsError } = await supabase
+      .from('calls')
+      .select('*')
+      .eq('campaign_id', id);
+
     // Get VAPI credentials
     const vapiKey = await getVapiCredentialsForOrganization(campaign.organization_id);
 
@@ -760,6 +766,11 @@ app.get('/api/debug/campaigns/:id', async (req, res) => {
         total: queue?.length || 0,
         error: queueError?.message,
         items: queue?.slice(0, 10) // First 10 queue items
+      },
+      calls: {
+        total: calls?.length || 0,
+        error: callsError?.message,
+        items: calls?.slice(0, 10) // First 10 calls
       }
     });
   } catch (error) {
