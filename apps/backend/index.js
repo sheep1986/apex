@@ -1724,13 +1724,10 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
       }
     }
 
-    // If campaign is active and has leads, start processing
-    const totalLeadsReady = importResult.imported + duplicatesQueued;
+    // If campaign is active, check for leads to call (including existing 'new' leads)
     let callsInitiated = 0;
 
-    if (campaign.status === 'active' && totalLeadsReady > 0) {
-      console.log(`🚀 Auto-starting campaign ${campaign.name} with ${totalLeadsReady} leads`);
-
+    if (campaign.status === 'active') {
       // Get VAPI credentials
       const vapiKey = await getVapiCredentialsForOrganization(campaign.organization_id);
       const settings = campaign.settings || {};
@@ -1738,7 +1735,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
       const phoneNumberId = settings.phone_number_id || campaign.phone_number_id;
 
       if (vapiKey && assistantId && phoneNumberId) {
-        // Get leads with 'new' status for this campaign
+        // Get leads with 'new' status for this campaign (including previously imported ones)
         const { data: newLeads } = await supabase
           .from('leads')
           .select('*')
@@ -1749,6 +1746,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
         console.log(`📋 Found ${newLeads?.length || 0} new leads to call`);
 
         if (newLeads && newLeads.length > 0) {
+          console.log(`🚀 Auto-starting campaign ${campaign.name} with ${newLeads.length} leads`);
           for (const lead of newLeads) {
             try {
               console.log(`📞 Initiating call to ${lead.name} (${lead.phone})`);
@@ -1799,9 +1797,9 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
         leadsImported: importResult.imported,
         duplicatesQueued: duplicatesQueued,
         callsInitiated: callsInitiated,
-        message: `Campaign started with ${totalLeadsReady} leads` +
-                 (duplicateInfo.hasDuplicates ? ` (${importResult.skipped || 0} duplicates ${handleDuplicates === 'call_anyway' ? 're-queued' : 'skipped'})` : '') +
-                 (callsInitiated > 0 ? ` - ${callsInitiated} call(s) initiated` : ''),
+        message: callsInitiated > 0
+          ? `${callsInitiated} call(s) initiated` + (duplicateInfo.hasDuplicates ? ` (duplicates ${handleDuplicates === 'call_anyway' ? 're-queued' : 'skipped'})` : '')
+          : 'Campaign active but no new leads to call',
         importDetails: importResult,
         duplicateInfo: duplicateInfo.hasDuplicates ? duplicateInfo : undefined
       });
@@ -1810,7 +1808,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
         success: true,
         leadsImported: importResult.imported,
         duplicatesQueued: duplicatesQueued,
-        message: importResult.reason || 'Leads imported, campaign not started (not active or no leads)',
+        message: importResult.reason || 'Leads imported, campaign not active',
         importDetails: importResult,
         duplicateInfo: duplicateInfo.hasDuplicates ? duplicateInfo : undefined,
         campaignStatus: campaign?.status
