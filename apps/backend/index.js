@@ -359,13 +359,13 @@ async function processSingleCampaign(campaign, forceRun = false) {
 
     console.log(`📋 Found ${leads?.length || 0} new leads for campaign ${campaign.id}`);
     if (leads && leads.length > 0) {
-      console.log(`📋 Lead details:`, leads.map(l => ({ id: l.id, name: l.name, phone: l.phone || l.phone_number, status: l.status })));
+      console.log(`📋 Lead details:`, JSON.stringify(leads.map(l => ({ id: l.id, name: l.name, phone: l.phone, status: l.status }))));
 
       const queueEntries = leads.map(lead => ({
         campaign_id: campaign.id,
         contact_id: lead.id,
-        phone_number: lead.phone || lead.phone_number,
-        contact_name: lead.name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown',
+        phone_number: lead.phone || lead.phone_number || lead.number,
+        contact_name: lead.name || 'Unknown',
         status: 'pending',
         attempt: 0,
         scheduled_for: new Date().toISOString(),
@@ -373,13 +373,16 @@ async function processSingleCampaign(campaign, forceRun = false) {
         updated_at: new Date().toISOString()
       })).filter(q => q.phone_number);
 
+      console.log(`📝 Creating ${queueEntries.length} queue entries:`, JSON.stringify(queueEntries));
+
       if (queueEntries.length > 0) {
-        const { error: insertError } = await supabase
+        const { data: insertedData, error: insertError } = await supabase
           .from('call_queue')
-          .insert(queueEntries);
+          .insert(queueEntries)
+          .select();
 
         if (insertError) {
-          console.error('❌ Error creating queue:', insertError);
+          console.error('❌ Error creating queue:', JSON.stringify(insertError));
         } else {
           // Update leads status
           await supabase
@@ -759,7 +762,141 @@ app.post('/api/campaigns/:id/reset-leads', async (req, res) => {
   }
 });
 
-// Manual campaign trigger endpoint
+// Execute single campaign with detailed output
+app.get('/api/campaigns/:id/execute', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+  const forceRun = req.query.force === 'true';
+  const logs = [];
+
+  const log = (msg) => {
+    console.log(msg);
+    logs.push(msg);
+  };
+
+  try {
+    log(`🎯 Executing single campaign: ${id}`);
+
+    const { data: campaign, error: campError } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (campError || !campaign) {
+      return res.status(404).json({ error: 'Campaign not found', details: campError });
+    }
+
+    log(`📋 Campaign: ${campaign.name} (status: ${campaign.status})`);
+
+    // Check working hours
+    const withinHours = isWithinWorkingHours(campaign);
+    log(`⏰ Within working hours: ${withinHours}`);
+
+    if (!forceRun && !withinHours) {
+      return res.json({
+        success: false,
+        error: 'Outside working hours',
+        logs,
+        hint: 'Add ?force=true to bypass'
+      });
+    }
+
+    // Get VAPI credentials
+    const vapiKey = await getVapiCredentialsForOrganization(campaign.organization_id);
+    log(`🔑 VAPI credentials: ${vapiKey ? 'Found' : 'NOT FOUND'}`);
+
+    if (!vapiKey) {
+      return res.json({
+        success: false,
+        error: 'No VAPI credentials',
+        logs
+      });
+    }
+
+    // Get assistant and phone
+    const settings = campaign.settings || {};
+    const assistantId = settings.assistant_id || campaign.assistant_id;
+    const phoneNumberId = settings.phone_number_id || campaign.phone_number_id;
+    log(`🤖 Assistant ID: ${assistantId || 'NOT SET'}`);
+    log(`📞 Phone Number ID: ${phoneNumberId || 'NOT SET'}`);
+
+    if (!assistantId || !phoneNumberId) {
+      return res.json({
+        success: false,
+        error: 'Missing assistant_id or phone_number_id',
+        logs
+      });
+    }
+
+    // Get leads
+    const { data: leads, error: leadsError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('campaign_id', id)
+      .eq('status', 'new')
+      .limit(5);
+
+    if (leadsError) {
+      log(`❌ Error fetching leads: ${leadsError.message}`);
+      return res.json({ success: false, error: leadsError.message, logs });
+    }
+
+    log(`📋 Found ${leads?.length || 0} leads with status 'new'`);
+
+    if (!leads || leads.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No leads to process',
+        logs
+      });
+    }
+
+    // Try to make a call
+    const lead = leads[0];
+    log(`📞 Attempting call to: ${lead.name} (${lead.phone})`);
+
+    try {
+      const vapiCall = await makeVapiCall(
+        vapiKey,
+        assistantId,
+        phoneNumberId,
+        lead.phone,
+        lead.name
+      );
+
+      log(`✅ VAPI call created: ${vapiCall.id}`);
+
+      // Update lead status
+      await supabase
+        .from('leads')
+        .update({ status: 'calling', updated_at: new Date().toISOString() })
+        .eq('id', lead.id);
+
+      res.json({
+        success: true,
+        message: 'Call initiated',
+        callId: vapiCall.id,
+        logs
+      });
+    } catch (callError) {
+      log(`❌ VAPI call error: ${callError.response?.data?.message || callError.message}`);
+      res.json({
+        success: false,
+        error: callError.response?.data || callError.message,
+        logs
+      });
+    }
+  } catch (error) {
+    log(`❌ Error: ${error.message}`);
+    res.status(500).json({ error: error.message, logs });
+  }
+});
+
+// Manual campaign trigger endpoint (POST)
 app.post('/api/campaigns/:id/execute', async (req, res) => {
   const { id } = req.params;
 
