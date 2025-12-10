@@ -1517,6 +1517,75 @@ async function importCsvLeadsForCampaign(campaignId) {
   return { imported: inserted?.length || 0 };
 }
 
+// Debug endpoint for CSV import testing
+app.get('/api/debug/csv-import/:id', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (!campaign) {
+      return res.json({ error: 'Campaign not found' });
+    }
+
+    const csvData = campaign.settings?.csv_data;
+    if (!csvData) {
+      return res.json({ error: 'No CSV data in campaign settings', settings: campaign.settings });
+    }
+
+    // Parse CSV for debugging
+    const lines = csvData.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const parsedRows = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+
+      let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || row.phonenumber || '';
+      if (phone && !phone.startsWith('+')) phone = '+' + phone;
+
+      const firstName = row.firstname || row.first_name || row.fname || '';
+      const lastName = row.lastname || row.last_name || row.lname || '';
+      const name = row.name || row.full_name || row.fullname || `${firstName} ${lastName}`.trim() || 'Unknown';
+
+      parsedRows.push({
+        rawRow: row,
+        parsedName: name,
+        parsedPhone: phone,
+        hasValidPhone: !!phone
+      });
+    }
+
+    // Check existing leads
+    const { count: existingCount } = await supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+
+    res.json({
+      campaignId: id,
+      campaignName: campaign.name,
+      csvLines: lines.length,
+      headers: headers,
+      parsedRows: parsedRows,
+      existingLeadsCount: existingCount,
+      wouldImport: existingCount === 0 ? parsedRows.filter(r => r.hasValidPhone).length : 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Webhook/trigger for campaign creation
 app.post('/api/campaigns/:id/on-create', async (req, res) => {
   const { id } = req.params;
@@ -1525,6 +1594,7 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
   try {
     // Auto-import CSV leads
     const importResult = await importCsvLeadsForCampaign(id);
+    console.log(`📊 Import result:`, JSON.stringify(importResult));
 
     // If campaign is active and has leads, start processing
     const { data: campaign } = await supabase
@@ -1544,13 +1614,16 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
         success: true,
         leadsImported: importResult.imported,
         callsInitiated: result.calls,
-        message: `Campaign started with ${importResult.imported} leads`
+        message: `Campaign started with ${importResult.imported} leads`,
+        importDetails: importResult
       });
     } else {
       res.json({
         success: true,
         leadsImported: importResult.imported,
-        message: importResult.reason || 'Leads imported, campaign not started (not active or no leads)'
+        message: importResult.reason || 'Leads imported, campaign not started (not active or no leads)',
+        importDetails: importResult,
+        campaignStatus: campaign?.status
       });
     }
   } catch (error) {
