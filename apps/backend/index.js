@@ -1650,6 +1650,334 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 });
 
 // ============================================
+// DUPLICATE DETECTION & MANAGEMENT
+// ============================================
+
+// Check for duplicates before importing - returns detailed duplicate info
+app.post('/api/campaigns/:id/check-duplicates', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    const csvData = campaign.settings?.csv_data;
+    if (!csvData) {
+      return res.json({
+        hasDuplicates: false,
+        duplicates: [],
+        newContacts: [],
+        message: 'No CSV data in campaign'
+      });
+    }
+
+    // Parse CSV
+    const lines = csvData.trim().split('\n');
+    if (lines.length < 2) {
+      return res.json({ hasDuplicates: false, duplicates: [], newContacts: [] });
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const contacts = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+
+      let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || row.phonenumber || '';
+      if (phone && !phone.startsWith('+')) phone = '+' + phone;
+
+      const firstName = row.firstname || row.first_name || row.fname || '';
+      const lastName = row.lastname || row.last_name || row.lname || '';
+      const name = row.name || row.full_name || row.fullname || `${firstName} ${lastName}`.trim() || 'Unknown';
+
+      if (phone) {
+        contacts.push({ name, phone, email: row.email || null, company: row.company || null });
+      }
+    }
+
+    // Check for existing leads with these phone numbers
+    const phones = contacts.map(c => c.phone);
+    const { data: existingLeads } = await supabase
+      .from('leads')
+      .select('id, name, phone, email, company, campaign_id, status, created_at')
+      .eq('organization_id', campaign.organization_id)
+      .in('phone', phones);
+
+    // Get campaign names for existing leads
+    const campaignIds = [...new Set((existingLeads || []).map(l => l.campaign_id))];
+    const { data: campaigns } = await supabase
+      .from('campaigns')
+      .select('id, name')
+      .in('id', campaignIds);
+
+    const campaignMap = {};
+    (campaigns || []).forEach(c => { campaignMap[c.id] = c.name; });
+
+    // Categorize contacts
+    const existingPhones = new Set((existingLeads || []).map(l => l.phone));
+    const duplicates = [];
+    const newContacts = [];
+
+    for (const contact of contacts) {
+      if (existingPhones.has(contact.phone)) {
+        const existing = existingLeads.find(l => l.phone === contact.phone);
+        duplicates.push({
+          newContact: contact,
+          existingLead: {
+            ...existing,
+            campaignName: campaignMap[existing.campaign_id] || 'Unknown Campaign'
+          }
+        });
+      } else {
+        newContacts.push(contact);
+      }
+    }
+
+    res.json({
+      hasDuplicates: duplicates.length > 0,
+      totalContacts: contacts.length,
+      duplicateCount: duplicates.length,
+      newContactCount: newContacts.length,
+      duplicates: duplicates,
+      newContacts: newContacts,
+      message: duplicates.length > 0
+        ? `Found ${duplicates.length} contact(s) already in your database. Choose how to handle them.`
+        : 'All contacts are new - ready to import!'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Import leads with duplicate handling options
+// Options: skipDuplicates (default), callDuplicates, mergeDuplicates
+app.post('/api/campaigns/:id/import-with-options', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+  const {
+    duplicateAction = 'skip', // 'skip', 'call_anyway', 'add_to_campaign'
+    selectedDuplicates = []   // Array of phone numbers to include despite being duplicates
+  } = req.body;
+
+  try {
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    const csvData = campaign.settings?.csv_data;
+    if (!csvData) {
+      return res.json({ success: false, error: 'No CSV data in campaign' });
+    }
+
+    // Parse CSV
+    const lines = csvData.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const contacts = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+
+      let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || row.phonenumber || '';
+      if (phone && !phone.startsWith('+')) phone = '+' + phone;
+
+      const firstName = row.firstname || row.first_name || row.fname || '';
+      const lastName = row.lastname || row.last_name || row.lname || '';
+      const name = row.name || row.full_name || row.fullname || `${firstName} ${lastName}`.trim() || 'Unknown';
+
+      if (phone) {
+        contacts.push({
+          organization_id: campaign.organization_id,
+          campaign_id: campaign.id,
+          name,
+          phone,
+          email: row.email || null,
+          company: row.company || null,
+          source: 'manual',
+          status: 'new',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+    }
+
+    // Check for existing leads
+    const phones = contacts.map(c => c.phone);
+    const { data: existingLeads } = await supabase
+      .from('leads')
+      .select('id, phone, campaign_id')
+      .eq('organization_id', campaign.organization_id)
+      .in('phone', phones);
+
+    const existingPhones = new Set((existingLeads || []).map(l => l.phone));
+    const selectedSet = new Set(selectedDuplicates);
+
+    let leadsToImport = [];
+    let skippedDuplicates = [];
+    let duplicatesToCall = [];
+
+    for (const contact of contacts) {
+      const isDuplicate = existingPhones.has(contact.phone);
+
+      if (!isDuplicate) {
+        // New contact - always import
+        leadsToImport.push(contact);
+      } else if (duplicateAction === 'call_anyway' || selectedSet.has(contact.phone)) {
+        // User wants to call this duplicate
+        duplicatesToCall.push(contact);
+      } else if (duplicateAction === 'add_to_campaign') {
+        // Add duplicate to this campaign (creates new lead record)
+        leadsToImport.push(contact);
+      } else {
+        // Skip duplicate
+        skippedDuplicates.push(contact);
+      }
+    }
+
+    // Import new leads
+    let importedCount = 0;
+    if (leadsToImport.length > 0) {
+      const { data: inserted, error } = await supabase
+        .from('leads')
+        .insert(leadsToImport)
+        .select('id');
+
+      if (error) {
+        console.error('❌ Error importing leads:', error);
+        return res.status(500).json({ error: error.message });
+      }
+      importedCount = inserted?.length || 0;
+    }
+
+    // Handle duplicates that should be called
+    let duplicatesQueued = 0;
+    if (duplicatesToCall.length > 0) {
+      // Find the existing leads and reset them to 'new' status so they get called
+      const phonesToCall = duplicatesToCall.map(d => d.phone);
+      const existingToCall = existingLeads.filter(l => phonesToCall.includes(l.phone));
+
+      for (const existing of existingToCall) {
+        // Reset status to 'new' and move to this campaign
+        await supabase
+          .from('leads')
+          .update({
+            status: 'new',
+            campaign_id: campaign.id,
+            notes: `Re-queued for campaign "${campaign.name}" on ${new Date().toISOString()}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+        duplicatesQueued++;
+      }
+    }
+
+    // Start campaign processing if active and has leads
+    let callsInitiated = 0;
+    if (campaign.status === 'active' && (importedCount > 0 || duplicatesQueued > 0)) {
+      const result = await processSingleCampaign(campaign, false);
+      callsInitiated = result.calls || 0;
+    }
+
+    res.json({
+      success: true,
+      imported: importedCount,
+      duplicatesSkipped: skippedDuplicates.length,
+      duplicatesQueued: duplicatesQueued,
+      callsInitiated: callsInitiated,
+      message: `Imported ${importedCount} new contacts` +
+               (duplicatesQueued > 0 ? `, re-queued ${duplicatesQueued} existing contacts` : '') +
+               (skippedDuplicates.length > 0 ? `, skipped ${skippedDuplicates.length} duplicates` : '') +
+               (callsInitiated > 0 ? `. ${callsInitiated} call(s) started!` : '')
+    });
+  } catch (error) {
+    console.error('❌ Error in import-with-options:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get duplicate history - shows all contacts that have been called before
+app.get('/api/organizations/:orgId/duplicate-contacts', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { orgId } = req.params;
+
+  try {
+    // Get all leads with their call history
+    const { data: leads } = await supabase
+      .from('leads')
+      .select(`
+        id, name, phone, email, company, status, campaign_id, created_at,
+        calls (id, status, outcome, duration, created_at)
+      `)
+      .eq('organization_id', orgId)
+      .order('phone');
+
+    // Group by phone number to find duplicates
+    const phoneGroups = {};
+    for (const lead of leads || []) {
+      if (!phoneGroups[lead.phone]) {
+        phoneGroups[lead.phone] = [];
+      }
+      phoneGroups[lead.phone].push(lead);
+    }
+
+    // Find phones that appear multiple times OR have been contacted
+    const duplicates = [];
+    for (const [phone, entries] of Object.entries(phoneGroups)) {
+      const hasBeenCalled = entries.some(e => e.calls && e.calls.length > 0);
+      if (entries.length > 1 || hasBeenCalled) {
+        duplicates.push({
+          phone,
+          occurrences: entries.length,
+          hasBeenCalled,
+          totalCalls: entries.reduce((sum, e) => sum + (e.calls?.length || 0), 0),
+          entries: entries.map(e => ({
+            id: e.id,
+            name: e.name,
+            campaign_id: e.campaign_id,
+            status: e.status,
+            callCount: e.calls?.length || 0,
+            lastCall: e.calls?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null
+          }))
+        });
+      }
+    }
+
+    res.json({
+      totalDuplicates: duplicates.length,
+      duplicates: duplicates.sort((a, b) => b.totalCalls - a.totalCalls)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // CONCURRENT CALL LIMITING
 // ============================================
 
