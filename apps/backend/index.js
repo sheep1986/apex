@@ -152,16 +152,22 @@ async function makeVapiCall(apiKey, assistantId, phoneNumberId, customerPhone, c
       throw new Error(`Phone number too short: ${customerPhone}. Must have at least 10 digits including country code.`);
     }
 
+    // Webhook URL for receiving call events
+    const webhookUrl = process.env.WEBHOOK_URL || 'https://apex-backend-new.vercel.app/api/vapi/webhook';
+
     const payload = {
       assistantId,
       phoneNumberId,
       customer: {
         number: customerPhone,
         name: customerName || 'Unknown'
-      }
+      },
+      // Set webhook URL for this call to receive events
+      serverUrl: webhookUrl,
+      serverUrlSecret: process.env.VAPI_WEBHOOK_SECRET || 'apex-webhook-secret'
     };
 
-    console.log(`📞 Making VAPI call:`, JSON.stringify(payload));
+    console.log(`📞 Making VAPI call with webhook:`, JSON.stringify({ ...payload, serverUrlSecret: '***' }));
 
     const response = await axios.post('https://api.vapi.ai/call', payload, {
       headers: {
