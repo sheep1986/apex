@@ -611,6 +611,33 @@ app.get('/api/trigger-campaign-executor', async (req, res) => {
   }
 });
 
+// Debug endpoint to check all calls
+app.get('/api/debug/all-calls', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  try {
+    const { data: calls, error, count } = await supabase
+      .from('calls')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      return res.json({ error: 'Database error', details: error });
+    }
+
+    res.json({
+      success: true,
+      totalCalls: count,
+      calls: calls || []
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Debug endpoint to diagnose campaign issues
 app.get('/api/debug/campaigns', async (req, res) => {
   if (!supabase) {
