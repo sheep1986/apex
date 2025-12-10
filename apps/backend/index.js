@@ -873,6 +873,51 @@ app.post('/api/campaigns/:id/reset-leads', async (req, res) => {
   }
 });
 
+// Mark specific leads as skipped (for invalid phone numbers)
+app.post('/api/campaigns/:id/skip-invalid-leads', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    // Get all leads for this campaign
+    const { data: leads } = await supabase
+      .from('leads')
+      .select('id, phone, status')
+      .eq('campaign_id', id)
+      .eq('status', 'new');
+
+    const invalidLeadIds = [];
+    for (const lead of leads || []) {
+      const phone = lead.phone || '';
+      // Check if phone looks valid (11+ digits for international)
+      const digitsOnly = phone.replace(/\D/g, '');
+      if (digitsOnly.length < 11 || phone.match(/^(\+1)?234567/)) {
+        // Looks like a test/fake number
+        invalidLeadIds.push(lead.id);
+      }
+    }
+
+    if (invalidLeadIds.length > 0) {
+      await supabase
+        .from('leads')
+        .update({ status: 'invalid_phone', updated_at: new Date().toISOString() })
+        .in('id', invalidLeadIds);
+    }
+
+    res.json({
+      success: true,
+      message: `Marked ${invalidLeadIds.length} leads as invalid`,
+      invalidLeads: invalidLeadIds.length,
+      remainingNew: (leads?.length || 0) - invalidLeadIds.length
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Execute single campaign with detailed output
 app.get('/api/campaigns/:id/execute', async (req, res) => {
   if (!supabase) {
