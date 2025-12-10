@@ -559,6 +559,10 @@ app.get('/api/health', (req, res) => {
       cors_origin: process.env.CORS_ORIGIN || 'not set',
       frontend_url: process.env.FRONTEND_URL || 'not set',
       netlify_allowed: true
+    },
+    integrations: {
+      openai: !!process.env.OPENAI_API_KEY,
+      openaiKeyPreview: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 7) + '...' : 'not set'
     }
   });
 });
