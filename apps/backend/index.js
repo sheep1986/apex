@@ -1461,20 +1461,29 @@ async function importCsvLeadsForCampaign(campaignId) {
 
   // Parse CSV
   const lines = csvData.trim().split('\n');
+  console.log(`📊 CSV has ${lines.length} lines`);
   if (lines.length < 2) return { imported: 0, reason: 'no_data_rows' };
 
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  console.log(`📊 CSV headers: ${headers.join(', ')}`);
   const leads = [];
 
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',').map(v => v.trim());
     const row = {};
     headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+    console.log(`📊 Row ${i}:`, JSON.stringify(row));
 
-    let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || '';
+    // Handle multiple phone field naming conventions
+    let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || row.phonenumber || '';
     if (phone && !phone.startsWith('+')) phone = '+' + phone;
 
-    const name = row.name || row.full_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Unknown';
+    // Handle multiple name field naming conventions (camelCase and snake_case)
+    const firstName = row.firstname || row.first_name || row.fname || '';
+    const lastName = row.lastname || row.last_name || row.lname || '';
+    const name = row.name || row.full_name || row.fullname || `${firstName} ${lastName}`.trim() || 'Unknown';
+
+    console.log(`📊 Parsed: name="${name}", phone="${phone}"`);
 
     if (phone) {
       leads.push({
