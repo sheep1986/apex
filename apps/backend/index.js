@@ -174,6 +174,12 @@ function isWithinWorkingHours(campaign) {
   const now = new Date();
   const settings = campaign.settings || {};
 
+  // If workingHoursEnabled is explicitly false, always allow calls
+  if (settings.workingHoursEnabled === false) {
+    console.log(`⏰ Working hours disabled for campaign ${campaign.name} - allowing calls`);
+    return true;
+  }
+
   // Check day of week
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const currentDay = dayNames[now.getDay()];
@@ -658,10 +664,10 @@ app.get('/api/debug/campaigns/:id', async (req, res) => {
       return res.status(404).json({ error: 'Campaign not found', details: campError });
     }
 
-    // Get leads
+    // Get leads (only select columns that exist)
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
-      .select('id, name, first_name, last_name, phone, phone_number, email, status, created_at')
+      .select('*')
       .eq('campaign_id', id);
 
     // Get queue
