@@ -1503,18 +1503,35 @@ async function importCsvLeadsForCampaign(campaignId) {
 
   if (leads.length === 0) return { imported: 0, reason: 'no_valid_phones' };
 
+  // Check for existing leads with these phone numbers in this org
+  const phones = leads.map(l => l.phone);
+  const { data: existingLeads } = await supabase
+    .from('leads')
+    .select('phone')
+    .eq('organization_id', campaign.organization_id)
+    .in('phone', phones);
+
+  const existingPhones = new Set((existingLeads || []).map(l => l.phone));
+  const newLeads = leads.filter(l => !existingPhones.has(l.phone));
+  const skippedCount = leads.length - newLeads.length;
+
+  if (newLeads.length === 0) {
+    console.log(`⚠️ All ${leads.length} leads already exist in this organization`);
+    return { imported: 0, skipped: skippedCount, reason: 'all_duplicates' };
+  }
+
   const { data: inserted, error } = await supabase
     .from('leads')
-    .insert(leads)
+    .insert(newLeads)
     .select('id');
 
   if (error) {
     console.error('❌ Error importing leads:', error);
-    return { imported: 0, error: error.message };
+    return { imported: 0, skipped: skippedCount, error: error.message };
   }
 
-  console.log(`✅ Auto-imported ${inserted?.length || 0} leads for campaign ${campaign.name}`);
-  return { imported: inserted?.length || 0 };
+  console.log(`✅ Auto-imported ${inserted?.length || 0} leads for campaign ${campaign.name} (skipped ${skippedCount} duplicates)`);
+  return { imported: inserted?.length || 0, skipped: skippedCount };
 }
 
 // Debug endpoint for CSV import testing
