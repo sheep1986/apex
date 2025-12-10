@@ -141,16 +141,29 @@ async function getVapiCredentialsForOrganization(organizationId) {
 
 async function makeVapiCall(apiKey, assistantId, phoneNumberId, customerPhone, customerName) {
   try {
-    const response = await axios.post('https://api.vapi.ai/call', {
+    // Validate phone number format
+    if (!customerPhone || !customerPhone.startsWith('+')) {
+      throw new Error(`Invalid phone number format: ${customerPhone}. Must be E.164 format (e.g., +14155551234)`);
+    }
+
+    // Ensure phone is at least 10 digits (including country code)
+    const digitsOnly = customerPhone.replace(/\D/g, '');
+    if (digitsOnly.length < 10) {
+      throw new Error(`Phone number too short: ${customerPhone}. Must have at least 10 digits including country code.`);
+    }
+
+    const payload = {
       assistantId,
       phoneNumberId,
       customer: {
         number: customerPhone,
-        name: customerName
-      },
-      recordingEnabled: true,
-      transcriptionEnabled: true
-    }, {
+        name: customerName || 'Unknown'
+      }
+    };
+
+    console.log(`📞 Making VAPI call:`, JSON.stringify(payload));
+
+    const response = await axios.post('https://api.vapi.ai/call', payload, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
@@ -158,7 +171,7 @@ async function makeVapiCall(apiKey, assistantId, phoneNumberId, customerPhone, c
       timeout: 30000
     });
 
-    console.log(`📞 VAPI call created: ${response.data.id}`);
+    console.log(`✅ VAPI call created: ${response.data.id}`);
     return response.data;
   } catch (error) {
     console.error('❌ VAPI call error:', error.response?.data || error.message);
