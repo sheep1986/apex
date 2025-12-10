@@ -338,15 +338,18 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
 
   const checkForDuplicates = async (csvData: string) => {
     try {
-      const response = await fetch('http://localhost:3002/api/check-duplicates', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
+      // Note: The duplicate check is now handled by the on-create endpoint
+      // This function is kept for backward compatibility but may not be used
+      const response = await fetch(`${API_BASE_URL}/api/check-duplicates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           csvData,
-          organizationId: user?.organizationId
+          organizationId: localStorage.getItem('organization_id')
         })
       });
-      
+
       const data = await response.json();
       return data;
     } catch (error) {

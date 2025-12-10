@@ -117,6 +117,23 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
     balanceStatus: 'healthy' | 'warning' | 'critical';
   } | null>(null);
 
+  // Duplicate detection state
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{
+    hasDuplicates: boolean;
+    duplicateCount: number;
+    totalContacts: number;
+    duplicates: Array<{
+      phone: string;
+      name: string;
+      existingCampaign: string;
+      status: string;
+    }>;
+    message: string;
+  } | null>(null);
+  const [handleDuplicatesOption, setHandleDuplicatesOption] = useState<'skip' | 'call_anyway'>('skip');
+  const [pendingCampaignId, setPendingCampaignId] = useState<string | null>(null);
+
   // Auto-show help content for each step
   useEffect(() => {
     if (currentStep > 1) {
@@ -1534,7 +1551,7 @@ The review section provides detailed estimates for your campaign including durat
       if (whenToSend === 'now') {
         const { error: updateError } = await supabase
           .from('campaigns')
-          .update({ 
+          .update({
             status: 'active',
             settings: {
               ...campaign.settings,
@@ -1542,10 +1559,51 @@ The review section provides detailed estimates for your campaign including durat
             }
           })
           .eq('id', campaign.id);
-        
+
         if (updateError) {
           console.error('❌ Error starting campaign:', updateError);
         }
+      }
+
+      // Call backend on-create endpoint to import leads and check for duplicates
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
+      try {
+        console.log('📡 Calling backend on-create endpoint...');
+        const onCreateResponse = await fetch(`${API_BASE_URL}/api/campaigns/${campaign.id}/on-create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            handleDuplicates: handleDuplicatesOption
+          }),
+        });
+
+        const onCreateResult = await onCreateResponse.json();
+        console.log('📊 On-create result:', onCreateResult);
+
+        // Check if duplicates were found
+        if (onCreateResult.duplicateInfo?.hasDuplicates) {
+          setDuplicateInfo(onCreateResult.duplicateInfo);
+          setPendingCampaignId(campaign.id);
+          setShowDuplicateWarning(true);
+
+          toast({
+            title: 'Duplicate contacts found',
+            description: onCreateResult.duplicateInfo.message,
+            variant: 'default',
+          });
+        }
+
+        // Show import results
+        if (onCreateResult.leadsImported > 0 || onCreateResult.callsInitiated > 0) {
+          toast({
+            title: 'Campaign ready',
+            description: `Imported ${onCreateResult.leadsImported || 0} leads. ${onCreateResult.callsInitiated || 0} call(s) initiated.`,
+          });
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Backend on-create call failed (leads may need manual import):', backendError);
       }
 
       toast({
@@ -3130,6 +3188,113 @@ The review section provides detailed estimates for your campaign including durat
           )}
         </div>
       </div>
+
+      {/* Duplicate Warning Modal */}
+      {showDuplicateWarning && duplicateInfo && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="mx-4 max-w-lg w-full rounded-xl bg-gray-900 border border-yellow-600/30 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-yellow-600/10 border-b border-yellow-600/30 px-6 py-4">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-600/20">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Duplicate Contacts Found</h3>
+                  <p className="text-sm text-yellow-300/80">{duplicateInfo.message}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-4 space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">Total contacts in CSV:</span>
+                <span className="text-white font-medium">{duplicateInfo.totalContacts}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">Duplicates found:</span>
+                <span className="text-yellow-500 font-medium">{duplicateInfo.duplicateCount}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">New contacts:</span>
+                <span className="text-emerald-500 font-medium">{duplicateInfo.totalContacts - duplicateInfo.duplicateCount}</span>
+              </div>
+
+              {/* Duplicate List */}
+              <div className="mt-4">
+                <p className="text-sm text-gray-400 mb-2">Existing contacts:</p>
+                <div className="max-h-48 overflow-y-auto rounded-lg bg-gray-800/50 border border-gray-700/50">
+                  {duplicateInfo.duplicates.slice(0, 10).map((dup, idx) => (
+                    <div key={idx} className="px-3 py-2 border-b border-gray-700/30 last:border-b-0">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-white">{dup.name}</p>
+                          <p className="text-xs text-gray-500">{dup.phone}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">In: {dup.existingCampaign}</p>
+                          <p className="text-xs text-gray-500">Status: {dup.status}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {duplicateInfo.duplicates.length > 10 && (
+                    <div className="px-3 py-2 text-center text-xs text-gray-500">
+                      ...and {duplicateInfo.duplicates.length - 10} more
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-400 mt-4">
+                Would you like to call these contacts again in this campaign?
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-800/30 border-t border-gray-700/50 px-6 py-4 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDuplicateWarning(false);
+                  setDuplicateInfo(null);
+                  setPendingCampaignId(null);
+                }}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-600 hover:border-gray-500 rounded-lg transition-colors"
+              >
+                Skip Duplicates
+              </button>
+              <button
+                onClick={async () => {
+                  if (pendingCampaignId) {
+                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
+                    try {
+                      const response = await fetch(`${API_BASE_URL}/api/campaigns/${pendingCampaignId}/on-create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ handleDuplicates: 'call_anyway' }),
+                      });
+                      const result = await response.json();
+                      toast({
+                        title: 'Duplicates re-queued',
+                        description: `${result.duplicatesQueued || duplicateInfo.duplicateCount} contact(s) will be called again.`,
+                      });
+                    } catch (err) {
+                      console.error('Error re-queuing duplicates:', err);
+                    }
+                  }
+                  setShowDuplicateWarning(false);
+                  setDuplicateInfo(null);
+                  setPendingCampaignId(null);
+                }}
+                className="px-4 py-2 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+              >
+                Call Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
