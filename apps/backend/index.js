@@ -340,15 +340,20 @@ async function processSingleCampaign(campaign, forceRun = false) {
     console.log(`📝 No pending queue items, checking for leads...`);
 
     // Check for leads in the leads table for this campaign
-    const { data: leads } = await supabase
+    const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
       .eq('campaign_id', campaign.id)
       .eq('status', 'new')
       .limit(50);
 
+    if (leadsError) {
+      console.error('❌ Error fetching leads:', leadsError);
+    }
+
+    console.log(`📋 Found ${leads?.length || 0} new leads for campaign ${campaign.id}`);
     if (leads && leads.length > 0) {
-      console.log(`📋 Found ${leads.length} new leads, creating queue items...`);
+      console.log(`📋 Lead details:`, leads.map(l => ({ id: l.id, name: l.name, phone: l.phone || l.phone_number, status: l.status })));
 
       const queueEntries = leads.map(lead => ({
         campaign_id: campaign.id,
@@ -627,6 +632,81 @@ app.get('/api/debug/campaigns', async (req, res) => {
       timeInfo,
       campaignCount: diagnostics.length,
       campaigns: diagnostics
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug a specific campaign's leads and settings
+app.get('/api/debug/campaigns/:id', async (req, res) => {
+  if (!supabase) {
+    return res.json({ error: 'Supabase not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    // Get campaign
+    const { data: campaign, error: campError } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (campError || !campaign) {
+      return res.status(404).json({ error: 'Campaign not found', details: campError });
+    }
+
+    // Get leads
+    const { data: leads, error: leadsError } = await supabase
+      .from('leads')
+      .select('id, name, first_name, last_name, phone, phone_number, email, status, created_at')
+      .eq('campaign_id', id);
+
+    // Get queue
+    const { data: queue, error: queueError } = await supabase
+      .from('call_queue')
+      .select('*')
+      .eq('campaign_id', id);
+
+    // Get VAPI credentials
+    const vapiKey = await getVapiCredentialsForOrganization(campaign.organization_id);
+
+    // Check working hours
+    const withinHours = isWithinWorkingHours(campaign);
+
+    res.json({
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        organization_id: campaign.organization_id,
+        settings: campaign.settings,
+        assistant_id: campaign.assistant_id,
+        phone_number_id: campaign.phone_number_id
+      },
+      vapi: {
+        hasCredentials: !!vapiKey,
+        keyPreview: vapiKey ? vapiKey.substring(0, 15) + '...' : null,
+        assistantId: campaign.settings?.assistant_id || campaign.assistant_id,
+        phoneNumberId: campaign.settings?.phone_number_id || campaign.phone_number_id
+      },
+      workingHours: {
+        isWithin: withinHours,
+        config: campaign.settings?.workingHours,
+        serverTime: new Date().toISOString()
+      },
+      leads: {
+        total: leads?.length || 0,
+        error: leadsError?.message,
+        items: leads?.slice(0, 10) // First 10 leads
+      },
+      queue: {
+        total: queue?.length || 0,
+        error: queueError?.message,
+        items: queue?.slice(0, 10) // First 10 queue items
+      }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
