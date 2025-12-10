@@ -6,7 +6,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/api/:splat"
+  to = "https://apex-backend-new.vercel.app/api/:splat"
   status = 200
   force = true
 
