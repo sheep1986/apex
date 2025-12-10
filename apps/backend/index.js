@@ -1606,23 +1606,126 @@ app.get('/api/debug/csv-import/:id', async (req, res) => {
 // Webhook/trigger for campaign creation
 app.post('/api/campaigns/:id/on-create', async (req, res) => {
   const { id } = req.params;
-  console.log(`🆕 Campaign created/updated: ${id}`);
+  const { handleDuplicates = 'skip' } = req.body || {}; // 'skip', 'call_anyway'
+  console.log(`🆕 Campaign created/updated: ${id} (handleDuplicates: ${handleDuplicates})`);
 
   try {
-    // Auto-import CSV leads
-    const importResult = await importCsvLeadsForCampaign(id);
-    console.log(`📊 Import result:`, JSON.stringify(importResult));
-
-    // If campaign is active and has leads, start processing
+    // Get campaign first
     const { data: campaign } = await supabase
       .from('campaigns')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (campaign && campaign.status === 'active' && importResult.imported > 0) {
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Check for duplicates first
+    const csvData = campaign.settings?.csv_data;
+    let duplicateInfo = { hasDuplicates: false, duplicates: [], skipped: 0 };
+
+    if (csvData) {
+      // Parse CSV to check for duplicates
+      const lines = csvData.trim().split('\n');
+      if (lines.length >= 2) {
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const phones = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',').map(v => v.trim());
+          const row = {};
+          headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+
+          let phone = row.phone || row.phone_number || row.number || row.mobile || row.cell || row.phonenumber || '';
+          if (phone && !phone.startsWith('+')) phone = '+' + phone;
+          if (phone) phones.push(phone);
+        }
+
+        // Check for existing leads with these phones
+        if (phones.length > 0) {
+          const { data: existingLeads } = await supabase
+            .from('leads')
+            .select('id, name, phone, campaign_id, status')
+            .eq('organization_id', campaign.organization_id)
+            .in('phone', phones);
+
+          if (existingLeads && existingLeads.length > 0) {
+            // Get campaign names for duplicates
+            const campaignIds = [...new Set(existingLeads.map(l => l.campaign_id))];
+            const { data: campaigns } = await supabase
+              .from('campaigns')
+              .select('id, name')
+              .in('id', campaignIds);
+
+            const campaignMap = {};
+            (campaigns || []).forEach(c => { campaignMap[c.id] = c.name; });
+
+            duplicateInfo = {
+              hasDuplicates: true,
+              duplicateCount: existingLeads.length,
+              totalContacts: phones.length,
+              duplicates: existingLeads.map(l => ({
+                phone: l.phone,
+                name: l.name,
+                existingCampaign: campaignMap[l.campaign_id] || 'Unknown',
+                status: l.status
+              })),
+              message: `Found ${existingLeads.length} contact(s) already in your database`
+            };
+          }
+        }
+      }
+    }
+
+    // If duplicates found and user hasn't chosen to call anyway, return early with duplicate info
+    if (duplicateInfo.hasDuplicates && handleDuplicates === 'ask') {
+      return res.json({
+        success: true,
+        requiresAction: true,
+        action: 'duplicate_found',
+        duplicateInfo: duplicateInfo,
+        message: duplicateInfo.message,
+        hint: 'Call this endpoint again with handleDuplicates: "skip" or "call_anyway" in the request body'
+      });
+    }
+
+    // Auto-import CSV leads (will skip duplicates by default)
+    const importResult = await importCsvLeadsForCampaign(id);
+    console.log(`📊 Import result:`, JSON.stringify(importResult));
+
+    // Handle "call_anyway" for duplicates
+    let duplicatesQueued = 0;
+    if (handleDuplicates === 'call_anyway' && duplicateInfo.hasDuplicates) {
+      // Reset existing leads to 'new' status so they get called
+      const dupPhones = duplicateInfo.duplicates.map(d => d.phone);
+      const { data: existingToReset } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('organization_id', campaign.organization_id)
+        .in('phone', dupPhones);
+
+      if (existingToReset && existingToReset.length > 0) {
+        await supabase
+          .from('leads')
+          .update({
+            status: 'new',
+            campaign_id: campaign.id,
+            notes: `Re-queued for campaign "${campaign.name}" on ${new Date().toISOString()}`,
+            updated_at: new Date().toISOString()
+          })
+          .in('id', existingToReset.map(l => l.id));
+        duplicatesQueued = existingToReset.length;
+        console.log(`✅ Re-queued ${duplicatesQueued} duplicates for calling`);
+      }
+    }
+
+    // If campaign is active and has leads, start processing
+    const totalLeadsReady = importResult.imported + duplicatesQueued;
+
+    if (campaign.status === 'active' && totalLeadsReady > 0) {
       // Trigger initial processing
-      console.log(`🚀 Auto-starting campaign ${campaign.name} with ${importResult.imported} leads`);
+      console.log(`🚀 Auto-starting campaign ${campaign.name} with ${totalLeadsReady} leads`);
 
       // Process the campaign (respecting concurrent limits)
       const result = await processSingleCampaign(campaign, false);
@@ -1630,16 +1733,21 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
       res.json({
         success: true,
         leadsImported: importResult.imported,
+        duplicatesQueued: duplicatesQueued,
         callsInitiated: result.calls,
-        message: `Campaign started with ${importResult.imported} leads`,
-        importDetails: importResult
+        message: `Campaign started with ${totalLeadsReady} leads` +
+                 (duplicateInfo.hasDuplicates ? ` (${importResult.skipped || 0} duplicates ${handleDuplicates === 'call_anyway' ? 're-queued' : 'skipped'})` : ''),
+        importDetails: importResult,
+        duplicateInfo: duplicateInfo.hasDuplicates ? duplicateInfo : undefined
       });
     } else {
       res.json({
         success: true,
         leadsImported: importResult.imported,
+        duplicatesQueued: duplicatesQueued,
         message: importResult.reason || 'Leads imported, campaign not started (not active or no leads)',
         importDetails: importResult,
+        duplicateInfo: duplicateInfo.hasDuplicates ? duplicateInfo : undefined,
         campaignStatus: campaign?.status
       });
     }
