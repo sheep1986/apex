@@ -30,6 +30,9 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { CampaignWizard } from './CampaignWizard';
 import { CampaignDashboard } from './CampaignDashboard';
+import { DeleteConfirmationDialog } from '../ui/delete-confirmation-dialog';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface CampaignListProps {
   websocketUrl: string;
@@ -72,6 +75,9 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [filters, setFilters] = useState<CampaignFilters>({
     search: '',
     status: 'all',
@@ -91,7 +97,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
 
   const fetchCampaigns = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/campaigns', {
+      const response = await fetch(`${API_BASE_URL}/api/campaigns`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -188,7 +194,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
   const handleCampaignControl = async (campaignId: string, action: 'start' | 'pause' | 'stop') => {
     try {
       const endpoint = action === 'start' ? 'start' : 'pause';
-      const response = await fetch(`http://localhost:3001/api/campaigns/${campaignId}/${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}/api/campaigns/${campaignId}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -206,7 +212,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
 
   const handleDuplicateCampaign = async (campaignId: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/campaigns/${campaignId}/duplicate`, {
+      const response = await fetch(`${API_BASE_URL}/api/campaigns/${campaignId}/duplicate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -222,23 +228,40 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
     }
   };
 
-  const handleDeleteCampaign = async (campaignId: string) => {
-    if (!confirm('Are you sure you want to delete this campaign?')) return;
+  const openDeleteDialog = (campaign: Campaign) => {
+    setCampaignToDelete(campaign);
+    setDeleteDialogOpen(true);
+  };
 
+  const handleDeleteCampaign = async () => {
+    if (!campaignToDelete) return;
+
+    setIsDeleting(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/campaigns/${campaignId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `${API_BASE_URL}/api/campaigns/${campaignToDelete.id}?confirmText=DELETE&deleteLeads=true&deleteCalls=true`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
         }
-      });
+      );
 
-      if (response.ok) {
-        fetchCampaigns();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete campaign');
       }
+
+      fetchCampaigns();
+      setDeleteDialogOpen(false);
+      setCampaignToDelete(null);
     } catch (error) {
       console.error('Error deleting campaign:', error);
+      throw error;
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -618,11 +641,12 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
                   <Copy className="w-4 h-4" />
                 </Button>
 
-                <Button 
+                <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleDeleteCampaign(campaign.id)}
+                  onClick={() => openDeleteDialog(campaign)}
                   disabled={campaign.status === 'active'}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -669,6 +693,17 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
           />
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Campaign"
+        description="Are you sure you want to delete this campaign? This will also delete all associated leads and call records."
+        itemName={campaignToDelete?.name}
+        onConfirm={handleDeleteCampaign}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
