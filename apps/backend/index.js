@@ -2283,6 +2283,289 @@ async function processSingleCampaignWithConcurrency(campaign, forceRun = false) 
   return processSingleCampaign(campaign, forceRun, availableSlots);
 }
 
+// ============================================
+// DELETE ENDPOINTS
+// ============================================
+
+// Delete a single campaign (with option to delete related data)
+app.delete('/api/campaigns/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database not initialized' });
+  }
+
+  const { id } = req.params;
+  const { deleteLeads, deleteCalls, deleteQueue } = req.query;
+
+  try {
+    // Check if campaign exists
+    const { data: campaign, error: findError } = await supabase
+      .from('campaigns')
+      .select('id, name, organization_id')
+      .eq('id', id)
+      .single();
+
+    if (findError || !campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    const deleted = { campaign: false, leads: 0, calls: 0, queue: 0 };
+
+    // Delete related calls if requested
+    if (deleteCalls === 'true') {
+      const { data: deletedCalls } = await supabase
+        .from('calls')
+        .delete()
+        .eq('campaign_id', id)
+        .select('id');
+      deleted.calls = deletedCalls?.length || 0;
+    }
+
+    // Delete related leads if requested
+    if (deleteLeads === 'true') {
+      const { data: deletedLeads } = await supabase
+        .from('leads')
+        .delete()
+        .eq('campaign_id', id)
+        .select('id');
+      deleted.leads = deletedLeads?.length || 0;
+    }
+
+    // Delete related queue items if requested
+    if (deleteQueue === 'true') {
+      const { data: deletedQueue } = await supabase
+        .from('call_queue')
+        .delete()
+        .eq('campaign_id', id)
+        .select('id');
+      deleted.queue = deletedQueue?.length || 0;
+    }
+
+    // Delete the campaign
+    const { error: deleteError } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: 'Failed to delete campaign', details: deleteError.message });
+    }
+
+    deleted.campaign = true;
+
+    res.json({
+      success: true,
+      message: `Campaign "${campaign.name}" deleted`,
+      deleted
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a single lead
+app.delete('/api/leads/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const { data: lead, error: findError } = await supabase
+      .from('leads')
+      .select('id, name, phone')
+      .eq('id', id)
+      .single();
+
+    if (findError || !lead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('leads')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: 'Failed to delete lead', details: deleteError.message });
+    }
+
+    res.json({
+      success: true,
+      message: `Lead "${lead.name}" (${lead.phone}) deleted`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a single call
+app.delete('/api/calls/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const { data: call, error: findError } = await supabase
+      .from('calls')
+      .select('id, vapi_call_id, customer_name')
+      .eq('id', id)
+      .single();
+
+    if (findError || !call) {
+      return res.status(404).json({ error: 'Call not found' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('calls')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: 'Failed to delete call', details: deleteError.message });
+    }
+
+    res.json({
+      success: true,
+      message: `Call for "${call.customer_name}" deleted`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk delete campaigns by organization
+app.delete('/api/organizations/:orgId/campaigns', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database not initialized' });
+  }
+
+  const { orgId } = req.params;
+  const { deleteLeads, deleteCalls, deleteQueue, confirm } = req.query;
+
+  if (confirm !== 'true') {
+    return res.status(400).json({
+      error: 'Confirmation required',
+      message: 'Add ?confirm=true to confirm bulk deletion. This action cannot be undone.'
+    });
+  }
+
+  try {
+    const deleted = { campaigns: 0, leads: 0, calls: 0, queue: 0 };
+
+    // Get all campaign IDs for this org
+    const { data: campaigns } = await supabase
+      .from('campaigns')
+      .select('id')
+      .eq('organization_id', orgId);
+
+    const campaignIds = campaigns?.map(c => c.id) || [];
+
+    if (campaignIds.length === 0) {
+      return res.json({ success: true, message: 'No campaigns to delete', deleted });
+    }
+
+    // Delete related calls if requested
+    if (deleteCalls === 'true') {
+      const { data: deletedCalls } = await supabase
+        .from('calls')
+        .delete()
+        .in('campaign_id', campaignIds)
+        .select('id');
+      deleted.calls = deletedCalls?.length || 0;
+    }
+
+    // Delete related leads if requested
+    if (deleteLeads === 'true') {
+      const { data: deletedLeads } = await supabase
+        .from('leads')
+        .delete()
+        .in('campaign_id', campaignIds)
+        .select('id');
+      deleted.leads = deletedLeads?.length || 0;
+    }
+
+    // Delete related queue items if requested
+    if (deleteQueue === 'true') {
+      const { data: deletedQueue } = await supabase
+        .from('call_queue')
+        .delete()
+        .in('campaign_id', campaignIds)
+        .select('id');
+      deleted.queue = deletedQueue?.length || 0;
+    }
+
+    // Delete all campaigns
+    const { data: deletedCampaigns } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('organization_id', orgId)
+      .select('id');
+
+    deleted.campaigns = deletedCampaigns?.length || 0;
+
+    res.json({
+      success: true,
+      message: `Deleted ${deleted.campaigns} campaigns for organization`,
+      deleted
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk delete all leads for a campaign
+app.delete('/api/campaigns/:id/leads', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const { data: deletedLeads } = await supabase
+      .from('leads')
+      .delete()
+      .eq('campaign_id', id)
+      .select('id');
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedLeads?.length || 0} leads`,
+      deleted: deletedLeads?.length || 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk delete all calls for a campaign
+app.delete('/api/campaigns/:id/calls', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database not initialized' });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const { data: deletedCalls } = await supabase
+      .from('calls')
+      .delete()
+      .eq('campaign_id', id)
+      .select('id');
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCalls?.length || 0} calls`,
+      deleted: deletedCalls?.length || 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   console.log(`❌ 404: ${req.method} ${req.originalUrl}`);
