@@ -1409,6 +1409,9 @@ app.post('/api/vapi/webhook', async (req, res) => {
           };
 
           // First try to update the call record
+          console.log(`📝 Updating call record for vapi_call_id: ${callId}`);
+          console.log(`📝 Update data:`, JSON.stringify(updateData));
+
           const { data: callRecords, error: updateError } = await supabase
             .from('calls')
             .update(updateData)
@@ -1416,6 +1419,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
             .select('*, campaign_id, lead_id, organization_id');
 
           const callRecord = callRecords?.[0];
+          console.log(`📝 Update result: ${callRecords?.length || 0} records, error: ${updateError?.message || 'none'}`);
 
           if (updateError) {
             console.error('❌ Error updating call:', updateError);
