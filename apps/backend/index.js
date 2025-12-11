@@ -1396,14 +1396,14 @@ app.post('/api/vapi/webhook', async (req, res) => {
             outcome = 'hung_up';
           }
 
-          // Update call record (note: don't set 'outcome' as it may have check constraint)
+          // Update call record (note: column is 'end_reason' not 'ended_reason')
           const updateData = {
             status: 'completed',
             ended_at: call.endedAt || new Date().toISOString(),
             duration: duration,
             transcript: transcript,
             recording_url: recordingUrl,
-            ended_reason: endedReason,
+            end_reason: endedReason,
             updated_at: new Date().toISOString()
           };
 
