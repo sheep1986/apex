@@ -1356,6 +1356,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
   try {
     const event = req.body;
     const eventType = event.message?.type || event.type;
+    console.log(`📥 Processing event type: ${eventType}`);
 
     // Handle different VAPI event types
     switch (eventType) {
@@ -1488,6 +1489,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
         console.log(`📥 Unhandled VAPI event: ${eventType}`);
     }
 
+    console.log(`✅ Webhook processing complete for event: ${eventType}`);
     res.json({ success: true, received: eventType });
   } catch (error) {
     console.error('❌ Webhook error:', error);
