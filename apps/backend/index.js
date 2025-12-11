@@ -1349,9 +1349,36 @@ async function pushToCRM(callData, analysis, campaign) {
   return true;
 }
 
+// Store recent webhooks in memory for debugging (keeps last 20)
+const recentWebhooks = [];
+const MAX_WEBHOOK_LOGS = 20;
+
+// Debug endpoint to view recent webhooks
+app.get('/api/debug/webhooks', (req, res) => {
+  res.json({
+    count: recentWebhooks.length,
+    webhooks: recentWebhooks
+  });
+});
+
 // VAPI Webhook endpoint
 app.post('/api/vapi/webhook', async (req, res) => {
+  const timestamp = new Date().toISOString();
   console.log('📥 VAPI webhook received:', JSON.stringify(req.body).substring(0, 500));
+
+  // Log webhook for debugging
+  recentWebhooks.unshift({
+    timestamp,
+    headers: {
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent'],
+      'x-vapi-signature': req.headers['x-vapi-signature'] ? 'present' : 'missing'
+    },
+    body: JSON.stringify(req.body).substring(0, 1000)
+  });
+  if (recentWebhooks.length > MAX_WEBHOOK_LOGS) {
+    recentWebhooks.pop();
+  }
 
   try {
     const event = req.body;
@@ -2284,6 +2311,63 @@ async function processSingleCampaignWithConcurrency(campaign, forceRun = false) 
 }
 
 // ============================================
+// AUDIT LOGGING
+// ============================================
+
+async function createAuditLog(action, resourceType, resourceId, resourceName, userId, userEmail, organizationId, details = {}) {
+  if (!supabase) return;
+
+  try {
+    await supabase.from('audit_logs').insert({
+      action,
+      resource_type: resourceType,
+      resource_id: resourceId,
+      resource_name: resourceName,
+      user_id: userId,
+      user_email: userEmail,
+      organization_id: organizationId,
+      details,
+      created_at: new Date().toISOString()
+    });
+  } catch (err) {
+    // Audit log table might not exist - that's ok, just log
+    console.log('⚠️ Could not create audit log (table may not exist):', err.message);
+  }
+}
+
+// Get audit logs for an organization
+app.get('/api/organizations/:orgId/audit-logs', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database not initialized' });
+  }
+
+  const { orgId } = req.params;
+  const { limit = 50, offset = 0, action, resourceType } = req.query;
+
+  try {
+    let query = supabase
+      .from('audit_logs')
+      .select('*')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false })
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+    if (action) query = query.eq('action', action);
+    if (resourceType) query = query.eq('resource_type', resourceType);
+
+    const { data, error } = await query;
+
+    if (error) {
+      return res.status(500).json({ error: 'Failed to fetch audit logs', details: error.message });
+    }
+
+    res.json({ success: true, logs: data || [] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // DELETE ENDPOINTS
 // ============================================
 
@@ -2294,7 +2378,17 @@ app.delete('/api/campaigns/:id', async (req, res) => {
   }
 
   const { id } = req.params;
-  const { deleteLeads, deleteCalls, deleteQueue } = req.query;
+  const { deleteLeads, deleteCalls, deleteQueue, confirmText } = req.query;
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
+
+  // Require "DELETE" confirmation
+  if (confirmText !== 'DELETE') {
+    return res.status(400).json({
+      error: 'Confirmation required',
+      message: 'You must add ?confirmText=DELETE to confirm deletion. This action cannot be undone.'
+    });
+  }
 
   try {
     // Check if campaign exists
@@ -2352,6 +2446,18 @@ app.delete('/api/campaigns/:id', async (req, res) => {
 
     deleted.campaign = true;
 
+    // Create audit log
+    await createAuditLog(
+      'delete',
+      'campaign',
+      id,
+      campaign.name,
+      userId,
+      userEmail,
+      campaign.organization_id,
+      { deleted, deleteLeads: deleteLeads === 'true', deleteCalls: deleteCalls === 'true' }
+    );
+
     res.json({
       success: true,
       message: `Campaign "${campaign.name}" deleted`,
@@ -2369,11 +2475,22 @@ app.delete('/api/leads/:id', async (req, res) => {
   }
 
   const { id } = req.params;
+  const { confirmText } = req.query;
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
+
+  // Require "DELETE" confirmation
+  if (confirmText !== 'DELETE') {
+    return res.status(400).json({
+      error: 'Confirmation required',
+      message: 'You must add ?confirmText=DELETE to confirm deletion.'
+    });
+  }
 
   try {
     const { data: lead, error: findError } = await supabase
       .from('leads')
-      .select('id, name, phone')
+      .select('id, name, phone, organization_id')
       .eq('id', id)
       .single();
 
@@ -2389,6 +2506,18 @@ app.delete('/api/leads/:id', async (req, res) => {
     if (deleteError) {
       return res.status(500).json({ error: 'Failed to delete lead', details: deleteError.message });
     }
+
+    // Create audit log
+    await createAuditLog(
+      'delete',
+      'lead',
+      id,
+      `${lead.name} (${lead.phone})`,
+      userId,
+      userEmail,
+      lead.organization_id,
+      { phone: lead.phone }
+    );
 
     res.json({
       success: true,
@@ -2406,11 +2535,22 @@ app.delete('/api/calls/:id', async (req, res) => {
   }
 
   const { id } = req.params;
+  const { confirmText } = req.query;
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
+
+  // Require "DELETE" confirmation
+  if (confirmText !== 'DELETE') {
+    return res.status(400).json({
+      error: 'Confirmation required',
+      message: 'You must add ?confirmText=DELETE to confirm deletion.'
+    });
+  }
 
   try {
     const { data: call, error: findError } = await supabase
       .from('calls')
-      .select('id, vapi_call_id, customer_name')
+      .select('id, vapi_call_id, customer_name, organization_id')
       .eq('id', id)
       .single();
 
@@ -2426,6 +2566,18 @@ app.delete('/api/calls/:id', async (req, res) => {
     if (deleteError) {
       return res.status(500).json({ error: 'Failed to delete call', details: deleteError.message });
     }
+
+    // Create audit log
+    await createAuditLog(
+      'delete',
+      'call',
+      id,
+      call.customer_name,
+      userId,
+      userEmail,
+      call.organization_id,
+      { vapi_call_id: call.vapi_call_id }
+    );
 
     res.json({
       success: true,
@@ -2443,12 +2595,15 @@ app.delete('/api/organizations/:orgId/campaigns', async (req, res) => {
   }
 
   const { orgId } = req.params;
-  const { deleteLeads, deleteCalls, deleteQueue, confirm } = req.query;
+  const { deleteLeads, deleteCalls, deleteQueue, confirmText } = req.query;
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
 
-  if (confirm !== 'true') {
+  // Require "DELETE" confirmation
+  if (confirmText !== 'DELETE') {
     return res.status(400).json({
       error: 'Confirmation required',
-      message: 'Add ?confirm=true to confirm bulk deletion. This action cannot be undone.'
+      message: 'You must add ?confirmText=DELETE to confirm bulk deletion. This action cannot be undone.'
     });
   }
 
@@ -2506,6 +2661,18 @@ app.delete('/api/organizations/:orgId/campaigns', async (req, res) => {
 
     deleted.campaigns = deletedCampaigns?.length || 0;
 
+    // Create audit log for bulk delete
+    await createAuditLog(
+      'bulk_delete',
+      'campaigns',
+      orgId,
+      `${deleted.campaigns} campaigns`,
+      userId,
+      userEmail,
+      orgId,
+      { deleted }
+    );
+
     res.json({
       success: true,
       message: `Deleted ${deleted.campaigns} campaigns for organization`,
@@ -2523,13 +2690,44 @@ app.delete('/api/campaigns/:id/leads', async (req, res) => {
   }
 
   const { id } = req.params;
+  const { confirmText } = req.query;
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
+
+  if (confirmText !== 'DELETE') {
+    return res.status(400).json({
+      error: 'Confirmation required',
+      message: 'You must add ?confirmText=DELETE to confirm deletion.'
+    });
+  }
 
   try {
+    // Get campaign info for audit log
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('name, organization_id')
+      .eq('id', id)
+      .single();
+
     const { data: deletedLeads } = await supabase
       .from('leads')
       .delete()
       .eq('campaign_id', id)
       .select('id');
+
+    // Create audit log
+    if (campaign) {
+      await createAuditLog(
+        'bulk_delete',
+        'leads',
+        id,
+        `${deletedLeads?.length || 0} leads from "${campaign.name}"`,
+        userId,
+        userEmail,
+        campaign.organization_id,
+        { campaign_id: id, count: deletedLeads?.length || 0 }
+      );
+    }
 
     res.json({
       success: true,
@@ -2548,13 +2746,44 @@ app.delete('/api/campaigns/:id/calls', async (req, res) => {
   }
 
   const { id } = req.params;
+  const { confirmText } = req.query;
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
+
+  if (confirmText !== 'DELETE') {
+    return res.status(400).json({
+      error: 'Confirmation required',
+      message: 'You must add ?confirmText=DELETE to confirm deletion.'
+    });
+  }
 
   try {
+    // Get campaign info for audit log
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('name, organization_id')
+      .eq('id', id)
+      .single();
+
     const { data: deletedCalls } = await supabase
       .from('calls')
       .delete()
       .eq('campaign_id', id)
       .select('id');
+
+    // Create audit log
+    if (campaign) {
+      await createAuditLog(
+        'bulk_delete',
+        'calls',
+        id,
+        `${deletedCalls?.length || 0} calls from "${campaign.name}"`,
+        userId,
+        userEmail,
+        campaign.organization_id,
+        { campaign_id: id, count: deletedCalls?.length || 0 }
+      );
+    }
 
     res.json({
       success: true,
