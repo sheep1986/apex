@@ -1421,37 +1421,41 @@ app.post('/api/vapi/webhook', async (req, res) => {
           } else if (!callRecord) {
             console.log(`⚠️ No call record found for vapi_call_id: ${callId}`);
           } else if (callRecord && transcript && transcript.length > 50) {
-            // Analyze transcript with AI
-            console.log(`🤖 Analyzing transcript for call ${callId}...`);
-            const analysis = await analyzeTranscript(transcript, callRecord.customer_name);
+            // Analyze transcript with AI - wrap in try-catch to not fail webhook
+            try {
+              console.log(`🤖 Analyzing transcript for call ${callId}...`);
+              const analysis = await analyzeTranscript(transcript, callRecord.customer_name);
 
-            // Update call with analysis
-            await supabase
-              .from('calls')
-              .update({
-                sentiment: analysis.sentiment,
-                ai_summary: analysis.summary,
-                interest_level: analysis.interestLevel,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', callRecord.id);
+              // Update call with analysis
+              await supabase
+                .from('calls')
+                .update({
+                  sentiment: analysis.sentiment,
+                  ai_summary: analysis.summary,
+                  interest_level: analysis.interestLevel,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', callRecord.id);
 
-            // If positive, push to CRM
-            if (analysis.isPositive || analysis.sentiment === 'positive' || (analysis.interestLevel && analysis.interestLevel >= 6)) {
-              console.log(`✅ Positive lead detected! Pushing to CRM...`);
-              await pushToCRM(callRecord, analysis, null);
-            } else {
-              // Update lead as contacted but not qualified
-              if (callRecord.lead_id) {
-                await supabase
-                  .from('leads')
-                  .update({
-                    status: 'contacted',
-                    notes: `Call completed. Outcome: ${outcome}. ${analysis.summary || ''}`,
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('id', callRecord.lead_id);
+              // If positive, push to CRM
+              if (analysis.isPositive || analysis.sentiment === 'positive' || (analysis.interestLevel && analysis.interestLevel >= 6)) {
+                console.log(`✅ Positive lead detected! Pushing to CRM...`);
+                await pushToCRM(callRecord, analysis, null);
+              } else {
+                // Update lead as contacted but not qualified
+                if (callRecord.lead_id) {
+                  await supabase
+                    .from('leads')
+                    .update({
+                      status: 'contacted',
+                      notes: `Call completed. Outcome: ${outcome}. ${analysis.summary || ''}`,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', callRecord.lead_id);
+                }
               }
+            } catch (analysisErr) {
+              console.error('⚠️ AI analysis failed (non-critical):', analysisErr.message);
             }
           }
 
