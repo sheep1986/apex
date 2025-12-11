@@ -1373,7 +1373,10 @@ app.post('/api/vapi/webhook', async (req, res) => {
           // Get transcript and recording
           const transcript = call.transcript || call.messages?.map(m => `${m.role}: ${m.content}`).join('\n') || '';
           const recordingUrl = call.recordingUrl || call.recording_url || null;
-          const duration = call.duration || call.endedAt ? Math.floor((new Date(call.endedAt) - new Date(call.startedAt)) / 1000) : 0;
+          let duration = call.duration || 0;
+          if (!duration && call.endedAt && call.startedAt) {
+            duration = Math.floor((new Date(call.endedAt) - new Date(call.startedAt)) / 1000);
+          }
           const endedReason = call.endedReason || call.ended_reason || 'completed';
 
           // Determine call outcome
