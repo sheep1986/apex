@@ -1396,10 +1396,9 @@ app.post('/api/vapi/webhook', async (req, res) => {
             outcome = 'hung_up';
           }
 
-          // Update call record
+          // Update call record (note: don't set 'outcome' as it may have check constraint)
           const updateData = {
             status: 'completed',
-            outcome: outcome,
             ended_at: call.endedAt || new Date().toISOString(),
             duration: duration,
             transcript: transcript,
@@ -1494,7 +1493,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
     }
 
     console.log(`✅ Webhook processing complete for event: ${eventType}`);
-    res.json({ success: true, received: eventType });
+    res.json({ success: true, received: eventType, debug: 'check Vercel logs for details' });
   } catch (error) {
     console.error('❌ Webhook error:', error);
     res.status(500).json({ error: 'Webhook processing failed', details: error.message });
