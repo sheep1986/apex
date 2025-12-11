@@ -1305,16 +1305,20 @@ Respond in JSON format:
 async function pushToCRM(callData, analysis, campaign) {
   console.log(`📤 Pushing positive lead to CRM: ${callData.customer_name}`);
 
-  // Update lead status in database
+  // Update lead status in database (use 'contacted' as that's what the DB constraint allows)
   if (callData.lead_id) {
-    await supabase
-      .from('leads')
-      .update({
-        status: 'qualified',
-        notes: `AI Analysis: ${analysis.summary}\nInterest Level: ${analysis.interestLevel}/10\nNext Steps: ${analysis.nextSteps || 'None specified'}`,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', callData.lead_id);
+    try {
+      await supabase
+        .from('leads')
+        .update({
+          status: 'contacted',
+          notes: `✅ QUALIFIED LEAD\nAI Analysis: ${analysis.summary}\nInterest Level: ${analysis.interestLevel}/10\nNext Steps: ${analysis.nextSteps || 'None specified'}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', callData.lead_id);
+    } catch (leadErr) {
+      console.error('⚠️ Error updating lead in CRM push:', leadErr.message);
+    }
   }
 
   // Create CRM entry in crm_leads table if it exists
