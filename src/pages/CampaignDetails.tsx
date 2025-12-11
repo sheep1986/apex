@@ -56,6 +56,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { CallLogDetailsModal } from '@/components/CallLogDetailsModal';
+import { DeleteConfirmationDialog } from '@/components/ui/delete-confirmation-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 // Mock campaign data - in real app this would come from API
@@ -150,6 +151,8 @@ export default function CampaignDetails() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [selectedCall, setSelectedCall] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleOpenCallModal = async (call: any) => {
     console.log('Opening call modal with call:', call);
@@ -746,6 +749,32 @@ export default function CampaignDetails() {
     setIsEditing(false);
   };
 
+  const handleDeleteCampaign = async () => {
+    if (!id) return;
+
+    setIsDeleting(true);
+    try {
+      await directSupabaseService.deleteCampaign(id);
+
+      toast({
+        title: 'Campaign Deleted',
+        description: `Campaign "${campaign.name}" has been permanently deleted.`,
+      });
+
+      setDeleteDialogOpen(false);
+      navigate('/campaigns');
+    } catch (error) {
+      console.error('Failed to delete campaign:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete campaign',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
@@ -831,7 +860,10 @@ export default function CampaignDetails() {
                   <Share className="mr-2 h-4 w-4" />
                   Share
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-red-400 hover:bg-gray-700">
+                <DropdownMenuItem
+                  className="text-red-400 hover:bg-gray-700"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Campaign
                 </DropdownMenuItem>
@@ -1813,6 +1845,17 @@ export default function CampaignDetails() {
         isOpen={isCallModalOpen}
         onClose={() => setIsCallModalOpen(false)}
         callData={selectedCall}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Campaign"
+        description="Are you sure you want to delete this campaign? This will permanently remove all associated leads, calls, and analytics data."
+        itemName={campaign.name}
+        onConfirm={handleDeleteCampaign}
+        isLoading={isDeleting}
       />
     </div>
   );

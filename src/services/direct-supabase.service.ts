@@ -291,6 +291,50 @@ export class DirectSupabaseService {
       teamAssignment: campaign.team_assignment
     };
   }
+
+  async deleteCampaign(campaignId: string) {
+    console.log('🗑️ DirectSupabaseService: Deleting campaign:', campaignId);
+
+    if (!campaignId) {
+      throw new Error('Campaign ID is required');
+    }
+
+    // First, delete associated calls
+    const { error: callsError } = await supabase
+      .from('calls')
+      .delete()
+      .eq('campaign_id', campaignId);
+
+    if (callsError) {
+      console.error('❌ Error deleting campaign calls:', callsError);
+      // Continue anyway - calls might not exist
+    }
+
+    // Then, delete associated leads
+    const { error: leadsError } = await supabase
+      .from('leads')
+      .delete()
+      .eq('campaign_id', campaignId);
+
+    if (leadsError) {
+      console.error('❌ Error deleting campaign leads:', leadsError);
+      // Continue anyway - leads might not exist
+    }
+
+    // Finally, delete the campaign
+    const { error: campaignError } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('id', campaignId);
+
+    if (campaignError) {
+      console.error('❌ Error deleting campaign:', campaignError);
+      throw new Error(`Failed to delete campaign: ${campaignError.message}`);
+    }
+
+    console.log('✅ Campaign deleted successfully:', campaignId);
+    return true;
+  }
 }
 
 export const directSupabaseService = new DirectSupabaseService();

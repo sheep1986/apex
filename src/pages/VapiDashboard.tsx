@@ -75,6 +75,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '../services/MinimalUserProvider';
@@ -83,6 +84,7 @@ import { directSupabaseService } from '@/services/direct-supabase.service';
 import { SimpleCampaignWizard } from '@/components/ai-crm/SimpleCampaignWizard';
 import { CampaignEditWizard } from '@/components/ai-crm/CampaignEditWizard';
 import { DynamicConcurrencyManager } from '@/components/ai-crm/DynamicConcurrencyManager';
+import { DeleteConfirmationDialog } from '@/components/ui/delete-confirmation-dialog';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, useApiClient } from '@/lib/api-client';
 
@@ -145,6 +147,9 @@ const VapiDashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<'campaigns' | 'concurrency'>('campaigns');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<VapiOutboundCampaign | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { toast } = useToast();
   const { userContext } = useUserContext();
@@ -315,6 +320,41 @@ const VapiDashboard: React.FC = () => {
         description: `Failed to ${action} campaign. Please try again.`,
         variant: 'destructive',
       });
+    }
+  };
+
+  const openDeleteDialog = (campaign: VapiOutboundCampaign) => {
+    setCampaignToDelete(campaign);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCampaign = async () => {
+    if (!campaignToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      // Use direct Supabase service to delete
+      await directSupabaseService.deleteCampaign(campaignToDelete.id);
+
+      // Remove from local state
+      setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete.id));
+
+      toast({
+        title: 'Campaign Deleted',
+        description: `Campaign "${campaignToDelete.name}" has been permanently deleted.`,
+      });
+
+      setDeleteDialogOpen(false);
+      setCampaignToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete campaign:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete campaign',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -638,6 +678,18 @@ const VapiDashboard: React.FC = () => {
                               <ExternalLink className="h-4 w-4" />
                             </Button>
                         </div>
+                          {/* Delete button - always visible */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteDialog(campaign);
+                            }}
+                            className="text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 rounded-lg p-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                       </div>
                     </div>
 
@@ -740,7 +792,7 @@ const VapiDashboard: React.FC = () => {
           campaign={selectedCampaign}
           onCampaignUpdated={(updatedCampaign) => {
             // Update the campaign in the list
-            setCampaigns(prev => prev.map(c => 
+            setCampaigns(prev => prev.map(c =>
               c.id === updatedCampaign.id ? { ...c, ...updatedCampaign, updatedAt: new Date().toISOString() } : c
             ));
             setShowEditModal(false);
@@ -756,6 +808,17 @@ const VapiDashboard: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Campaign"
+        description="Are you sure you want to delete this campaign? This will permanently remove all associated leads, calls, and analytics data."
+        itemName={campaignToDelete?.name}
+        onConfirm={handleDeleteCampaign}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
