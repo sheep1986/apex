@@ -1443,15 +1443,19 @@ app.post('/api/vapi/webhook', async (req, res) => {
             }
           }
 
-          // Update call queue status
-          await supabase
-            .from('call_queue')
-            .update({
-              status: outcome === 'completed' ? 'completed' : 'failed',
-              last_outcome: outcome,
-              updated_at: new Date().toISOString()
-            })
-            .eq('last_call_id', callId);
+          // Update call queue status (wrap in try-catch to not fail webhook)
+          try {
+            await supabase
+              .from('call_queue')
+              .update({
+                status: outcome === 'completed' ? 'completed' : 'failed',
+                last_outcome: outcome,
+                updated_at: new Date().toISOString()
+              })
+              .eq('last_call_id', callId);
+          } catch (queueErr) {
+            console.log('⚠️ Queue update failed (non-critical):', queueErr.message);
+          }
         }
         break;
 
@@ -1468,7 +1472,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
     res.json({ success: true, received: eventType });
   } catch (error) {
     console.error('❌ Webhook error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Webhook processing failed', details: error.message });
   }
 });
 
