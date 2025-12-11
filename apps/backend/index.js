@@ -1363,6 +1363,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
       case 'call-ended':
       case 'call.ended':
       case 'end-of-call-report':
+        try {
         const call = event.call || event.message?.call || event;
         const callId = call.id || call.call_id;
 
@@ -1460,6 +1461,9 @@ app.post('/api/vapi/webhook', async (req, res) => {
           } catch (queueErr) {
             console.log('⚠️ Queue update failed (non-critical):', queueErr.message);
           }
+        }
+        } catch (endCallErr) {
+          console.error('❌ Error processing end-of-call:', endCallErr);
         }
         break;
 
