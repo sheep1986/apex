@@ -1474,7 +1474,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
           }
         }
         } catch (endCallErr) {
-          console.error('❌ Error processing end-of-call:', endCallErr);
+          console.error('❌ Error processing end-of-call:', endCallErr.message);
         }
         break;
 
