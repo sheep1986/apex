@@ -1399,15 +1399,19 @@ app.post('/api/vapi/webhook', async (req, res) => {
             updated_at: new Date().toISOString()
           };
 
-          const { data: callRecord, error: updateError } = await supabase
+          // First try to update the call record
+          const { data: callRecords, error: updateError } = await supabase
             .from('calls')
             .update(updateData)
             .eq('vapi_call_id', callId)
-            .select('*, campaign_id, lead_id, organization_id')
-            .single();
+            .select('*, campaign_id, lead_id, organization_id');
+
+          const callRecord = callRecords?.[0];
 
           if (updateError) {
             console.error('❌ Error updating call:', updateError);
+          } else if (!callRecord) {
+            console.log(`⚠️ No call record found for vapi_call_id: ${callId}`);
           } else if (callRecord && transcript && transcript.length > 50) {
             // Analyze transcript with AI
             console.log(`🤖 Analyzing transcript for call ${callId}...`);
