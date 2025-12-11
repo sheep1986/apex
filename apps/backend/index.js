@@ -2335,6 +2335,54 @@ async function createAuditLog(action, resourceType, resourceId, resourceName, us
   }
 }
 
+// ============================================
+// ROLE-BASED DELETE PERMISSIONS
+// ============================================
+
+// Roles that can delete resources
+const DELETE_ALLOWED_ROLES = ['platform_owner', 'client_admin'];
+
+// Check if user has delete permission
+async function checkDeletePermission(userId, organizationId) {
+  if (!supabase || !userId) {
+    return { allowed: false, reason: 'User not authenticated' };
+  }
+
+  try {
+    // Get user's role from the database
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('role, organization_id')
+      .eq('clerk_id', userId)
+      .single();
+
+    if (error || !user) {
+      // If user not found in database, check if they might be a platform owner
+      // by checking the x-user-role header (for testing/dev purposes)
+      return { allowed: false, reason: 'User not found' };
+    }
+
+    // Check if user belongs to the organization
+    if (organizationId && user.organization_id !== organizationId) {
+      return { allowed: false, reason: 'User does not belong to this organization' };
+    }
+
+    // Check if role allows delete
+    if (DELETE_ALLOWED_ROLES.includes(user.role)) {
+      return { allowed: true, role: user.role };
+    }
+
+    return {
+      allowed: false,
+      reason: 'Insufficient permissions. Only administrators can delete records.',
+      userRole: user.role
+    };
+  } catch (err) {
+    console.error('Error checking delete permission:', err);
+    return { allowed: false, reason: 'Permission check failed' };
+  }
+}
+
 // Get audit logs for an organization
 app.get('/api/organizations/:orgId/audit-logs', async (req, res) => {
   if (!supabase) {
@@ -2391,7 +2439,7 @@ app.delete('/api/campaigns/:id', async (req, res) => {
   }
 
   try {
-    // Check if campaign exists
+    // Check if campaign exists first to get organization_id
     const { data: campaign, error: findError } = await supabase
       .from('campaigns')
       .select('id, name, organization_id')
@@ -2400,6 +2448,16 @@ app.delete('/api/campaigns/:id', async (req, res) => {
 
     if (findError || !campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Check delete permission
+    const permCheck = await checkDeletePermission(userId, campaign.organization_id);
+    if (!permCheck.allowed) {
+      return res.status(403).json({
+        error: 'Permission denied',
+        message: permCheck.reason,
+        userRole: permCheck.userRole
+      });
     }
 
     const deleted = { campaign: false, leads: 0, calls: 0, queue: 0 };
@@ -2498,6 +2556,16 @@ app.delete('/api/leads/:id', async (req, res) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
+    // Check delete permission
+    const permCheck = await checkDeletePermission(userId, lead.organization_id);
+    if (!permCheck.allowed) {
+      return res.status(403).json({
+        error: 'Permission denied',
+        message: permCheck.reason,
+        userRole: permCheck.userRole
+      });
+    }
+
     const { error: deleteError } = await supabase
       .from('leads')
       .delete()
@@ -2558,6 +2626,16 @@ app.delete('/api/calls/:id', async (req, res) => {
       return res.status(404).json({ error: 'Call not found' });
     }
 
+    // Check delete permission
+    const permCheck = await checkDeletePermission(userId, call.organization_id);
+    if (!permCheck.allowed) {
+      return res.status(403).json({
+        error: 'Permission denied',
+        message: permCheck.reason,
+        userRole: permCheck.userRole
+      });
+    }
+
     const { error: deleteError } = await supabase
       .from('calls')
       .delete()
@@ -2604,6 +2682,16 @@ app.delete('/api/organizations/:orgId/campaigns', async (req, res) => {
     return res.status(400).json({
       error: 'Confirmation required',
       message: 'You must add ?confirmText=DELETE to confirm bulk deletion. This action cannot be undone.'
+    });
+  }
+
+  // Check delete permission
+  const permCheck = await checkDeletePermission(userId, orgId);
+  if (!permCheck.allowed) {
+    return res.status(403).json({
+      error: 'Permission denied',
+      message: permCheck.reason,
+      userRole: permCheck.userRole
     });
   }
 
@@ -2709,6 +2797,20 @@ app.delete('/api/campaigns/:id/leads', async (req, res) => {
       .eq('id', id)
       .single();
 
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Check delete permission
+    const permCheck = await checkDeletePermission(userId, campaign.organization_id);
+    if (!permCheck.allowed) {
+      return res.status(403).json({
+        error: 'Permission denied',
+        message: permCheck.reason,
+        userRole: permCheck.userRole
+      });
+    }
+
     const { data: deletedLeads } = await supabase
       .from('leads')
       .delete()
@@ -2716,18 +2818,16 @@ app.delete('/api/campaigns/:id/leads', async (req, res) => {
       .select('id');
 
     // Create audit log
-    if (campaign) {
-      await createAuditLog(
-        'bulk_delete',
-        'leads',
-        id,
-        `${deletedLeads?.length || 0} leads from "${campaign.name}"`,
-        userId,
-        userEmail,
-        campaign.organization_id,
-        { campaign_id: id, count: deletedLeads?.length || 0 }
-      );
-    }
+    await createAuditLog(
+      'bulk_delete',
+      'leads',
+      id,
+      `${deletedLeads?.length || 0} leads from "${campaign.name}"`,
+      userId,
+      userEmail,
+      campaign.organization_id,
+      { campaign_id: id, count: deletedLeads?.length || 0 }
+    );
 
     res.json({
       success: true,
@@ -2765,6 +2865,20 @@ app.delete('/api/campaigns/:id/calls', async (req, res) => {
       .eq('id', id)
       .single();
 
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Check delete permission
+    const permCheck = await checkDeletePermission(userId, campaign.organization_id);
+    if (!permCheck.allowed) {
+      return res.status(403).json({
+        error: 'Permission denied',
+        message: permCheck.reason,
+        userRole: permCheck.userRole
+      });
+    }
+
     const { data: deletedCalls } = await supabase
       .from('calls')
       .delete()
@@ -2772,18 +2886,16 @@ app.delete('/api/campaigns/:id/calls', async (req, res) => {
       .select('id');
 
     // Create audit log
-    if (campaign) {
-      await createAuditLog(
-        'bulk_delete',
-        'calls',
-        id,
-        `${deletedCalls?.length || 0} calls from "${campaign.name}"`,
-        userId,
-        userEmail,
-        campaign.organization_id,
-        { campaign_id: id, count: deletedCalls?.length || 0 }
-      );
-    }
+    await createAuditLog(
+      'bulk_delete',
+      'calls',
+      id,
+      `${deletedCalls?.length || 0} calls from "${campaign.name}"`,
+      userId,
+      userEmail,
+      campaign.organization_id,
+      { campaign_id: id, count: deletedCalls?.length || 0 }
+    );
 
     res.json({
       success: true,

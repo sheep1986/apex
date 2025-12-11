@@ -21,21 +21,26 @@ export const ORG_PERMISSIONS = {
   // Settings management
   MANAGE_ORGANIZATION_SETTINGS: 'manage_organization_settings',
   VIEW_ORGANIZATION_SETTINGS: 'view_organization_settings',
-  
+
   // VAPI integration
   MANAGE_VAPI_SETTINGS: 'manage_vapi_settings',
   VIEW_VAPI_SETTINGS: 'view_vapi_settings',
-  
+
   // User management
   MANAGE_ORGANIZATION_USERS: 'manage_organization_users',
   INVITE_USERS: 'invite_users',
   SUSPEND_USERS: 'suspend_users',
-  
+
   // Campaign management
   CREATE_CAMPAIGNS: 'create_campaigns',
   MANAGE_ALL_CAMPAIGNS: 'manage_all_campaigns',
   VIEW_ALL_CAMPAIGNS: 'view_all_campaigns',
-  
+
+  // Delete permissions - restricted to admins
+  DELETE_CAMPAIGNS: 'delete_campaigns',
+  DELETE_LEADS: 'delete_leads',
+  DELETE_CALLS: 'delete_calls',
+
   // Billing and subscription
   MANAGE_BILLING: 'manage_billing',
   VIEW_BILLING: 'view_billing',
@@ -56,6 +61,9 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ORG_PERMISSIONS.CREATE_CAMPAIGNS,
     ORG_PERMISSIONS.MANAGE_ALL_CAMPAIGNS,
     ORG_PERMISSIONS.VIEW_ALL_CAMPAIGNS,
+    ORG_PERMISSIONS.DELETE_CAMPAIGNS,
+    ORG_PERMISSIONS.DELETE_LEADS,
+    ORG_PERMISSIONS.DELETE_CALLS,
     ORG_PERMISSIONS.MANAGE_BILLING,
     ORG_PERMISSIONS.VIEW_BILLING,
   ],
