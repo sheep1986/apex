@@ -1703,8 +1703,10 @@ app.get('/api/debug/csv-import/:id', async (req, res) => {
 // Webhook/trigger for campaign creation
 app.post('/api/campaigns/:id/on-create', async (req, res) => {
   const { id } = req.params;
-  const { handleDuplicates = 'skip' } = req.body || {}; // 'skip', 'call_anyway'
-  console.log(`🆕 Campaign created/updated: ${id} (handleDuplicates: ${handleDuplicates})`);
+  const { handleDuplicates = 'skip' } = req.body || {}; // 'skip', 'call_anyway', 'ask'
+  console.log(`🆕 Campaign on-create called: ${id}`);
+  console.log(`📋 Request body:`, JSON.stringify(req.body));
+  console.log(`🔧 handleDuplicates: ${handleDuplicates}`);
 
   try {
     // Get campaign first
@@ -1741,11 +1743,19 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
         // Check for existing leads with these phones
         if (phones.length > 0) {
-          const { data: existingLeads } = await supabase
+          console.log(`🔍 Checking for duplicates among ${phones.length} phones in org ${campaign.organization_id}`);
+          console.log(`📞 Phone numbers to check:`, phones.slice(0, 5)); // Log first 5 for debugging
+
+          const { data: existingLeads, error: duplicateError } = await supabase
             .from('leads')
             .select('id, name, phone, campaign_id, status')
             .eq('organization_id', campaign.organization_id)
             .in('phone', phones);
+
+          if (duplicateError) {
+            console.error('❌ Error checking for duplicates:', duplicateError);
+          }
+          console.log(`📋 Found ${existingLeads?.length || 0} existing leads with matching phones`);
 
           if (existingLeads && existingLeads.length > 0) {
             // Get campaign names for duplicates
@@ -1777,15 +1787,19 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
 
     // If duplicates found and user hasn't chosen to call anyway, return early with duplicate info
     if (duplicateInfo.hasDuplicates && handleDuplicates === 'ask') {
-      return res.json({
+      console.log(`⚠️ Returning duplicate_found response with ${duplicateInfo.duplicateCount} duplicates`);
+      const response = {
         success: true,
         requiresAction: true,
         action: 'duplicate_found',
         duplicateInfo: duplicateInfo,
         message: duplicateInfo.message,
         hint: 'Call this endpoint again with handleDuplicates: "skip" or "call_anyway" in the request body'
-      });
+      };
+      console.log(`📤 Response:`, JSON.stringify(response, null, 2));
+      return res.json(response);
     }
+    console.log(`✅ No duplicates requiring action (hasDuplicates: ${duplicateInfo.hasDuplicates}, handleDuplicates: ${handleDuplicates})`);
 
     // Auto-import CSV leads (will skip duplicates by default)
     const importResult = await importCsvLeadsForCampaign(id);
