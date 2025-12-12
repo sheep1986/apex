@@ -733,6 +733,39 @@ class VapiOutboundService {
       throw error;
     }
   }
+
+  /**
+   * Sync a single call from VAPI
+   */
+  async syncCallFromVapi(callId: string): Promise<any> {
+    try {
+      console.log('🔄 Syncing call from VAPI:', callId);
+      const response = await this.apiClient.post(`/api/vapi-data/sync-call/${callId}`);
+      console.log('✅ Call synced:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error syncing call from VAPI:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync all recent calls from VAPI
+   */
+  async syncAllCallsFromVapi(campaignId?: string, limit: number = 100): Promise<any> {
+    try {
+      console.log('🔄 Syncing all calls from VAPI');
+      const response = await this.apiClient.post('/api/vapi-data/sync-calls', {
+        campaignId,
+        limit
+      });
+      console.log('✅ Calls synced:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error syncing calls from VAPI:', error);
+      throw error;
+    }
+  }
 }
 
 // Create default instance for backward compatibility
