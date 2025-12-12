@@ -1593,10 +1593,14 @@ The review section provides detailed estimates for your campaign including durat
 
         const onCreateResult = await onCreateResponse.json();
         console.log('📊 On-create result:', JSON.stringify(onCreateResult, null, 2));
+        console.log('📊 requiresAction:', onCreateResult.requiresAction);
+        console.log('📊 action:', onCreateResult.action);
+        console.log('📊 duplicateInfo:', onCreateResult.duplicateInfo);
 
         // Check if duplicates were found and user needs to decide
         if (onCreateResult.requiresAction && onCreateResult.action === 'duplicate_found') {
           console.log('⚠️ Duplicates found, showing warning modal...');
+          console.log('📊 duplicateInfo details:', JSON.stringify(onCreateResult.duplicateInfo, null, 2));
           setDuplicateInfo(onCreateResult.duplicateInfo);
           setPendingCampaignId(campaign.id);
           setShowDuplicateWarning(true);
