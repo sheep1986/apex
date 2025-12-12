@@ -1428,6 +1428,7 @@ app.post('/api/vapi-data/sync-calls', async (req, res) => {
 
     let syncedCount = 0;
     let errorCount = 0;
+    let skippedCount = 0; // Calls skipped due to no metadata
 
     // Helper function to map VAPI status to outcome
     const mapVapiStatusToOutcome = (endedReason, dur) => {
@@ -1457,8 +1458,9 @@ app.post('/api/vapi-data/sync-calls', async (req, res) => {
             .join('\n');
         }
 
-        // PRIORITY 1: Use VAPI metadata (most secure - we set this when making the call)
-        // This contains campaignId, organizationId, leadId that we passed to VAPI
+        // SECURE MATCHING: Only use VAPI metadata to link calls to campaigns
+        // Metadata contains campaignId, organizationId, leadId that we passed to VAPI when making the call
+        // This prevents old calls or calls from other campaigns from being incorrectly assigned
         let matchedCampaignId = null;
         let matchedLeadId = null;
         let matchedOrgId = organizationId;
@@ -1468,27 +1470,12 @@ app.post('/api/vapi-data/sync-calls', async (req, res) => {
           matchedLeadId = vapiCall.metadata.leadId || null;
           matchedOrgId = vapiCall.metadata.organizationId || organizationId;
           console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} via VAPI metadata`);
-        }
-        // PRIORITY 2: Fall back to phone number matching (for older calls without metadata)
-        else {
-          const customerPhone = vapiCall.customer ? vapiCall.customer.number : null;
-          if (customerPhone) {
-            const normalizedCustomerPhone = normalizePhone(customerPhone);
-
-            if (phoneToCampaign.has(normalizedCustomerPhone)) {
-              matchedCampaignId = phoneToCampaign.get(normalizedCustomerPhone);
-              matchedLeadId = phoneToLead.get(normalizedCustomerPhone);
-              console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} by phone: ${customerPhone}`);
-            } else {
-              console.log(`⚠️ No metadata or phone match for call ${vapiCall.id}`);
-            }
-          }
-        }
-
-        // PRIORITY 3: Fall back to explicitly passed campaignId (last resort)
-        if (!matchedCampaignId && campaignId) {
-          matchedCampaignId = campaignId;
-          console.log(`⚠️ Using fallback campaignId for call ${vapiCall.id}: ${matchedCampaignId}`);
+        } else {
+          // No metadata - this is an old call or from another system
+          // Skip it entirely to prevent incorrect campaign assignment
+          console.log(`⏭️ Skipping call ${vapiCall.id} - no metadata (likely old call or from another system)`);
+          skippedCount++;
+          continue; // Skip this call entirely
         }
 
         const callData = {
@@ -1531,13 +1518,15 @@ app.post('/api/vapi-data/sync-calls', async (req, res) => {
       }
     }
 
-    console.log(`✅ Sync complete: ${syncedCount} synced, ${errorCount} errors`);
+    console.log(`✅ Sync complete: ${syncedCount} synced, ${skippedCount} skipped (no metadata), ${errorCount} errors`);
 
     res.json({
       success: true,
       totalCalls: vapiCalls.length,
       syncedCount,
-      errorCount
+      skippedCount,
+      errorCount,
+      message: skippedCount > 0 ? `${skippedCount} old calls skipped (no metadata) - only calls made through this platform are synced` : undefined
     });
   } catch (error) {
     console.error('❌ Error syncing calls from VAPI:', error.message);
@@ -1777,12 +1766,19 @@ app.post('/api/vapi/webhook', async (req, res) => {
         if (callId && supabase) {
           // Get transcript and recording
           const transcript = call.transcript || call.messages?.map(m => `${m.role}: ${m.content}`).join('\n') || '';
-          const recordingUrl = call.recordingUrl || call.recording_url || null;
+          const recordingUrl = call.recordingUrl || call.recording_url || call.stereoRecordingUrl || null;
           let duration = call.duration || 0;
           if (!duration && call.endedAt && call.startedAt) {
             duration = Math.floor((new Date(call.endedAt) - new Date(call.startedAt)) / 1000);
           }
           const endedReason = call.endedReason || call.ended_reason || 'completed';
+
+          // Get cost from VAPI (may come in various formats)
+          const cost = call.cost || call.costBreakdown?.total || 0;
+
+          // Get summary/analysis from VAPI if available
+          const summary = call.summary || (call.analysis && call.analysis.summary) || null;
+          const sentiment = call.analysis ? call.analysis.userSentiment : null;
 
           // Determine call outcome
           let outcome = 'completed';
@@ -1796,7 +1792,7 @@ app.post('/api/vapi/webhook', async (req, res) => {
             outcome = 'hung_up';
           }
 
-          // Update call record (note: column is 'end_reason' not 'ended_reason')
+          // Update call record with ALL available data from VAPI
           const updateData = {
             status: 'completed',
             ended_at: call.endedAt || new Date().toISOString(),
@@ -1804,8 +1800,16 @@ app.post('/api/vapi/webhook', async (req, res) => {
             transcript: transcript,
             recording_url: recordingUrl,
             end_reason: endedReason,
+            cost: cost,
+            summary: summary,
+            outcome: outcome,
             updated_at: new Date().toISOString()
           };
+
+          // Add sentiment if available
+          if (sentiment) {
+            updateData.sentiment = sentiment;
+          }
 
           // First try to update the call record
           console.log(`📝 Updating call record for vapi_call_id: ${callId}`);
