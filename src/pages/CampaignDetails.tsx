@@ -838,6 +838,15 @@ export default function CampaignDetails() {
               )}
             </Button>
 
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="border-red-700 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
