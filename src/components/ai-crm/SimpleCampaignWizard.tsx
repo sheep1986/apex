@@ -1567,10 +1567,13 @@ The review section provides detailed estimates for your campaign including durat
 
       // Call backend on-create endpoint to import leads and check for duplicates
       // First, send with handleDuplicates: 'ask' to check for duplicates before importing
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
+      // Use relative URL to leverage Netlify proxy (redirects /api/* to Vercel backend)
       try {
-        console.log('📡 Calling backend on-create endpoint (checking for duplicates)...');
-        const onCreateResponse = await fetch(`${API_BASE_URL}/api/campaigns/${campaign.id}/on-create`, {
+        const endpoint = `/api/campaigns/${campaign.id}/on-create`;
+        console.log('📡 Calling backend on-create endpoint:', endpoint);
+        console.log('📡 Campaign ID:', campaign.id);
+
+        const onCreateResponse = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1580,8 +1583,16 @@ The review section provides detailed estimates for your campaign including durat
           }),
         });
 
+        console.log('📡 Response status:', onCreateResponse.status);
+
+        if (!onCreateResponse.ok) {
+          const errorText = await onCreateResponse.text();
+          console.error('❌ Backend on-create failed:', onCreateResponse.status, errorText);
+          throw new Error(`Backend returned ${onCreateResponse.status}: ${errorText}`);
+        }
+
         const onCreateResult = await onCreateResponse.json();
-        console.log('📊 On-create result:', onCreateResult);
+        console.log('📊 On-create result:', JSON.stringify(onCreateResult, null, 2));
 
         // Check if duplicates were found and user needs to decide
         if (onCreateResult.requiresAction && onCreateResult.action === 'duplicate_found') {
@@ -3264,9 +3275,8 @@ The review section provides detailed estimates for your campaign including durat
                 onClick={async () => {
                   // Skip duplicates - call backend with 'skip' to import only new contacts
                   if (pendingCampaignId) {
-                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
                     try {
-                      const response = await fetch(`${API_BASE_URL}/api/campaigns/${pendingCampaignId}/on-create`, {
+                      const response = await fetch(`/api/campaigns/${pendingCampaignId}/on-create`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ handleDuplicates: 'skip' }),
@@ -3297,9 +3307,8 @@ The review section provides detailed estimates for your campaign including durat
               <button
                 onClick={async () => {
                   if (pendingCampaignId) {
-                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://apex-backend-new.vercel.app';
                     try {
-                      const response = await fetch(`${API_BASE_URL}/api/campaigns/${pendingCampaignId}/on-create`, {
+                      const response = await fetch(`/api/campaigns/${pendingCampaignId}/on-create`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ handleDuplicates: 'call_anyway' }),
