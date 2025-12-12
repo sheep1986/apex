@@ -1758,27 +1758,58 @@ app.post('/api/vapi/webhook', async (req, res) => {
       case 'call.ended':
       case 'end-of-call-report':
         try {
-        const call = event.call || event.message?.call || event;
-        const callId = call.id || call.call_id;
+        // Handle different VAPI webhook formats
+        // end-of-call-report has data in message.call, message.artifact, message.analysis
+        const message = event.message || {};
+        const call = event.call || message.call || event;
+        const callId = call?.id || call?.call_id || message.call?.id;
+        const artifact = message.artifact || {};
+        const analysis = message.analysis || call?.analysis || {};
 
         console.log(`📞 Call ended: ${callId}`);
+        console.log(`📞 Has artifact: ${!!artifact.messages}, Has analysis: ${!!analysis.summary}`);
 
         if (callId && supabase) {
-          // Get transcript and recording
-          const transcript = call.transcript || call.messages?.map(m => `${m.role}: ${m.content}`).join('\n') || '';
-          const recordingUrl = call.recordingUrl || call.recording_url || call.stereoRecordingUrl || null;
-          let duration = call.duration || 0;
-          if (!duration && call.endedAt && call.startedAt) {
+          // Get transcript from multiple possible locations
+          // VAPI end-of-call-report puts messages in artifact.messages
+          let transcript = call?.transcript || '';
+          if (!transcript && artifact.messages && artifact.messages.length > 0) {
+            transcript = artifact.messages
+              .filter(m => m.role === 'user' || m.role === 'bot' || m.role === 'assistant')
+              .map(m => `${m.role === 'bot' || m.role === 'assistant' ? 'AI' : 'User'}: ${m.message || m.content || ''}`)
+              .join('\n');
+          }
+          if (!transcript && call?.messages) {
+            transcript = call.messages.map(m => `${m.role}: ${m.content || m.message}`).join('\n');
+          }
+
+          // Get recording URL from multiple locations
+          const recordingUrl = message.recordingUrl || call?.recordingUrl || call?.recording_url ||
+                              call?.stereoRecordingUrl || artifact.recordingUrl || null;
+
+          // Get duration
+          let duration = call?.duration || 0;
+          if (!duration && call?.endedAt && call?.startedAt) {
             duration = Math.floor((new Date(call.endedAt) - new Date(call.startedAt)) / 1000);
           }
-          const endedReason = call.endedReason || call.ended_reason || 'completed';
+          // Also try to get from artifact timestamps
+          if (!duration && artifact.messages && artifact.messages.length > 0) {
+            const lastMsg = artifact.messages[artifact.messages.length - 1];
+            if (lastMsg.secondsFromStart) {
+              duration = Math.ceil(lastMsg.secondsFromStart);
+            }
+          }
+
+          const endedReason = call?.endedReason || call?.ended_reason || message.endedReason || 'completed';
 
           // Get cost from VAPI (may come in various formats)
-          const cost = call.cost || call.costBreakdown?.total || 0;
+          const cost = message.cost || call?.cost || call?.costBreakdown?.total || message.costBreakdown?.total || 0;
 
-          // Get summary/analysis from VAPI if available
-          const summary = call.summary || (call.analysis && call.analysis.summary) || null;
-          const sentiment = call.analysis ? call.analysis.userSentiment : null;
+          // Get summary/analysis from VAPI - check multiple locations
+          const summary = analysis.summary || call?.summary || message.summary || null;
+          const sentiment = analysis.userSentiment || call?.analysis?.userSentiment || null;
+
+          console.log(`📞 Extracted - transcript length: ${transcript.length}, recording: ${!!recordingUrl}, duration: ${duration}, cost: ${cost}`);
 
           // Determine call outcome
           let outcome = 'completed';
