@@ -422,7 +422,29 @@ export class VapiService {
         }
       }
 
-      // Fallback to organization_settings table
+      // Fallback to organization_settings table - check vapi_api_key first (how frontend saves it)
+      const { data: apiKeySetting } = await supabase
+        .from('organization_settings')
+        .select('setting_value')
+        .eq('organization_id', organizationId)
+        .eq('setting_key', 'vapi_api_key')
+        .single();
+
+      if (apiKeySetting?.setting_value) {
+        let apiKey = apiKeySetting.setting_value;
+        try {
+          if (apiKey.startsWith('"') || apiKey.startsWith('{')) {
+            const parsed = JSON.parse(apiKey);
+            apiKey = typeof parsed === 'object' ? parsed.apiKey : parsed;
+          }
+        } catch (e) {}
+        if (apiKey && typeof apiKey === 'string') {
+          console.log('✅ Found VAPI API key in organization_settings.vapi_api_key');
+          return new VapiService(apiKey, organizationId);
+        }
+      }
+
+      // Also try vapi_credentials as fallback
       const { data: settings, error: settingsError } = await supabase
         .from('organization_settings')
         .select('setting_value')
@@ -434,7 +456,7 @@ export class VapiService {
         try {
           const credentials = JSON.parse(settings.setting_value);
           if (credentials.apiKey && credentials.enabled !== false) {
-            console.log('✅ Found VAPI credentials in organization_settings');
+            console.log('✅ Found VAPI credentials in organization_settings.vapi_credentials');
             return new VapiService(credentials.apiKey, organizationId);
           }
         } catch (parseError) {
