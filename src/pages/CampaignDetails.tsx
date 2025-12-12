@@ -55,6 +55,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { CallLogDetailsModal } from '@/components/CallLogDetailsModal';
 import { useToast } from '@/hooks/use-toast';
 
@@ -150,6 +160,8 @@ export default function CampaignDetails() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [selectedCall, setSelectedCall] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleOpenCallModal = async (call: any) => {
     console.log('Opening call modal with call:', call);
@@ -746,6 +758,37 @@ export default function CampaignDetails() {
     setIsEditing(false);
   };
 
+  const handleDeleteCampaign = async () => {
+    if (!id) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('campaigns')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Campaign deleted',
+        description: 'The campaign has been permanently deleted.',
+      });
+
+      navigate('/campaigns');
+    } catch (error: any) {
+      console.error('Error deleting campaign:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete campaign',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
@@ -809,6 +852,15 @@ export default function CampaignDetails() {
               )}
             </Button>
 
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="border-red-700 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -831,7 +883,10 @@ export default function CampaignDetails() {
                   <Share className="mr-2 h-4 w-4" />
                   Share
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-red-400 hover:bg-gray-700">
+                <DropdownMenuItem
+                  className="text-red-400 hover:bg-gray-700"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Campaign
                 </DropdownMenuItem>
@@ -1814,6 +1869,31 @@ export default function CampaignDetails() {
         onClose={() => setIsCallModalOpen(false)}
         callData={selectedCall}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="border-gray-700 bg-gray-900">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Campaign</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to delete "{campaign.name}"? This action cannot be undone.
+              All campaign data, call history, and analytics will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCampaign}
+              disabled={isDeleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Campaign'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
