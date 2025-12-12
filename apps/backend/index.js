@@ -562,7 +562,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '2.0.0-with-webhooks-and-ai',
+    version: '2.1.0-vapi-sync-fix',
     features: {
       campaignExecutor: true,
       vapiIntegration: true,
