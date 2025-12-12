@@ -1723,6 +1723,51 @@ app.get('/api/debug/webhooks', (req, res) => {
   });
 });
 
+// Debug endpoint to view VAPI calls directly
+app.get('/api/debug/vapi-calls', async (req, res) => {
+  const organizationId = req.query.orgId || req.headers['x-organization-id'];
+  const limit = parseInt(req.query.limit) || 5;
+
+  if (!organizationId) {
+    return res.status(400).json({ error: 'Organization ID required (query param orgId or header x-organization-id)' });
+  }
+
+  try {
+    const vapiApiKey = await getVapiCredentialsForOrganization(organizationId);
+    if (!vapiApiKey) {
+      return res.status(400).json({ error: 'No VAPI credentials for organization' });
+    }
+
+    const vapiResponse = await axios.get('https://api.vapi.ai/call', {
+      headers: { 'Authorization': `Bearer ${vapiApiKey}` },
+      params: { limit }
+    });
+
+    const calls = vapiResponse.data || [];
+
+    // Show relevant fields for each call
+    const callSummaries = calls.map(call => ({
+      id: call.id,
+      status: call.status,
+      createdAt: call.createdAt,
+      customer: call.customer,
+      metadata: call.metadata || 'NO METADATA',
+      hasTranscript: !!call.transcript,
+      hasRecording: !!call.recordingUrl,
+      cost: call.cost,
+      duration: call.duration,
+      endedReason: call.endedReason
+    }));
+
+    res.json({
+      totalCalls: calls.length,
+      calls: callSummaries
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch VAPI calls', message: error.message });
+  }
+});
+
 // VAPI Webhook endpoint
 app.post('/api/vapi/webhook', async (req, res) => {
   const timestamp = new Date().toISOString();
