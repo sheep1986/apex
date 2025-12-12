@@ -1201,21 +1201,26 @@ app.post('/api/vapi-data/sync-call/:callId', async (req, res) => {
   console.log('🔄 Syncing call from VAPI:', callId);
 
   try {
-    // Get organization ID from headers, body, or try to get from call record
+    // Look up the call in database to get vapi_call_id and organization_id
+    // The callId might be our DB id (UUID) or the actual vapi_call_id
+    const { data: existingCall } = await supabase
+      .from('calls')
+      .select('id, vapi_call_id, organization_id')
+      .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
+      .single();
+
+    // Determine the actual VAPI call ID to use
+    let actualVapiCallId = callId;
+    if (existingCall && existingCall.vapi_call_id) {
+      actualVapiCallId = existingCall.vapi_call_id;
+      console.log(`📋 Found DB record, using vapi_call_id: ${actualVapiCallId}`);
+    }
+
+    // Get organization ID from headers, body, or existing call record
     let organizationId = req.headers['x-organization-id'] || req.body.organizationId;
-
-    // If no org ID provided, try to get it from the existing call record
-    if (!organizationId) {
-      const { data: existingCall } = await supabase
-        .from('calls')
-        .select('organization_id')
-        .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
-        .single();
-
-      if (existingCall) {
-        organizationId = existingCall.organization_id;
-        console.log('📋 Got organization ID from existing call:', organizationId);
-      }
+    if (!organizationId && existingCall) {
+      organizationId = existingCall.organization_id;
+      console.log('📋 Got organization ID from existing call:', organizationId);
     }
 
     // Get VAPI credentials for this organization
@@ -1229,8 +1234,9 @@ app.post('/api/vapi-data/sync-call/:callId', async (req, res) => {
       return res.status(400).json({ error: 'VAPI API key not configured' });
     }
 
-    // Fetch call details from VAPI
-    const vapiResponse = await axios.get(`https://api.vapi.ai/call/${callId}`, {
+    // Fetch call details from VAPI using the actual VAPI call ID
+    console.log(`📞 Fetching from VAPI: ${actualVapiCallId}`);
+    const vapiResponse = await axios.get(`https://api.vapi.ai/call/${actualVapiCallId}`, {
       headers: { 'Authorization': `Bearer ${vapiApiKey}` }
     });
 
