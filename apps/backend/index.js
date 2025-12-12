@@ -1925,40 +1925,81 @@ app.post('/api/vapi/webhook', async (req, res) => {
             console.log(`⚠️ No call record found for vapi_call_id: ${callId}`);
           } else if (callRecord && transcript && transcript.length > 50) {
             // Analyze transcript with AI - wrap in try-catch to not fail webhook
+            let aiAnalysis = null;
             try {
               console.log(`🤖 Analyzing transcript for call ${callId}...`);
-              const analysis = await analyzeTranscript(transcript, callRecord.customer_name);
+              aiAnalysis = await analyzeTranscript(transcript, callRecord.customer_name);
 
-              // Update call with analysis
-              await supabase
-                .from('calls')
-                .update({
-                  sentiment: analysis.sentiment,
-                  ai_summary: analysis.summary,
-                  interest_level: analysis.interestLevel,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', callRecord.id);
-
-              // If positive, push to CRM
-              if (analysis.isPositive || analysis.sentiment === 'positive' || (analysis.interestLevel && analysis.interestLevel >= 6)) {
-                console.log(`✅ Positive lead detected! Pushing to CRM...`);
-                await pushToCRM(callRecord, analysis, null);
-              } else {
-                // Update lead as contacted but not qualified
-                if (callRecord.lead_id) {
-                  await supabase
-                    .from('leads')
-                    .update({
-                      status: 'contacted',
-                      notes: `Call completed. Outcome: ${outcome}. ${analysis.summary || ''}`,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq('id', callRecord.lead_id);
-                }
+              // Update call with analysis if we got valid results
+              if (aiAnalysis && aiAnalysis.sentiment !== 'unknown' && aiAnalysis.sentiment !== 'error') {
+                await supabase
+                  .from('calls')
+                  .update({
+                    sentiment: aiAnalysis.sentiment,
+                    ai_summary: aiAnalysis.summary,
+                    interest_level: aiAnalysis.interestLevel,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', callRecord.id);
               }
             } catch (analysisErr) {
               console.error('⚠️ AI analysis failed (non-critical):', analysisErr.message);
+            }
+
+            // Determine if lead is positive - check multiple sources
+            let isPositiveLead = false;
+            let positiveReason = '';
+
+            // Check 1: OpenAI analysis says positive
+            if (aiAnalysis && (aiAnalysis.isPositive || aiAnalysis.sentiment === 'positive' || (aiAnalysis.interestLevel && aiAnalysis.interestLevel >= 6))) {
+              isPositiveLead = true;
+              positiveReason = `OpenAI analysis: sentiment=${aiAnalysis.sentiment}, interest=${aiAnalysis.interestLevel}`;
+            }
+
+            // Check 2: VAPI summary contains interest keywords
+            const vapiSummary = summary || '';
+            const interestKeywords = ['interest', 'interested', 'send me', 'send details', 'more info', 'callback', 'call back', 'schedule', 'appointment', 'yes please', 'sounds good', 'tell me more', 'want to know', 'agreed', 'confirmed', 'expressed interest'];
+            const hasInterestKeyword = interestKeywords.some(keyword => vapiSummary.toLowerCase().includes(keyword));
+            if (hasInterestKeyword && !isPositiveLead) {
+              isPositiveLead = true;
+              positiveReason = `VAPI summary contains interest keywords`;
+            }
+
+            // Check 3: Transcript contains explicit interest signals
+            const transcriptLower = transcript.toLowerCase();
+            const explicitInterest = ['yes, interested', 'very interested', 'send me details', 'send me information', 'i\'d like to', 'i would like', 'please send', 'call me back', 'i\'m interested', 'sounds interesting'];
+            const hasExplicitInterest = explicitInterest.some(phrase => transcriptLower.includes(phrase));
+            if (hasExplicitInterest && !isPositiveLead) {
+              isPositiveLead = true;
+              positiveReason = `Transcript contains explicit interest`;
+            }
+
+            console.log(`📊 Lead analysis: isPositive=${isPositiveLead}, reason=${positiveReason || 'none'}`);
+
+            // If positive, push to CRM
+            if (isPositiveLead) {
+              console.log(`✅ Positive lead detected! Pushing to CRM... Reason: ${positiveReason}`);
+              const analysisForCRM = aiAnalysis || {
+                sentiment: 'positive',
+                isPositive: true,
+                summary: vapiSummary || 'Customer expressed interest',
+                interestLevel: 7,
+                keyTakeaways: ['Customer showed interest'],
+                nextSteps: 'Follow up with customer'
+              };
+              await pushToCRM(callRecord, analysisForCRM, null);
+            } else {
+              // Update lead as contacted but not qualified
+              if (callRecord.lead_id) {
+                await supabase
+                  .from('leads')
+                  .update({
+                    status: 'contacted',
+                    notes: `Call completed. Outcome: ${outcome}. ${aiAnalysis?.summary || vapiSummary || ''}`,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', callRecord.lead_id);
+              }
             }
           }
 
