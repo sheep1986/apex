@@ -740,7 +740,9 @@ class VapiOutboundService {
   async syncCallFromVapi(callId: string): Promise<any> {
     try {
       console.log('🔄 Syncing call from VAPI:', callId);
-      const response = await this.apiClient.post(`/vapi-data/sync-call/${callId}`);
+      const response = await this.apiClient.post(`/vapi-data/sync-call/${callId}`, {}, {
+        timeout: 30000 // 30 second timeout for VAPI sync
+      });
       console.log('✅ Call synced:', response.data);
       return response.data;
     } catch (error) {
@@ -758,6 +760,8 @@ class VapiOutboundService {
       const response = await this.apiClient.post('/vapi-data/sync-calls', {
         campaignId,
         limit
+      }, {
+        timeout: 60000 // 60 second timeout for bulk sync
       });
       console.log('✅ Calls synced:', response.data);
       return response.data;
