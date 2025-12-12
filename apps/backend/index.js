@@ -1299,15 +1299,15 @@ app.post('/api/vapi-data/sync-call/:callId', async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    // Try to update existing call
-    const { data: existingCall } = await supabase
+    // Try to update existing call (use different var name to avoid redeclaration)
+    const { data: callToUpdate } = await supabase
       .from('calls')
       .select('id')
       .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
       .single();
 
     let savedCall;
-    if (existingCall) {
+    if (callToUpdate) {
       const { data, error } = await supabase
         .from('calls')
         .update(updateData)
