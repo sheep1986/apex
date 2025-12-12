@@ -1183,8 +1183,22 @@ app.post('/api/vapi-data/sync-call/:callId', async (req, res) => {
   console.log('🔄 Syncing call from VAPI:', callId);
 
   try {
-    // Get organization ID from headers or request
-    const organizationId = req.headers['x-organization-id'];
+    // Get organization ID from headers, body, or try to get from call record
+    let organizationId = req.headers['x-organization-id'] || req.body.organizationId;
+
+    // If no org ID provided, try to get it from the existing call record
+    if (!organizationId) {
+      const { data: existingCall } = await supabase
+        .from('calls')
+        .select('organization_id')
+        .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
+        .single();
+
+      if (existingCall) {
+        organizationId = existingCall.organization_id;
+        console.log('📋 Got organization ID from existing call:', organizationId);
+      }
+    }
 
     // Get VAPI credentials for this organization
     let vapiApiKey = process.env.VAPI_API_KEY;
@@ -1313,21 +1327,40 @@ app.post('/api/vapi-data/sync-call/:callId', async (req, res) => {
 
 // Sync all recent calls from VAPI
 app.post('/api/vapi-data/sync-calls', async (req, res) => {
-  const { campaignId, limit = 100 } = req.body;
-  const organizationId = req.headers['x-organization-id'];
+  const { campaignId, organizationId: bodyOrgId, limit = 100 } = req.body;
+  let organizationId = req.headers['x-organization-id'] || bodyOrgId;
 
   console.log('🔄 Syncing calls from VAPI for organization:', organizationId);
 
   try {
-    // Get VAPI credentials
+    // If no org ID and we have a campaign ID, get org from campaign
+    if (!organizationId && campaignId) {
+      const { data: campaign } = await supabase
+        .from('campaigns')
+        .select('organization_id')
+        .eq('id', campaignId)
+        .single();
+
+      if (campaign) {
+        organizationId = campaign.organization_id;
+        console.log('📋 Got organization ID from campaign:', organizationId);
+      }
+    }
+
+    // Get VAPI credentials - try org-specific first, then fall back to env
     let vapiApiKey = process.env.VAPI_API_KEY;
     if (organizationId) {
       const credentials = await getVapiCredentialsForOrganization(organizationId);
-      if (credentials) vapiApiKey = credentials;
+      if (credentials) {
+        vapiApiKey = credentials;
+        console.log('🔑 Using organization-specific VAPI key');
+      } else {
+        console.log('🔑 Using default VAPI key from environment');
+      }
     }
 
     if (!vapiApiKey) {
-      return res.status(400).json({ error: 'VAPI API key not configured' });
+      return res.status(400).json({ error: 'VAPI API key not configured. Please add your VAPI API key in Organization Settings or set VAPI_API_KEY environment variable.' });
     }
 
     // Fetch recent calls from VAPI
