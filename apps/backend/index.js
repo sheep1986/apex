@@ -1458,24 +1458,37 @@ app.post('/api/vapi-data/sync-calls', async (req, res) => {
             .join('\n');
         }
 
-        // SECURE MATCHING: Only use VAPI metadata to link calls to campaigns
-        // Metadata contains campaignId, organizationId, leadId that we passed to VAPI when making the call
-        // This prevents old calls or calls from other campaigns from being incorrectly assigned
+        // SECURE MATCHING: Use VAPI metadata OR existing database record to link calls
         let matchedCampaignId = null;
         let matchedLeadId = null;
         let matchedOrgId = organizationId;
 
+        // PRIORITY 1: Use VAPI metadata (most secure - we set this when making the call)
         if (vapiCall.metadata && vapiCall.metadata.campaignId) {
           matchedCampaignId = vapiCall.metadata.campaignId;
           matchedLeadId = vapiCall.metadata.leadId || null;
           matchedOrgId = vapiCall.metadata.organizationId || organizationId;
           console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} via VAPI metadata`);
-        } else {
-          // No metadata - this is an old call or from another system
-          // Skip it entirely to prevent incorrect campaign assignment
-          console.log(`⏭️ Skipping call ${vapiCall.id} - no metadata (likely old call or from another system)`);
-          skippedCount++;
-          continue; // Skip this call entirely
+        }
+        // PRIORITY 2: Check if this call already exists in our database (we created it with campaign info)
+        else {
+          const { data: existingCall } = await supabase
+            .from('calls')
+            .select('id, campaign_id, lead_id, organization_id')
+            .or(`id.eq.${vapiCall.id},vapi_call_id.eq.${vapiCall.id}`)
+            .single();
+
+          if (existingCall && existingCall.campaign_id) {
+            matchedCampaignId = existingCall.campaign_id;
+            matchedLeadId = existingCall.lead_id;
+            matchedOrgId = existingCall.organization_id || organizationId;
+            console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} via existing DB record`);
+          } else {
+            // No metadata and no existing record - skip this call
+            console.log(`⏭️ Skipping call ${vapiCall.id} - no metadata and not in database`);
+            skippedCount++;
+            continue;
+          }
         }
 
         const callData = {
