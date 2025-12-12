@@ -158,7 +158,14 @@ const VapiDashboard: React.FC = () => {
   const vapiOutboundService = useVapiOutboundService(); // Use authenticated service
 
   useEffect(() => {
-    console.log('🔄 VapiDashboard: Component mounted, starting data load...');
+    console.log('🔄 VapiDashboard: Component mounted or userContext changed, starting data load...');
+    console.log('🏢 VapiDashboard: Current organization_id:', userContext?.organization_id);
+
+    // Only load data if we have the organization context
+    if (!userContext?.organization_id) {
+      console.log('⏳ Waiting for user context with organization_id...');
+      return;
+    }
 
     // Add error boundary protection
     const safeLoadData = async () => {
@@ -185,7 +192,7 @@ const VapiDashboard: React.FC = () => {
     // }, 10000);
 
     // return () => clearInterval(interval);
-  }, [dataLoaded]);
+  }, [userContext?.organization_id]);
 
   const loadDashboardData = async (showLoader = true) => {
     console.log('📊 VapiDashboard: Starting data load, showLoader:', showLoader);
@@ -196,10 +203,12 @@ const VapiDashboard: React.FC = () => {
 
     try {
       console.log('📞 VapiDashboard: Loading real campaigns data...');
+      console.log('🏢 VapiDashboard: User context organization_id:', userContext?.organization_id);
 
       // Always use direct Supabase since Railway API is not working
-      console.log('🔄 Using direct Supabase service...');
-      const campaignsData = await directSupabaseService.getCampaigns();
+      // Pass organization_id from user context for proper multi-tenant data isolation
+      console.log('🔄 Using direct Supabase service with org ID...');
+      const campaignsData = await directSupabaseService.getCampaigns(userContext?.organization_id);
       console.log('✅ VapiDashboard: Campaigns loaded from Supabase:', campaignsData);
 
       // Set campaigns from API data
@@ -211,8 +220,8 @@ const VapiDashboard: React.FC = () => {
         setCampaigns([]);
       }
 
-      // Use direct Supabase service for recent calls
-      const recentCallsData = await directSupabaseService.getRecentCalls(10);
+      // Use direct Supabase service for recent calls - pass org ID for proper data isolation
+      const recentCallsData = await directSupabaseService.getRecentCalls(10, userContext?.organization_id);
       console.log('✅ VapiDashboard: Recent calls loaded from Supabase:', recentCallsData);
       setRecentCalls(recentCallsData || []);
 
@@ -333,8 +342,8 @@ const VapiDashboard: React.FC = () => {
 
     setIsDeleting(true);
     try {
-      // Use direct Supabase service to delete
-      await directSupabaseService.deleteCampaign(campaignToDelete.id);
+      // Use direct Supabase service to delete - pass org ID for proper authorization
+      await directSupabaseService.deleteCampaign(campaignToDelete.id, userContext?.organization_id);
 
       // Remove from local state
       setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete.id));
