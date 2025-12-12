@@ -32,6 +32,7 @@ import {
   Clock as ClockIcon,
   MoreHorizontal,
   Upload,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -162,6 +163,55 @@ export default function CampaignDetails() {
   const [selectedCall, setSelectedCall] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSyncingCalls, setIsSyncingCalls] = useState(false);
+
+  // Sync calls from VAPI
+  const handleSyncCalls = async () => {
+    setIsSyncingCalls(true);
+    try {
+      const result = await vapiOutboundService.syncAllCallsFromVapi(id);
+      toast({
+        title: 'Calls synced',
+        description: `Synced ${result.syncedCount} calls from VAPI`,
+      });
+      // Reload the calls list
+      await fetchCampaignCalls();
+    } catch (error: any) {
+      console.error('Error syncing calls:', error);
+      toast({
+        title: 'Sync failed',
+        description: error.message || 'Failed to sync calls from VAPI',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncingCalls(false);
+    }
+  };
+
+  // Sync single call from VAPI when opening modal
+  const syncAndOpenCallModal = async (call: any) => {
+    try {
+      // Try to sync the call from VAPI first
+      const syncResult = await vapiOutboundService.syncCallFromVapi(call.id);
+      if (syncResult.success && syncResult.call) {
+        // Use the synced data
+        handleOpenCallModal({
+          ...call,
+          ...syncResult.call,
+          duration: syncResult.call.duration || call.duration,
+          cost: syncResult.call.cost || call.cost,
+          recording_url: syncResult.call.recording_url || call.recording_url,
+          transcript: syncResult.call.transcript || call.transcript,
+        });
+      } else {
+        // Fall back to existing data
+        handleOpenCallModal(call);
+      }
+    } catch (error) {
+      console.log('Could not sync from VAPI, using existing data');
+      handleOpenCallModal(call);
+    }
+  };
 
   const handleOpenCallModal = async (call: any) => {
     console.log('Opening call modal with call:', call);
@@ -1115,11 +1165,21 @@ export default function CampaignDetails() {
 
           <TabsContent value="calls" className="mt-6">
             <Card className="border-gray-800 bg-gray-900">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-white">
                   <Phone className="h-5 w-5" />
                   Campaign Calls ({calls.length})
                 </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncCalls}
+                  disabled={isSyncingCalls}
+                  className="border-emerald-700 text-emerald-400 hover:bg-emerald-900/30"
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isSyncingCalls ? 'animate-spin' : ''}`} />
+                  {isSyncingCalls ? 'Syncing...' : 'Sync from VAPI'}
+                </Button>
               </CardHeader>
               <CardContent>
                 {isLoadingCalls ? (
@@ -1237,8 +1297,8 @@ export default function CampaignDetails() {
                                 className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  console.log('🎵 Opening call modal for:', call.id);
-                                  handleOpenCallModal(call);
+                                  console.log('🎵 Syncing and opening call modal for:', call.id);
+                                  syncAndOpenCallModal(call);
                                 }}
                               >
                                 <Play className="mr-1 h-4 w-4" />

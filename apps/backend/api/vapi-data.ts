@@ -187,4 +187,256 @@ router.get('/all', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// POST /api/vapi-data/sync-call/:callId - Sync a single call from VAPI
+router.post('/sync-call/:callId', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const organizationId = req.user?.organizationId;
+    const { callId } = req.params;
+
+    if (!organizationId) {
+      return res.status(400).json({ error: 'User not associated with an organization' });
+    }
+
+    if (!callId) {
+      return res.status(400).json({ error: 'Call ID is required' });
+    }
+
+    console.log('🔄 Syncing call from VAPI:', callId);
+
+    // Get VAPI service for the organization
+    const vapiService = await VAPIIntegrationService.forOrganization(organizationId);
+
+    if (!vapiService) {
+      return res.status(400).json({
+        error: 'VAPI integration not configured. Please add your VAPI API key in Organization Settings.'
+      });
+    }
+
+    // Fetch call details from VAPI
+    const vapiCall = await vapiService.getCall(callId);
+
+    if (!vapiCall) {
+      return res.status(404).json({ error: 'Call not found in VAPI' });
+    }
+
+    console.log('📞 VAPI call data:', {
+      id: vapiCall.id,
+      status: vapiCall.status,
+      duration: vapiCall.duration,
+      cost: vapiCall.cost,
+      hasRecording: !!vapiCall.recordingUrl,
+      hasTranscript: !!vapiCall.transcript
+    });
+
+    // Calculate duration from timestamps if not provided
+    let duration = vapiCall.duration || 0;
+    if (!duration && vapiCall.startedAt && vapiCall.endedAt) {
+      const startTime = new Date(vapiCall.startedAt).getTime();
+      const endTime = new Date(vapiCall.endedAt).getTime();
+      duration = Math.round((endTime - startTime) / 1000);
+    }
+
+    // Build transcript from messages if not available
+    let transcript = vapiCall.transcript || '';
+    if (!transcript && vapiCall.messages && vapiCall.messages.length > 0) {
+      transcript = vapiCall.messages
+        .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
+        .map((msg: any) => `${msg.role === 'assistant' ? 'AI' : 'User'}: ${msg.message}`)
+        .join('\n');
+    }
+
+    // Update call record in database
+    const updateData = {
+      vapi_call_id: vapiCall.id,
+      duration: duration,
+      cost: vapiCall.cost || 0,
+      recording_url: vapiCall.recordingUrl || vapiCall.stereoRecordingUrl || null,
+      transcript: transcript || null,
+      summary: vapiCall.summary || vapiCall.analysis?.summary || null,
+      status: vapiCall.status === 'ended' ? 'completed' : vapiCall.status,
+      started_at: vapiCall.startedAt,
+      ended_at: vapiCall.endedAt,
+      outcome: mapVapiStatusToOutcome(vapiCall.endedReason, duration),
+      sentiment: vapiCall.analysis?.userSentiment || null,
+      updated_at: new Date().toISOString()
+    };
+
+    // Try to update existing call or insert new one
+    const { data: existingCall } = await supabase
+      .from('calls')
+      .select('id')
+      .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
+      .single();
+
+    let savedCall;
+    if (existingCall) {
+      // Update existing call
+      const { data, error } = await supabase
+        .from('calls')
+        .update(updateData)
+        .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating call:', error);
+        return res.status(500).json({ error: 'Failed to update call record' });
+      }
+      savedCall = data;
+    } else {
+      // Insert new call
+      const { data, error } = await supabase
+        .from('calls')
+        .insert({
+          id: callId,
+          organization_id: organizationId,
+          ...updateData,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error inserting call:', error);
+        return res.status(500).json({ error: 'Failed to create call record' });
+      }
+      savedCall = data;
+    }
+
+    console.log('✅ Call synced successfully:', savedCall.id);
+
+    res.json({
+      success: true,
+      call: savedCall,
+      vapiData: {
+        duration,
+        cost: vapiCall.cost,
+        hasRecording: !!vapiCall.recordingUrl,
+        hasTranscript: !!transcript
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error syncing call from VAPI:', error);
+    res.status(500).json({ error: 'Failed to sync call' });
+  }
+});
+
+// POST /api/vapi-data/sync-calls - Sync all recent calls from VAPI
+router.post('/sync-calls', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const organizationId = req.user?.organizationId;
+    const { campaignId, limit = 100 } = req.body;
+
+    if (!organizationId) {
+      return res.status(400).json({ error: 'User not associated with an organization' });
+    }
+
+    console.log('🔄 Syncing calls from VAPI for organization:', organizationId);
+
+    // Get VAPI service for the organization
+    const vapiService = await VAPIIntegrationService.forOrganization(organizationId);
+
+    if (!vapiService) {
+      return res.status(400).json({
+        error: 'VAPI integration not configured. Please add your VAPI API key in Organization Settings.'
+      });
+    }
+
+    // Fetch recent calls from VAPI
+    const vapiCalls = await vapiService.listCalls({ limit });
+
+    console.log(`📞 Found ${vapiCalls.length} calls in VAPI`);
+
+    let syncedCount = 0;
+    let errorCount = 0;
+
+    for (const vapiCall of vapiCalls) {
+      try {
+        // Calculate duration
+        let duration = vapiCall.duration || 0;
+        if (!duration && vapiCall.startedAt && vapiCall.endedAt) {
+          const startTime = new Date(vapiCall.startedAt).getTime();
+          const endTime = new Date(vapiCall.endedAt).getTime();
+          duration = Math.round((endTime - startTime) / 1000);
+        }
+
+        // Build transcript from messages
+        let transcript = vapiCall.transcript || '';
+        if (!transcript && vapiCall.messages && vapiCall.messages.length > 0) {
+          transcript = vapiCall.messages
+            .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
+            .map((msg: any) => `${msg.role === 'assistant' ? 'AI' : 'User'}: ${msg.message}`)
+            .join('\n');
+        }
+
+        const callData = {
+          id: vapiCall.id,
+          vapi_call_id: vapiCall.id,
+          organization_id: organizationId,
+          campaign_id: campaignId || null,
+          customer_phone: vapiCall.customer?.number || null,
+          customer_name: vapiCall.customer?.name || null,
+          duration: duration,
+          cost: vapiCall.cost || 0,
+          recording_url: vapiCall.recordingUrl || vapiCall.stereoRecordingUrl || null,
+          transcript: transcript || null,
+          summary: vapiCall.summary || vapiCall.analysis?.summary || null,
+          status: vapiCall.status === 'ended' ? 'completed' : vapiCall.status,
+          started_at: vapiCall.startedAt,
+          ended_at: vapiCall.endedAt,
+          outcome: mapVapiStatusToOutcome(vapiCall.endedReason, duration),
+          sentiment: vapiCall.analysis?.userSentiment || null,
+          direction: vapiCall.type?.includes('inbound') ? 'inbound' : 'outbound',
+          created_at: vapiCall.createdAt || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Upsert call record
+        const { error } = await supabase
+          .from('calls')
+          .upsert(callData, { onConflict: 'id' });
+
+        if (error) {
+          console.error(`❌ Error syncing call ${vapiCall.id}:`, error);
+          errorCount++;
+        } else {
+          syncedCount++;
+        }
+      } catch (err) {
+        console.error(`❌ Error processing call ${vapiCall.id}:`, err);
+        errorCount++;
+      }
+    }
+
+    console.log(`✅ Sync complete: ${syncedCount} synced, ${errorCount} errors`);
+
+    res.json({
+      success: true,
+      totalCalls: vapiCalls.length,
+      syncedCount,
+      errorCount
+    });
+
+  } catch (error) {
+    console.error('❌ Error syncing calls from VAPI:', error);
+    res.status(500).json({ error: 'Failed to sync calls' });
+  }
+});
+
+// Helper function to map VAPI status to outcome
+function mapVapiStatusToOutcome(endedReason?: string, duration?: number): string {
+  if (!endedReason) {
+    return duration && duration > 30 ? 'connected' : 'unknown';
+  }
+
+  if (endedReason === 'customer-ended-call') return 'connected';
+  if (endedReason === 'assistant-ended-call') return 'completed';
+  if (endedReason.includes('pipeline-error')) return 'failed';
+  if (endedReason === 'silence-timeout') return 'no_answer';
+  if (endedReason === 'exceeded-max-duration') return 'connected';
+
+  return duration && duration > 30 ? 'connected' : 'no_answer';
+}
+
 export default router;
