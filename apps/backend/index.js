@@ -139,7 +139,7 @@ async function getVapiCredentialsForOrganization(organizationId) {
   }
 }
 
-async function makeVapiCall(apiKey, assistantId, phoneNumberId, customerPhone, customerName) {
+async function makeVapiCall(apiKey, assistantId, phoneNumberId, customerPhone, customerName, metadata = {}) {
   try {
     // Validate phone number format
     if (!customerPhone || !customerPhone.startsWith('+')) {
@@ -162,6 +162,14 @@ async function makeVapiCall(apiKey, assistantId, phoneNumberId, customerPhone, c
       customer: {
         number: customerPhone,
         name: customerName || 'Unknown'
+      },
+      // IMPORTANT: metadata is passed to VAPI and returned with call data
+      // This is how we securely link calls to campaigns across organizations
+      metadata: {
+        campaignId: metadata.campaignId || null,
+        organizationId: metadata.organizationId || null,
+        leadId: metadata.leadId || null,
+        source: 'apex-platform'
       }
     };
 
@@ -175,7 +183,7 @@ async function makeVapiCall(apiKey, assistantId, phoneNumberId, customerPhone, c
       timeout: 30000
     });
 
-    console.log(`✅ VAPI call created: ${response.data.id}`);
+    console.log(`✅ VAPI call created: ${response.data.id} (campaign: ${metadata.campaignId})`);
     return response.data;
   } catch (error) {
     console.error('❌ VAPI call error:', error.response?.data || error.message);
@@ -479,13 +487,18 @@ async function processSingleCampaign(campaign, forceRun = false, maxCallsLimit =
         .update({ status: 'calling', updated_at: new Date().toISOString() })
         .eq('id', queueItem.id);
 
-      // Make the VAPI call
+      // Make the VAPI call with campaign metadata for secure tracking
       const vapiCall = await makeVapiCall(
         vapiApiKey,
         assistantId,
         phoneNumberId,
         queueItem.phone_number,
-        queueItem.contact_name
+        queueItem.contact_name,
+        {
+          campaignId: campaign.id,
+          organizationId: campaign.organization_id,
+          leadId: queueItem.lead_id
+        }
       );
 
       // Update queue with call ID
@@ -1097,7 +1110,12 @@ app.get('/api/campaigns/:id/execute', async (req, res) => {
         assistantId,
         phoneNumberId,
         lead.phone,
-        lead.name
+        lead.name,
+        {
+          campaignId: campaign.id,
+          organizationId: campaign.organization_id,
+          leadId: lead.id
+        }
       );
 
       log(`✅ VAPI call created: ${vapiCall.id}`);
@@ -1439,34 +1457,44 @@ app.post('/api/vapi-data/sync-calls', async (req, res) => {
             .join('\n');
         }
 
-        // Match call to campaign by customer phone number (the number that was called)
-        // This is the unique identifier that links a VAPI call to a lead in a campaign
+        // PRIORITY 1: Use VAPI metadata (most secure - we set this when making the call)
+        // This contains campaignId, organizationId, leadId that we passed to VAPI
         let matchedCampaignId = null;
         let matchedLeadId = null;
-        const customerPhone = vapiCall.customer ? vapiCall.customer.number : null;
+        let matchedOrgId = organizationId;
 
-        if (customerPhone) {
-          const normalizedCustomerPhone = normalizePhone(customerPhone);
+        if (vapiCall.metadata && vapiCall.metadata.campaignId) {
+          matchedCampaignId = vapiCall.metadata.campaignId;
+          matchedLeadId = vapiCall.metadata.leadId || null;
+          matchedOrgId = vapiCall.metadata.organizationId || organizationId;
+          console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} via VAPI metadata`);
+        }
+        // PRIORITY 2: Fall back to phone number matching (for older calls without metadata)
+        else {
+          const customerPhone = vapiCall.customer ? vapiCall.customer.number : null;
+          if (customerPhone) {
+            const normalizedCustomerPhone = normalizePhone(customerPhone);
 
-          if (phoneToCampaign.has(normalizedCustomerPhone)) {
-            matchedCampaignId = phoneToCampaign.get(normalizedCustomerPhone);
-            matchedLeadId = phoneToLead.get(normalizedCustomerPhone);
-            console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} by customer phone: ${customerPhone}`);
-          } else {
-            console.log(`⚠️ No lead found for customer phone: ${customerPhone} (normalized: ${normalizedCustomerPhone})`);
+            if (phoneToCampaign.has(normalizedCustomerPhone)) {
+              matchedCampaignId = phoneToCampaign.get(normalizedCustomerPhone);
+              matchedLeadId = phoneToLead.get(normalizedCustomerPhone);
+              console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} by phone: ${customerPhone}`);
+            } else {
+              console.log(`⚠️ No metadata or phone match for call ${vapiCall.id}`);
+            }
           }
         }
 
-        // Fall back to explicitly passed campaignId only if no phone match found
+        // PRIORITY 3: Fall back to explicitly passed campaignId (last resort)
         if (!matchedCampaignId && campaignId) {
           matchedCampaignId = campaignId;
-          console.log(`⚠️ No phone match for call ${vapiCall.id}, using passed campaignId: ${matchedCampaignId}`);
+          console.log(`⚠️ Using fallback campaignId for call ${vapiCall.id}: ${matchedCampaignId}`);
         }
 
         const callData = {
           id: vapiCall.id,
           vapi_call_id: vapiCall.id,
-          organization_id: organizationId || null,
+          organization_id: matchedOrgId || null,
           campaign_id: matchedCampaignId,
           lead_id: matchedLeadId,
           customer_phone: vapiCall.customer ? vapiCall.customer.number : null,
@@ -2216,7 +2244,12 @@ app.post('/api/campaigns/:id/on-create', async (req, res) => {
                 assistantId,
                 phoneNumberId,
                 lead.phone,
-                lead.name
+                lead.name,
+                {
+                  campaignId: campaign.id,
+                  organizationId: campaign.organization_id,
+                  leadId: lead.id
+                }
               );
 
               // Update lead status (use 'contacted' as that's what the DB constraint allows)
