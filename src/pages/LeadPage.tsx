@@ -788,16 +788,11 @@ export default function LeadPage() {
         setIsLoading(true);
         
         // Fetch lead data with related information
+        // Note: Use simple select without explicit foreign key names to avoid Supabase errors
         const { data: lead, error } = await supabase
           .from('leads')
           .select(`
             *,
-            uploaded_by:users!leads_uploaded_by_fkey(
-              id,
-              first_name,
-              last_name,
-              role
-            ),
             campaigns(
               id,
               name
@@ -819,12 +814,10 @@ export default function LeadPage() {
             type: lead.last_call_at ? 'Call' : 'None',
           },
           owner: {
-            id: lead.uploaded_by?.id || '',
-            name: lead.uploaded_by ? `${lead.uploaded_by.first_name} ${lead.uploaded_by.last_name}` : 'Unassigned',
-            role: lead.uploaded_by?.role || '',
-            initials: lead.uploaded_by ? 
-              `${lead.uploaded_by.first_name?.[0] || ''}${lead.uploaded_by.last_name?.[0] || ''}`.toUpperCase() : 
-              'NA',
+            id: lead.uploaded_by || '',
+            name: 'Unassigned', // TODO: Fetch user details separately if needed
+            role: '',
+            initials: 'NA',
           },
           personalDetails: {
             firstName: lead.first_name || '',
