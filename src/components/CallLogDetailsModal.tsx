@@ -933,8 +933,8 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
           </div>
 
           {/* Tabs Section - Made to fill remaining space */}
-          <Tabs defaultValue="transcripts" className="flex flex-1 flex-col bg-[#1a1a1a] min-h-0">
-            <div className="border-b border-gray-700/50 bg-[#1a1a1a] px-6">
+          <Tabs defaultValue="transcripts" className="flex flex-1 flex-col bg-[#1a1a1a] min-h-0 overflow-hidden">
+            <div className="border-b border-gray-700/50 bg-[#1a1a1a] px-6 flex-shrink-0">
               <TabsList className="h-14 space-x-8 bg-transparent p-0">
                 <TabsTrigger
                   value="transcripts"
@@ -1019,19 +1019,19 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
               </TabsList>
             </div>
 
-            <div className="mx-6 mb-6 mt-6 flex min-h-0 w-auto flex-1 flex-col overflow-hidden rounded-2xl border border-gray-700/30 bg-gray-900/40 px-6 py-4 backdrop-blur-sm">
+            <div className="mx-6 mb-6 mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-700/30 bg-gray-900/40 backdrop-blur-sm">
               <TabsContent
                 value="transcripts"
-                className="mt-2 flex flex-1 flex-col min-h-0 overflow-hidden data-[state=inactive]:hidden"
+                className="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 data-[state=inactive]:hidden"
               >
-                <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+                <div className="flex flex-1 flex-col min-h-0 overflow-hidden p-6">
                   <div className="mb-4 pb-3 border-b border-gray-700/30 flex-shrink-0">
                     <h3 className="text-lg font-semibold text-white">Transcript</h3>
                   </div>
 
                   <div
                     ref={transcriptContainerRef}
-                    className="flex-1 overflow-y-auto space-y-4 pr-2"
+                    className="flex-1 overflow-y-auto space-y-4 pr-2 min-h-0"
                     style={{
                       scrollbarWidth: 'thin',
                       scrollbarColor: '#4b5563 #1f2937'
@@ -1072,11 +1072,12 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
 
               <TabsContent
                 value="logs"
-                className="mt-2 flex h-full flex-1 flex-col"
+                className="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 data-[state=inactive]:hidden"
                 data-testid="logs-tab-content"
               >
+                <div className="flex flex-1 flex-col min-h-0 overflow-hidden p-6">
                 {/* Sticky Header */}
-                <div className="sticky top-0 z-10 mb-4 border-b border-gray-700/30 bg-gray-900/40 pb-3 backdrop-blur-sm">
+                <div className="mb-4 border-b border-gray-700/30 pb-3 flex-shrink-0">
                   <div className="flex flex-row items-center gap-3">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -1094,7 +1095,7 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
 
                 {/* Scrollable Logs */}
                 <div
-                  className="flex-1 space-y-1 overflow-y-auto pr-2"
+                  className="flex-1 space-y-1 overflow-y-auto pr-2 min-h-0"
                   style={{
                     scrollbarWidth: 'thin',
                     scrollbarColor: '#4a5568 #2d3748',
@@ -1295,14 +1296,15 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                     </div>
                   </div>
                 </div>
+                </div>
               </TabsContent>
 
               <TabsContent
                 value="analysis"
-                className="mt-2 flex h-full flex-1 flex-col"
+                className="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 data-[state=inactive]:hidden"
                 data-testid="analysis-tab-content"
               >
-                <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   <h4 className="font-medium text-white">Call Analysis</h4>
 
                   <div className="rounded-lg bg-gray-700/50 p-4">
@@ -1350,10 +1352,10 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
 
               <TabsContent
                 value="messages"
-                className="mt-2 flex h-full flex-1 flex-col"
+                className="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 data-[state=inactive]:hidden"
                 data-testid="messages-tab-content"
               >
-                <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   <h4 className="font-medium text-white">Messages</h4>
                   <div className="text-sm text-gray-400">
                     <p>Messages and notifications related to this call.</p>
@@ -1363,10 +1365,10 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
 
               <TabsContent
                 value="cost"
-                className="mt-2 flex h-full flex-1 flex-col"
+                className="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 data-[state=inactive]:hidden"
                 data-testid="cost-breakdown-tab-content"
               >
-                <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   <h4 className="font-medium text-white">Call Cost Breakdown</h4>
                   
                   {/* Duration Display */}
