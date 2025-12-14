@@ -89,12 +89,15 @@ export async function processCallWithEnhancedAI(
       console.error('❌ Error updating call with analysis:', updateError);
     }
 
-    // If positive lead, push to CRM
+    // Always update lead with call details (regardless of outcome)
+    console.log('📋 Updating lead with call details...');
+    await updateLeadWithCallDetails(callId, vapiCallData, analysis);
+
+    // If positive lead, also mark as qualified
     if (analysis.isPositiveLead) {
-      console.log('✅ Positive lead detected! Pushing to CRM...');
-      await pushLeadToCRM(callId, vapiCallData, analysis);
+      console.log('✅ Positive lead detected! Marking as qualified...');
     } else {
-      console.log('⚠️ Call not marked as positive lead, skipping CRM push');
+      console.log('ℹ️ Call completed - lead updated with call details');
     }
 
   } catch (error) {
@@ -276,9 +279,9 @@ function generateSummaryFromTranscript(transcript: string): string {
 }
 
 /**
- * Push positive lead to CRM (leads table)
+ * Update lead with call details (always called, regardless of outcome)
  */
-async function pushLeadToCRM(
+async function updateLeadWithCallDetails(
   callId: string,
   vapiData: VapiCallData,
   analysis: CallAnalysisResult
@@ -287,58 +290,124 @@ async function pushLeadToCRM(
     // Get the call record to find campaign and organization
     const { data: callRecord, error: callError } = await supabase
       .from('calls')
-      .select('campaign_id, organization_id, customer_phone, customer_name')
+      .select('campaign_id, organization_id, customer_phone, customer_name, lead_id')
       .eq('id', callId)
       .single();
 
     if (callError || !callRecord) {
-      console.error('❌ Could not find call record for CRM push:', callError);
+      console.error('❌ Could not find call record for lead update:', callError);
       return;
     }
 
-    // Check if lead already exists for this phone number
+    // Get phone number for lead lookup
     const phone = analysis.structuredData.phone || callRecord.customer_phone;
     if (!phone) {
-      console.error('❌ No phone number available for lead creation');
+      console.error('❌ No phone number available for lead lookup');
       return;
     }
 
-    const { data: existingLead } = await supabase
-      .from('leads')
-      .select('id')
-      .eq('phone', phone)
-      .eq('organization_id', callRecord.organization_id)
-      .single();
+    // First check if the call already has a linked lead
+    let existingLead = null;
+    if (callRecord.lead_id) {
+      const { data: linkedLead } = await supabase
+        .from('leads')
+        .select('id, status, notes, call_count, last_call_at')
+        .eq('id', callRecord.lead_id)
+        .single();
+      existingLead = linkedLead;
+    }
+
+    // If no linked lead, try to find by phone number
+    if (!existingLead) {
+      const { data: leadByPhone } = await supabase
+        .from('leads')
+        .select('id, status, notes, call_count, last_call_at')
+        .eq('phone', phone)
+        .eq('organization_id', callRecord.organization_id)
+        .single();
+      existingLead = leadByPhone;
+    }
+
+    // Determine new status based on analysis
+    let newStatus = 'contacted';
+    if (analysis.isPositiveLead && analysis.structuredData.appointmentScheduled) {
+      newStatus = 'qualified';
+    } else if (analysis.isPositiveLead) {
+      newStatus = 'interested';
+    } else if (analysis.structuredData.callbackRequested) {
+      newStatus = 'callback';
+    } else if (analysis.structuredData.doNotCall) {
+      newStatus = 'do_not_contact';
+    }
+
+    // Build notes with call details
+    const callDetails = `
+--- Call on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} ---
+Outcome: ${analysis.outcome}
+Sentiment: ${analysis.sentiment}
+Summary: ${analysis.summary}
+${analysis.structuredData.interestLevel ? `Interest Level: ${analysis.structuredData.interestLevel}` : ''}
+${analysis.structuredData.appointmentScheduled ? `Appointment: ${analysis.structuredData.appointmentDate || 'Scheduled (date TBD)'}` : ''}
+${analysis.structuredData.callbackRequested ? 'Callback Requested: Yes' : ''}
+${analysis.structuredData.objections?.length ? `Objections: ${analysis.structuredData.objections.join(', ')}` : ''}
+${analysis.structuredData.nextSteps ? `Next Steps: ${analysis.structuredData.nextSteps}` : ''}
+`.trim();
 
     if (existingLead) {
-      console.log('📋 Lead already exists, updating...');
+      console.log('📋 Updating existing lead with call details...');
 
-      // Update existing lead with new call information
+      // Update existing lead with call information
+      const currentCallCount = existingLead.call_count || 0;
+      const existingNotes = existingLead.notes || '';
+
       const { error: updateError } = await supabase
         .from('leads')
         .update({
-          status: analysis.structuredData.appointmentScheduled ? 'qualified' : 'contacted',
-          last_contact_date: new Date().toISOString(),
-          notes: `Updated from call on ${new Date().toLocaleDateString()}: ${analysis.summary}`,
+          status: newStatus,
+          last_call_at: new Date().toISOString(),
+          call_count: currentCallCount + 1,
+          notes: existingNotes ? `${existingNotes}\n\n${callDetails}` : callDetails,
+          qualification_status: analysis.isPositiveLead ? 'qualified' : existingLead.status === 'qualified' ? 'qualified' : 'unqualified',
           updated_at: new Date().toISOString()
         })
         .eq('id', existingLead.id);
 
       if (updateError) {
-        console.error('❌ Error updating existing lead:', updateError);
+        console.error('❌ Error updating lead:', updateError);
       } else {
-        console.log('✅ Existing lead updated successfully');
+        console.log('✅ Lead updated with call details:', existingLead.id);
+
+        // Link the call to the lead if not already linked
+        if (!callRecord.lead_id) {
+          await supabase
+            .from('calls')
+            .update({ lead_id: existingLead.id })
+            .eq('id', callId);
+        }
       }
       return;
     }
 
-    // Parse contact name
+    // No existing lead found - create a new one
+    console.log('📋 Creating new lead from call...');
+
     const fullName = analysis.structuredData.contactName || callRecord.customer_name || 'Unknown Contact';
     const nameParts = fullName.split(' ');
     const firstName = nameParts[0] || 'Unknown';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Create new lead
+    // Determine score based on outcome
+    let score = 50; // Default score
+    if (analysis.structuredData.appointmentScheduled) {
+      score = 90;
+    } else if (analysis.isPositiveLead) {
+      score = 75;
+    } else if (analysis.structuredData.callbackRequested) {
+      score = 60;
+    } else if (analysis.sentiment === 'negative' || analysis.structuredData.doNotCall) {
+      score = 10;
+    }
+
     const leadData = {
       organization_id: callRecord.organization_id,
       campaign_id: callRecord.campaign_id,
@@ -347,11 +416,13 @@ async function pushLeadToCRM(
       phone: phone,
       email: analysis.structuredData.email || null,
       company: analysis.structuredData.company || null,
-      status: analysis.structuredData.appointmentScheduled ? 'qualified' : 'new',
+      status: newStatus,
+      qualification_status: analysis.isPositiveLead ? 'qualified' : 'unqualified',
       source: 'vapi_call',
-      notes: `Created from AI call on ${new Date().toLocaleDateString()}\n\nSummary: ${analysis.summary}\n\nInterest Level: ${analysis.structuredData.interestLevel || 'High'}\n\nAppointment: ${analysis.structuredData.appointmentScheduled ? 'Yes - ' + (analysis.structuredData.appointmentDate || 'TBD') : 'No'}`,
-      score: analysis.structuredData.appointmentScheduled ? 90 : 70,
-      last_contact_date: new Date().toISOString(),
+      notes: callDetails,
+      score: score,
+      call_count: 1,
+      last_call_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -363,13 +434,13 @@ async function pushLeadToCRM(
       .single();
 
     if (insertError) {
-      console.error('❌ Error creating lead in CRM:', insertError);
+      console.error('❌ Error creating lead:', insertError);
       return;
     }
 
-    console.log('✅ Lead created successfully in CRM:', newLead.id);
+    console.log('✅ New lead created from call:', newLead.id);
 
-    // Update call record to link to the lead
+    // Link the call to the new lead
     await supabase
       .from('calls')
       .update({
@@ -379,6 +450,6 @@ async function pushLeadToCRM(
       .eq('id', callId);
 
   } catch (error) {
-    console.error('❌ Error pushing lead to CRM:', error);
+    console.error('❌ Error updating lead with call details:', error);
   }
 }
