@@ -191,7 +191,7 @@ router.get('/all', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/sync-call/:callId', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const organizationId = req.user?.organizationId;
-    const { callId } = req.params;
+    let { callId } = req.params;
 
     if (!organizationId) {
       return res.status(400).json({ error: 'User not associated with an organization' });
@@ -203,6 +203,43 @@ router.post('/sync-call/:callId', async (req: AuthenticatedRequest, res: Respons
 
     console.log('🔄 Syncing call from VAPI:', callId);
 
+    // Check if callId is a local database UUID - if so, look up the vapi_call_id
+    let vapiCallId = callId;
+    const { data: existingCallRecord } = await supabase
+      .from('calls')
+      .select('id, vapi_call_id, organization_id')
+      .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
+      .single();
+
+    if (existingCallRecord?.vapi_call_id) {
+      vapiCallId = existingCallRecord.vapi_call_id;
+      console.log(`📋 Found VAPI call ID from database: ${vapiCallId}`);
+    }
+
+    // If no VAPI call ID found, return the existing call data
+    if (!vapiCallId || vapiCallId === callId) {
+      // The ID provided is not a VAPI call ID and we don't have one in the database
+      // Return the existing call data if we have it
+      if (existingCallRecord) {
+        const { data: fullCall } = await supabase
+          .from('calls')
+          .select('*')
+          .eq('id', existingCallRecord.id)
+          .single();
+
+        if (fullCall) {
+          console.log('📋 Returning existing call data (no VAPI ID available)');
+          return res.json({
+            success: true,
+            call: fullCall,
+            source: 'database',
+            message: 'No VAPI call ID available, returning cached data'
+          });
+        }
+      }
+      return res.status(404).json({ error: 'Call not found and no VAPI ID available' });
+    }
+
     // Get VAPI service for the organization
     const vapiService = await VAPIIntegrationService.forOrganization(organizationId);
 
@@ -212,8 +249,8 @@ router.post('/sync-call/:callId', async (req: AuthenticatedRequest, res: Respons
       });
     }
 
-    // Fetch call details from VAPI
-    const vapiCall = await vapiService.getCall(callId);
+    // Fetch call details from VAPI using the VAPI call ID
+    const vapiCall = await vapiService.getCall(vapiCallId);
 
     if (!vapiCall) {
       return res.status(404).json({ error: 'Call not found in VAPI' });
@@ -262,19 +299,14 @@ router.post('/sync-call/:callId', async (req: AuthenticatedRequest, res: Respons
     };
 
     // Try to update existing call or insert new one
-    const { data: existingCall } = await supabase
-      .from('calls')
-      .select('id')
-      .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
-      .single();
-
+    // Note: existingCallRecord was already fetched above
     let savedCall;
-    if (existingCall) {
-      // Update existing call
+    if (existingCallRecord) {
+      // Update existing call using the database ID
       const { data, error } = await supabase
         .from('calls')
         .update(updateData)
-        .or(`id.eq.${callId},vapi_call_id.eq.${callId}`)
+        .eq('id', existingCallRecord.id)
         .select()
         .single();
 
@@ -284,12 +316,12 @@ router.post('/sync-call/:callId', async (req: AuthenticatedRequest, res: Respons
       }
       savedCall = data;
     } else {
-      // Insert new call
+      // Insert new call with the VAPI call ID
       const { data, error } = await supabase
         .from('calls')
         .insert({
-          id: callId,
           organization_id: organizationId,
+          vapi_call_id: vapiCallId,
           ...updateData,
           created_at: new Date().toISOString()
         })
