@@ -1019,20 +1019,23 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
               </TabsList>
             </div>
 
-            <div className="mx-6 mb-6 mt-6 flex min-h-0 w-auto flex-1 flex-col rounded-2xl border border-gray-700/30 bg-gray-900/40 px-6 py-4 backdrop-blur-sm">
+            <div className="mx-6 mb-6 mt-6 flex min-h-0 w-auto flex-1 flex-col overflow-hidden rounded-2xl border border-gray-700/30 bg-gray-900/40 px-6 py-4 backdrop-blur-sm">
               <TabsContent
                 value="transcripts"
-                className="mt-2 flex flex-1 flex-col"
+                className="mt-2 flex flex-1 flex-col min-h-0 overflow-hidden data-[state=inactive]:hidden"
               >
-                <div className="flex flex-1 flex-col overflow-hidden">
-                  <div className="mb-4 pb-3 border-b border-gray-700/30">
+                <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+                  <div className="mb-4 pb-3 border-b border-gray-700/30 flex-shrink-0">
                     <h3 className="text-lg font-semibold text-white">Transcript</h3>
                   </div>
-                  
-                  <div 
+
+                  <div
                     ref={transcriptContainerRef}
-                    className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" 
-                    style={{ maxHeight: 'calc(100vh - 400px)', minHeight: '200px' }}
+                    className="flex-1 overflow-y-auto space-y-4 pr-2"
+                    style={{
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#4b5563 #1f2937'
+                    }}
                   >
                     {callData && callData.transcript && Array.isArray(callData.transcript) ? (
                       <>
@@ -1058,10 +1061,8 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full py-8 text-gray-400">
                         <p className="text-lg">No transcript available</p>
-                        <p className="text-xs mt-2">
-                          Debug: callData={callData ? 'exists' : 'null'}, 
-                          transcript={callData?.transcript ? 'exists' : 'null'},
-                          isArray={Array.isArray(callData?.transcript) ? 'yes' : 'no'}
+                        <p className="text-sm mt-2 text-gray-500">
+                          The transcript will appear here once the call is processed.
                         </p>
                       </div>
                     )}
