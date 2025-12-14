@@ -343,6 +343,42 @@ router.post('/sync-calls', async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    // Get all campaign IDs for this organization
+    const { data: campaigns } = await supabase
+      .from('campaigns')
+      .select('id')
+      .eq('organization_id', organizationId);
+
+    const campaignIds = (campaigns || []).map(c => c.id);
+
+    // Pre-fetch all leads for this organization to match calls to campaigns by customer phone number
+    // This is the key: each lead has a unique phone number and belongs to a specific campaign
+    const { data: leads } = await supabase
+      .from('leads')
+      .select('id, campaign_id, phone')
+      .in('campaign_id', campaignIds);
+
+    // Create a map of normalized phone number -> campaignId for quick lookup
+    const phoneToCampaign = new Map<string, string>();
+    const phoneToLead = new Map<string, string>();
+
+    // Normalize phone numbers for matching (get last 10 digits)
+    const normalizePhone = (phone: string | null): string => {
+      if (!phone) return '';
+      return phone.replace(/\D/g, '').slice(-10);
+    };
+
+    for (const lead of leads || []) {
+      if (lead.phone && lead.campaign_id) {
+        const normalizedPhone = normalizePhone(lead.phone);
+        phoneToCampaign.set(normalizedPhone, lead.campaign_id);
+        phoneToLead.set(normalizedPhone, lead.id);
+      }
+    }
+
+    console.log(`📋 Loaded ${(leads || []).length} leads across ${campaignIds.length} campaigns`);
+    console.log(`📋 Phone-to-campaign mappings: ${phoneToCampaign.size}`);
+
     // Fetch recent calls from VAPI
     const vapiCalls = await vapiService.listCalls({ limit });
 
@@ -370,12 +406,38 @@ router.post('/sync-calls', async (req: AuthenticatedRequest, res: Response) => {
             .join('\n');
         }
 
+        // Match call to campaign by customer phone number (the number that was called)
+        // This is the unique identifier that links a VAPI call to a lead in a campaign
+        let matchedCampaignId: string | null = null;
+        let matchedLeadId: string | null = null;
+        const customerPhone = vapiCall.customer?.number || null;
+
+        if (customerPhone) {
+          const normalizedCustomerPhone = normalizePhone(customerPhone);
+
+          if (phoneToCampaign.has(normalizedCustomerPhone)) {
+            matchedCampaignId = phoneToCampaign.get(normalizedCustomerPhone) || null;
+            matchedLeadId = phoneToLead.get(normalizedCustomerPhone) || null;
+            console.log(`✅ Matched call ${vapiCall.id} to campaign ${matchedCampaignId} by customer phone: ${customerPhone}`);
+          } else {
+            console.log(`⚠️ No lead found for customer phone: ${customerPhone} (normalized: ${normalizedCustomerPhone})`);
+          }
+        }
+
+        // Fall back to explicitly passed campaignId only if no phone match found
+        if (!matchedCampaignId && campaignId) {
+          matchedCampaignId = campaignId;
+          console.log(`⚠️ No phone match for call ${vapiCall.id}, using passed campaignId: ${matchedCampaignId}`);
+        }
+
         const callData = {
           id: vapiCall.id,
           vapi_call_id: vapiCall.id,
           organization_id: organizationId,
-          campaign_id: campaignId || null,
-          customer_phone: vapiCall.customer?.number || null,
+          campaign_id: matchedCampaignId,
+          lead_id: matchedLeadId,
+          customer_phone: customerPhone,
+          phone_number: customerPhone,
           customer_name: vapiCall.customer?.name || null,
           duration: duration,
           cost: vapiCall.cost || 0,

@@ -133,10 +133,27 @@ router.post('/', async (req: Request, res: Response) => {
     }, null, 2));
 
     // Process different event types
-    if (type === 'call-ended' || type === 'end-of-call-report') {
-      // Both events indicate call completion, but end-of-call-report has more complete data
-      console.log(`📊 Processing ${type} event for call ${call.id}`);
+    if (type === 'end-of-call-report') {
+      // end-of-call-report has the MOST complete data including analysis
+      console.log(`📊 Processing end-of-call-report event for call ${call.id} (has analysis: ${!!call.analysis})`);
       await processCallEnded(call);
+    } else if (type === 'call-ended') {
+      // call-ended may not have analysis yet - VAPI analysis is async
+      console.log(`📊 Processing call-ended event for call ${call.id} (note: analysis may come in end-of-call-report)`);
+      // Only process if we haven't received end-of-call-report yet
+      // Check if call already has analysis in database
+      const { data: existingCall } = await supabase
+        .from('calls')
+        .select('summary, outcome')
+        .eq('vapi_call_id', call.id)
+        .single();
+
+      if (!existingCall?.summary) {
+        // No analysis yet, process this event
+        await processCallEnded(call);
+      } else {
+        console.log(`ℹ️ Call ${call.id} already has analysis, skipping call-ended processing`);
+      }
     } else if (type === 'call-started') {
       await processCallStarted(call);
     } else {
@@ -184,6 +201,20 @@ async function processCallStarted(call: any) {
 async function processCallEnded(call: any) {
   try {
     console.log(`📞 Call ended: ${call.id} - Status: ${call.status} - Reason: ${call.endedReason}`);
+
+    // Log VAPI analysis data for debugging
+    console.log('🔍 VAPI Analysis Data:', {
+      hasSummary: !!call.summary,
+      summary: call.summary?.substring(0, 100) || 'none',
+      hasAnalysis: !!call.analysis,
+      analysis: call.analysis ? {
+        summary: call.analysis.summary?.substring(0, 100) || 'none',
+        successEvaluation: call.analysis.successEvaluation || 'none',
+        userSentiment: call.analysis.userSentiment || 'none',
+        hasStructuredData: !!call.analysis.structuredData,
+        structuredData: call.analysis.structuredData || {}
+      } : 'no analysis object'
+    });
     
     // ⭐ CRITICAL FIX: Extract phone from VAPI call object ⭐
     const customerPhone = call.customer?.number;

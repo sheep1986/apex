@@ -132,7 +132,6 @@ interface VapiCall {
 }
 
 const VapiDashboard: React.FC = () => {
-  console.log('🚀 VapiDashboard component is rendering!');
   const [isLoading, setIsLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<VapiOutboundCampaign[]>([]);
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
@@ -153,6 +152,11 @@ const VapiDashboard: React.FC = () => {
   const vapiOutboundService = useVapiOutboundService(); // Use authenticated service
 
   useEffect(() => {
+    // Only load data on initial mount, not when dataLoaded changes
+    if (dataLoaded) {
+      return; // Already loaded, skip
+    }
+
     console.log('🔄 VapiDashboard: Component mounted, starting data load...');
 
     // Add error boundary protection
