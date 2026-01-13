@@ -1,3 +1,5 @@
+import trinitySidebarFull from "@/assets/trinity-sidebar-full.png";
+import trinitySidebarIcon from "@/assets/trinity-sidebar-icon.png";
 import { useNotificationStore } from "@/lib/notification-store";
 import { useUserContext } from "@/services/MinimalUserProvider";
 import { useUser as useClerkUser } from "@clerk/clerk-react";
@@ -364,7 +366,7 @@ const Layout: React.FC = () => {
                 }`}
               >
                 <img
-                  src="/trinity-sidebar-icon.png"
+                  src={trinitySidebarIcon}
                   alt="Trinity"
                   className="h-9 w-9 object-contain max-w-none"
                 />
@@ -379,7 +381,7 @@ const Layout: React.FC = () => {
                 }`}
               >
                 <img
-                  src="/trinity-sidebar-full.png"
+                  src={trinitySidebarFull}
                   alt="Trinity Labs AI"
                   className="h-9 w-auto object-contain"
                 />
