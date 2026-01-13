@@ -1,98 +1,55 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { formatCustomDate } from '../lib/utils';
-import {
-  Search,
-  Filter,
-  Plus,
-  Download,
-  Upload,
-  Settings,
-  MoreHorizontal,
-  MoreVertical,
-  ChevronDown,
-  ChevronRight,
-  ChevronLeft,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Pin,
-  Grid3X3,
-  List,
-  LayoutGrid,
-  SlidersHorizontal,
-  Eye,
-  EyeOff,
-  Columns,
-  Mail,
-  Phone,
-  MessageSquare,
-  Calendar,
-  Building,
-  User,
-  DollarSign,
-  TrendingUp,
-  Clock,
-  Target,
-  Users,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  Zap,
-  BarChart3,
-  Activity,
-  FileText,
-  Tag,
-  Star,
-  StarOff,
-  Edit,
-  Trash2,
-  Copy,
-  ExternalLink,
-  RefreshCw,
-  Import,
-  Globe,
-  MapPin,
-  UserCheck,
-  Briefcase,
-  Crown,
-  Sparkles,
-} from 'lucide-react';
 import {
   Select,
-  SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
+import { SmallCheckbox } from "@/components/ui/small-checkbox";
+import { SolidDropdown } from "@/components/ui/solid-dropdown";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-  DropdownMenuCheckboxItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from '@/components/ui/dropdown-menu';
-import { Checkbox } from '@/components/ui/checkbox';
-import { SmallCheckbox } from '@/components/ui/small-checkbox';
-import { SolidDropdown } from '@/components/ui/solid-dropdown';
-import { SimpleDropdown, SimpleDropdownItem } from '@/components/ui/simple-dropdown';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
-import { useNavigate } from 'react-router-dom';
-import { useContacts } from '../contexts/ContactsContext';
-import { AddColumnsModal } from '../components/AddColumnsModal';
-import { CallLogDetailsModal } from '../components/CallLogDetailsModal';
+  Activity,
+  Calendar,
+  CheckCircle,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Download,
+  Eye,
+  Filter,
+  Grid3X3,
+  LayoutGrid,
+  List,
+  Mail,
+  MessageSquare,
+  Phone,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Star,
+  Tag,
+  Target,
+  TrendingUp,
+  User,
+  XCircle,
+} from "lucide-react";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { AddColumnsModal } from "../components/AddColumnsModal";
+import { CallLogDetailsModal } from "../components/CallLogDetailsModal";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { useContacts } from "../contexts/ContactsContext";
+import { formatCustomDate } from "../lib/utils";
 
 // Helper function to safely display contact fields
-const displayField = (value: string | undefined | null, defaultValue: string = '') => {
+const displayField = (
+  value: string | undefined | null,
+  defaultValue: string = ""
+) => {
   return value || defaultValue;
 };
 
@@ -105,8 +62,15 @@ interface Contact {
   phone?: string;
   company?: string;
   title?: string;
-  status: 'new' | 'contacted' | 'interested' | 'qualified' | 'converted' | 'unqualified' | 'pending';
-  priority: 'low' | 'medium' | 'high';
+  status:
+    | "new"
+    | "contacted"
+    | "interested"
+    | "qualified"
+    | "converted"
+    | "unqualified"
+    | "pending";
+  priority: "low" | "medium" | "high";
   source: string;
   campaign: string;
   notes?: string;
@@ -128,7 +92,7 @@ interface Contact {
     state?: string;
     country?: string;
   };
-  leadQuality: 'hot' | 'warm' | 'cold';
+  leadQuality: "hot" | "warm" | "cold";
   originalCallId?: string;
   vapiCallId?: string;
   lastActivity: string;
@@ -150,34 +114,40 @@ interface Team {
 // Mock Data
 const teams: Team[] = [
   {
-    id: 'user-1',
-    name: 'Sarah Wilson',
-    email: 's.wilson@company.com',
-    role: 'Sales Manager',
+    id: "user-1",
+    name: "Sarah Wilson",
+    email: "s.wilson@company.com",
+    role: "Sales Manager",
     isActive: true,
   },
   {
-    id: 'user-2',
-    name: 'Mark Johnson',
-    email: 'm.johnson@company.com',
-    role: 'Sales Rep',
+    id: "user-2",
+    name: "Mark Johnson",
+    email: "m.johnson@company.com",
+    role: "Sales Rep",
     isActive: true,
   },
   {
-    id: 'user-3',
-    name: 'Emily Chen',
-    email: 'e.chen@company.com',
-    role: 'Sales Rep',
+    id: "user-3",
+    name: "Emily Chen",
+    email: "e.chen@company.com",
+    role: "Sales Rep",
     isActive: true,
   },
   {
-    id: 'user-4',
-    name: 'David Rodriguez',
-    email: 'd.rodriguez@company.com',
-    role: 'Sales Rep',
+    id: "user-4",
+    name: "David Rodriguez",
+    email: "d.rodriguez@company.com",
+    role: "Sales Rep",
     isActive: true,
   },
-  { id: 'user-5', name: 'Lisa Park', email: 'l.park@company.com', role: 'SDR', isActive: true },
+  {
+    id: "user-5",
+    name: "Lisa Park",
+    email: "l.park@company.com",
+    role: "SDR",
+    isActive: true,
+  },
 ];
 
 // Mock data removed - now using shared ContactsContext
@@ -361,49 +331,55 @@ const teams: Team[] = [
 // Status configuration
 const statusConfig = {
   new: {
-    label: 'New',
-    color: 'bg-white/20 border border-white/50 text-white',
+    label: "New",
+    color: "bg-white/20 border border-white/50 text-white",
     icon: User,
   },
   contacted: {
-    label: 'Contacted',
-    color: 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400',
+    label: "Contacted",
+    color: "bg-white/10 border border-white/20 text-white/90",
     icon: Phone,
   },
   interested: {
-    label: 'Interested',
-    color: 'bg-orange-500/20 border border-orange-500/50 text-orange-400',
+    label: "Interested",
+    color: "bg-white/20 border border-white/30 text-white",
     icon: MessageSquare,
   },
   qualified: {
-    label: 'Qualified',
-    color: 'bg-amber-500/20 border border-amber-500/50 text-amber-400',
+    label: "Qualified",
+    color: "bg-white/10 border border-white/20 text-white",
     icon: CheckCircle,
   },
   converted: {
-    label: 'Converted',
-    color: 'bg-amber-600/20 border border-amber-600/50 text-amber-500',
+    label: "Converted",
+    color: "bg-white/20 border border-white/30 text-white font-medium",
     icon: Target,
   },
   unqualified: {
-    label: 'Unqualified',
-    color: 'bg-red-500/20 border border-red-500/50 text-red-400',
+    label: "Unqualified",
+    color: "bg-red-500/20 border border-red-500/50 text-red-400",
     icon: XCircle,
   },
 };
 
 const priorityConfig = {
-  low: { label: 'Low', color: 'bg-gray-500/20 border border-gray-500/50 text-gray-400' },
-  medium: {
-    label: 'Medium',
-    color: 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400',
+  low: {
+    label: "Low",
+    color: "bg-gray-500/20 border border-gray-500/50 text-gray-400",
   },
-  high: { label: 'High', color: 'bg-red-500/20 border border-red-500/50 text-red-400' },
+  medium: {
+    label: "Medium",
+    color: "bg-white/10 border border-white/20 text-white/70",
+  },
+  high: {
+    label: "High",
+    color: "bg-red-500/20 border border-red-500/50 text-red-400",
+  },
 };
 
 export default function CRM() {
   const navigate = useNavigate();
-  const { t } = useTranslation(['crm', 'common']);
+  const { t } = useTranslation(["crm", "common"]);
 
   // Mock call data for demonstration
   const getMockCallData = (contact: Contact) => {
@@ -411,33 +387,59 @@ export default function CRM() {
       id: `call_${contact.id}_001`,
       duration: Math.floor(Math.random() * 300) + 60, // 1-6 minutes
       transcript: [
-        { speaker: 'ai' as const, text: `Hello, is this ${displayField(contact.firstName, 'there')}?` },
-        { speaker: 'user' as const, text: 'Yes, this is me.' },
         {
-          speaker: 'ai' as const,
-          text: `Hi ${displayField(contact.firstName, 'there')}, this is Sarah from Apex AI Solutions. I hope I'm not catching you at a bad time. I'm calling because we've developed an innovative AI calling solution that's been helping companies like ${displayField(contact.company, 'yours')} increase their outreach efficiency. Would you be interested in learning more?`,
+          speaker: "ai" as const,
+          text: `Hello, is this ${displayField(contact.firstName, "there")}?`,
+        },
+        { speaker: "user" as const, text: "Yes, this is me." },
+        {
+          speaker: "ai" as const,
+          text: `Hi ${displayField(
+            contact.firstName,
+            "there"
+          )}, this is Sarah from Trinity Labs AI Solutions. I hope I'm not catching you at a bad time. I'm calling because we've developed an innovative AI calling solution that's been helping companies like ${displayField(
+            contact.company,
+            "yours"
+          )} increase their outreach efficiency. Would you be interested in learning more?`,
         },
         {
-          speaker: 'user' as const,
+          speaker: "user" as const,
           text:
-            contact.status === 'interested'
-              ? 'Yes, that sounds very interesting. Tell me more.'
+            contact.status === "interested"
+              ? "Yes, that sounds very interesting. Tell me more."
               : "I might be interested, but I'm quite busy right now.",
         },
         {
-          speaker: 'ai' as const,
+          speaker: "ai" as const,
           text:
-            contact.status === 'interested'
-              ? 'Great! Our AI platform can handle hundreds of calls simultaneously and provides detailed analytics. Would you like to schedule a demo?'
+            contact.status === "interested"
+              ? "Great! Our AI platform can handle hundreds of calls simultaneously and provides detailed analytics. Would you like to schedule a demo?"
               : "I understand you're busy. Would it be better if I called back at a more convenient time?",
         },
       ],
-      recording: '/mock-audio.wav',
+      recording: "/mock-audio.wav",
       analysis: {
         sentiment:
-          contact.status === 'interested' ? 0.8 : contact.status === 'contacted' ? 0.6 : 0.4,
-        keywords: ['AI', 'solution', displayField(contact.company, ''), 'efficiency'].filter(k => k),
-        summary: `Call with ${displayField(contact.firstName)} ${displayField(contact.lastName)} from ${displayField(contact.company)}. ${contact.status === 'interested' ? 'Expressed strong interest in AI solutions.' : contact.status === 'contacted' ? 'Showed moderate interest, needs follow-up.' : 'Limited interest shown.'}`,
+          contact.status === "interested"
+            ? 0.8
+            : contact.status === "contacted"
+            ? 0.6
+            : 0.4,
+        keywords: [
+          "AI",
+          "solution",
+          displayField(contact.company, ""),
+          "efficiency",
+        ].filter((k) => k),
+        summary: `Call with ${displayField(contact.firstName)} ${displayField(
+          contact.lastName
+        )} from ${displayField(contact.company)}. ${
+          contact.status === "interested"
+            ? "Expressed strong interest in AI solutions."
+            : contact.status === "contacted"
+            ? "Showed moderate interest, needs follow-up."
+            : "Limited interest shown."
+        }`,
       },
       cost: +(Math.random() * 2 + 0.25).toFixed(2),
     };
@@ -451,63 +453,93 @@ export default function CRM() {
 
   const styleTag = (
     <style>{`
-      /* Campaign Details style table */
+      /* 2026 Obsidian Theme */
+      .glass-container {
+        background: rgba(17, 17, 17, 0.4);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+      
+      .floating-bar {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      /* Modern Table Overhaul */
       table {
-        border-collapse: collapse;
-        border-spacing: 0;
+        border-collapse: separate;
+        border-spacing: 0 8px;
+        width: 100%;
       }
       
-      /* Modern table headers */
       thead th {
-        background: rgba(31, 41, 55, 0.8) !important;
-        backdrop-filter: blur(8px) !important;
-        border: 1px solid rgba(55, 65, 81, 0.5) !important;
-        color: #ffffff !important;
-        font-weight: 600;
-        text-transform: none;
-        position: relative;
-        padding: 12px 16px !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        font-weight: 500;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 12px 24px !important;
       }
       
-      /* Table rows with Campaign Details styling */
       tbody tr {
-        background: rgba(31, 41, 55, 0.4);
-        border: 1px solid rgba(55, 65, 81, 0.3);
-        transition: all 0.2s ease;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
       }
       
       tbody tr:hover {
-        background: rgba(31, 41, 55, 0.6);
-        border-color: rgba(55, 65, 81, 0.5);
+        background: rgba(255, 255, 255, 0.05);
+        transform: translateY(-2px) scale(1.002);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        border-color: rgba(255, 255, 255, 0.1);
       }
-      
+
       tbody td {
-        border: none !important;
-        padding: 12px 16px !important;
-        vertical-align: middle;
+        border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding: 16px 24px !important;
+      }
+
+      tbody td:first-child {
+        border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-top-left-radius: 12px;
+        border-bottom-left-radius: 12px;
+      }
+
+      tbody td:last-child {
+        border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-top-right-radius: 12px;
+        border-bottom-right-radius: 12px;
       }
       
-      /* Checkbox styling */
-      input[type="checkbox"],
-      button[role="checkbox"] {
-        background-color: rgba(31, 41, 55, 0.8) !important;
-        border: 1px solid rgba(55, 65, 81, 0.5) !important;
-        border-radius: 4px;
+      /* Status Badge Refinement */
+      .premium-badge {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
       }
-      
-      button[role="checkbox"][data-state="checked"] {
-        background-color: rgb(16, 185, 129) !important;
-        border-color: rgb(16, 185, 129) !important;
+
+      /* Custom Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
       }
-      
-      /* Search input styling */
-      .search-input-small {
-        font-size: 10px !important;
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
       }
-      
-      .search-input-small::placeholder {
-        font-size: 10px !important;
-        color: #9CA3AF !important;
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
       }
     `}</style>
   );
@@ -1718,35 +1750,42 @@ export default function CRM() {
 
   // State
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'table' | 'tile'>('table');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [assigneeFilter, setAssigneeFilter] = useState('all');
-  const [tagFilter, setTagFilter] = useState('all');
-  const [leadTypeFilter, setLeadTypeFilter] = useState('All leads');
-  const [sortBy, setSortBy] = useState('lastActivity');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<"table" | "tile">("table");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
+  const [leadTypeFilter, setLeadTypeFilter] = useState("All leads");
+  const [sortBy, setSortBy] = useState("lastActivity");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
-  const [sortHistory, setSortHistory] = useState<{ [key: string]: ('asc' | 'desc')[] }>({}); // Track sort history per column
-  const [pinnedColumns, setPinnedColumns] = useState<{ [key: string]: boolean }>({}); // Track pinned columns
+  const [sortHistory, setSortHistory] = useState<{
+    [key: string]: ("asc" | "desc")[];
+  }>({}); // Track sort history per column
+  const [pinnedColumns, setPinnedColumns] = useState<{
+    [key: string]: boolean;
+  }>({}); // Track pinned columns
   const [columnOrder, setColumnOrder] = useState<string[]>([
-    'firstName',
-    'company',
-    'status',
-    'assignedTo',
-    'campaign',
-    'phone',
-    'cid',
-    'date',
-    'lastActivity',
+    "firstName",
+    "company",
+    "status",
+    "assignedTo",
+    "campaign",
+    "phone",
+    "cid",
+    "date",
+    "lastActivity",
   ]); // Track column order
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-  const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
+  const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(
+    null
+  );
   const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState('contacts');
+  const [activeTab, setActiveTab] = useState("contacts");
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [showCallDetails, setShowCallDetails] = useState(false);
-  const [selectedCallContact, setSelectedCallContact] = useState<Contact | null>(null);
+  const [selectedCallContact, setSelectedCallContact] =
+    useState<Contact | null>(null);
   const [showAddColumnsModal, setShowAddColumnsModal] = useState(false);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [expandedFilters, setExpandedFilters] = useState({
@@ -1758,28 +1797,36 @@ export default function CRM() {
   // Computed values
   const filteredContacts = contacts.filter((contact) => {
     const matchesSearch =
-      searchTerm === '' ||
-      (contact.firstName && contact.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (contact.lastName && contact.lastName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (contact.company && contact.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      searchTerm === "" ||
+      (contact.firstName &&
+        contact.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (contact.lastName &&
+        contact.lastName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (contact.email &&
+        contact.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (contact.company &&
+        contact.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (contact.phone && contact.phone.includes(searchTerm));
 
-    const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
-    const matchesAssignee = assigneeFilter === 'all' || contact.assignedToId === assigneeFilter;
-    const matchesTag = tagFilter === 'all' || contact.tags.includes(tagFilter);
+    const matchesStatus =
+      statusFilter === "all" || contact.status === statusFilter;
+    const matchesAssignee =
+      assigneeFilter === "all" || contact.assignedToId === assigneeFilter;
+    const matchesTag = tagFilter === "all" || contact.tags.includes(tagFilter);
 
     // Lead type filtering logic
     const matchesLeadType = (() => {
       switch (leadTypeFilter) {
-        case 'All leads':
+        case "All leads":
           return true;
-        case 'My leads':
-          return contact.assignedTo === 'Sarah Johnson'; // Current user leads
-        case 'Junk leads':
-          return contact.status === 'unqualified';
-        case 'Call backs':
-          return contact.tags.includes('callback') || contact.status === 'contacted';
+        case "My leads":
+          return contact.assignedTo === "Sarah Johnson"; // Current user leads
+        case "Junk leads":
+          return contact.status === "unqualified";
+        case "Call backs":
+          return (
+            contact.tags.includes("callback") || contact.status === "contacted"
+          );
         case "Today's leads":
           const today = new Date();
           const contactDate = new Date(contact.dateAdded);
@@ -1789,17 +1836,23 @@ export default function CRM() {
       }
     })();
 
-    return matchesSearch && matchesStatus && matchesAssignee && matchesTag && matchesLeadType;
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesAssignee &&
+      matchesTag &&
+      matchesLeadType
+    );
   });
 
   const sortedContacts = [...filteredContacts].sort((a, b) => {
     let aVal = a[sortBy as keyof Contact];
     let bVal = b[sortBy as keyof Contact];
 
-    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+    if (typeof aVal === "string") aVal = aVal.toLowerCase();
+    if (typeof bVal === "string") bVal = bVal.toLowerCase();
 
-    if (sortOrder === 'asc') {
+    if (sortOrder === "asc") {
       return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
     } else {
       return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
@@ -1809,23 +1862,29 @@ export default function CRM() {
   // Statistics
   const stats = {
     total: contacts.length,
-    new: contacts.filter((c) => c.status === 'new').length,
-    qualified: contacts.filter((c) => c.status === 'qualified').length,
-    converted: contacts.filter((c) => c.status === 'converted').length,
+    new: contacts.filter((c) => c.status === "new").length,
+    qualified: contacts.filter((c) => c.status === "qualified").length,
+    converted: contacts.filter((c) => c.status === "converted").length,
     totalValue: contacts.reduce((sum, c) => sum + c.value, 0),
-    thisMonth: contacts.filter((c) => new Date(c.lastContactDate) > new Date('2025-01-01')).length,
+    thisMonth: contacts.filter(
+      (c) => new Date(c.lastContactDate) > new Date("2025-01-01")
+    ).length,
   };
 
   // Handlers
   const handleSelectContact = (contactId: string) => {
     setSelectedContacts((prev) =>
-      prev.includes(contactId) ? prev.filter((id) => id !== contactId) : [...prev, contactId]
+      prev.includes(contactId)
+        ? prev.filter((id) => id !== contactId)
+        : [...prev, contactId]
     );
   };
 
   const handleSelectAll = () => {
     setSelectedContacts(
-      selectedContacts.length === sortedContacts.length ? [] : sortedContacts.map((c) => c.id)
+      selectedContacts.length === sortedContacts.length
+        ? []
+        : sortedContacts.map((c) => c.id)
     );
   };
 
@@ -1838,15 +1897,15 @@ export default function CRM() {
     setHiddenColumns((prev) => prev.filter((col) => col !== columnKey));
     // Add column back to its original position or at the end
     const allColumns = [
-      'firstName',
-      'company',
-      'status',
-      'assignedTo',
-      'campaign',
-      'phone',
-      'cid',
-      'date',
-      'lastActivity',
+      "firstName",
+      "company",
+      "status",
+      "assignedTo",
+      "campaign",
+      "phone",
+      "cid",
+      "date",
+      "lastActivity",
     ];
     const originalIndex = allColumns.indexOf(columnKey);
     setColumnOrder((prev) => {
@@ -1859,13 +1918,17 @@ export default function CRM() {
   const toggleStar = (contactId: string) => {
     setContacts((prev) =>
       prev.map((contact) =>
-        contact.id === contactId ? { ...contact, isStarred: !contact.isStarred } : contact
+        contact.id === contactId
+          ? { ...contact, isStarred: !contact.isStarred }
+          : contact
       )
     );
   };
 
-  const handleSort = (field: string, order?: 'asc' | 'desc') => {
-    const newOrder = order || (sortBy === field ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'desc');
+  const handleSort = (field: string, order?: "asc" | "desc") => {
+    const newOrder =
+      order ||
+      (sortBy === field ? (sortOrder === "asc" ? "desc" : "asc") : "desc");
 
     // Update sort history
     setSortHistory((prev) => {
@@ -1885,8 +1948,8 @@ export default function CRM() {
 
   const handleUnsort = (field: string) => {
     // Reset to default sort (lastActivity desc) and clear history for this field
-    setSortBy('lastActivity');
-    setSortOrder('desc');
+    setSortBy("lastActivity");
+    setSortOrder("desc");
     setSortHistory((prev) => ({
       ...prev,
       [field]: [],
@@ -1903,12 +1966,13 @@ export default function CRM() {
   // Column reordering handlers
   const handleDragStart = (e: React.DragEvent, columnKey: string) => {
     setDraggedColumn(columnKey);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', columnKey);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", columnKey);
 
     // Add custom drag image
-    const dragImage = document.createElement('div');
-    dragImage.innerHTML = columnConfig[columnKey as keyof typeof columnConfig].title;
+    const dragImage = document.createElement("div");
+    dragImage.innerHTML =
+      columnConfig[columnKey as keyof typeof columnConfig].title;
     dragImage.style.cssText = `
       position: absolute;
       top: -1000px;
@@ -1927,7 +1991,7 @@ export default function CRM() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
   };
 
   const handleDragEnter = (e: React.DragEvent, columnKey: string) => {
@@ -1972,39 +2036,42 @@ export default function CRM() {
 
   // Column configuration
   const baseColumnConfig = {
-    firstName: { title: 'name', minWidth: '320px' },
-    company: { title: 'company', minWidth: '240px' },
-    status: { title: 'status', minWidth: '128px' },
-    assignedTo: { title: 'owner', minWidth: '192px' },
-    campaign: { title: 'campaign', minWidth: '160px' },
-    phone: { title: 'phone', minWidth: '140px' },
-    cid: { title: 'CID', minWidth: '120px' },
-    date: { title: 'Created Date', minWidth: '120px' },
-    lastActivity: { title: 'last activity', minWidth: '192px' },
+    firstName: { title: "name", minWidth: "320px" },
+    company: { title: "company", minWidth: "240px" },
+    status: { title: "status", minWidth: "128px" },
+    assignedTo: { title: "owner", minWidth: "192px" },
+    campaign: { title: "campaign", minWidth: "160px" },
+    phone: { title: "phone", minWidth: "140px" },
+    cid: { title: "CID", minWidth: "120px" },
+    date: { title: "Created Date", minWidth: "120px" },
+    lastActivity: { title: "last activity", minWidth: "192px" },
   };
 
   const additionalColumnConfig = {
-    industry: { title: 'industry', minWidth: '140px' },
-    companySize: { title: 'company size', minWidth: '120px' },
-    location: { title: 'location', minWidth: '140px' },
-    website: { title: 'website', minWidth: '140px' },
-    pipelineValue: { title: 'pipeline value', minWidth: '130px' },
-    leadScore: { title: 'lead score', minWidth: '110px' },
-    interestLevel: { title: 'interest level', minWidth: '120px' },
-    priority: { title: 'priority', minWidth: '100px' },
-    source: { title: 'lead source', minWidth: '130px' },
-    nextFollowUp: { title: 'next follow-up', minWidth: '140px' },
-    lastCallOutcome: { title: 'last call outcome', minWidth: '150px' },
-    callDuration: { title: 'call duration', minWidth: '120px' },
-    owner: { title: 'lead owner', minWidth: '130px' },
-    title: { title: 'job title', minWidth: '130px' },
+    industry: { title: "industry", minWidth: "140px" },
+    companySize: { title: "company size", minWidth: "120px" },
+    location: { title: "location", minWidth: "140px" },
+    website: { title: "website", minWidth: "140px" },
+    pipelineValue: { title: "pipeline value", minWidth: "130px" },
+    leadScore: { title: "lead score", minWidth: "110px" },
+    interestLevel: { title: "interest level", minWidth: "120px" },
+    priority: { title: "priority", minWidth: "100px" },
+    source: { title: "lead source", minWidth: "130px" },
+    nextFollowUp: { title: "next follow-up", minWidth: "140px" },
+    lastCallOutcome: { title: "last call outcome", minWidth: "150px" },
+    callDuration: { title: "call duration", minWidth: "120px" },
+    owner: { title: "lead owner", minWidth: "130px" },
+    title: { title: "job title", minWidth: "130px" },
   };
 
   const columnConfig = {
     ...baseColumnConfig,
     ...Object.fromEntries(
-      additionalColumns.map(col => [col, additionalColumnConfig[col as keyof typeof additionalColumnConfig]])
-    )
+      additionalColumns.map((col) => [
+        col,
+        additionalColumnConfig[col as keyof typeof additionalColumnConfig],
+      ])
+    ),
   };
 
   // Render cell content based on column type
@@ -2013,169 +2080,245 @@ export default function CRM() {
     const StatusIcon = statusInfo.icon;
 
     switch (columnKey) {
-      case 'firstName':
+      case "firstName":
         return (
           <div className="flex items-center">
             <div>
               <div className="flex items-center text-xs font-semibold text-white">
-                {displayField(contact.firstName)} {displayField(contact.lastName)}
+                {displayField(contact.firstName)}{" "}
+                {displayField(contact.lastName)}
                 {contact.isStarred && (
                   <Star className="ml-1 h-3 w-3 fill-current text-yellow-400" />
                 )}
               </div>
-              <div className="text-xs text-gray-400">{displayField(contact.email)}</div>
+              <div className="text-xs text-gray-400">
+                {displayField(contact.email)}
+              </div>
             </div>
           </div>
         );
-      case 'company':
+      case "company":
         return (
           <div className="flex items-center">
-            <div className="text-xs font-medium text-white">{displayField(contact.company)}</div>
+            <div className="text-xs font-medium text-white">
+              {displayField(contact.company)}
+            </div>
           </div>
         );
-      case 'status':
+      case "status":
         return (
-          <Badge className={`${statusInfo.color} px-2 py-1 text-xs font-medium`}>
+          <Badge
+            className={`${statusInfo.color} px-2 py-1 text-xs font-medium`}
+          >
             <StatusIcon className="mr-1 h-3 w-3" />
             {statusInfo.label}
           </Badge>
         );
-      case 'assignedTo':
+      case "assignedTo":
         return (
           <div className="flex items-center">
             <div className="mr-2 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-xs font-medium text-white">
               {contact.assignedTo
-                .split(' ')
+                .split(" ")
                 .map((name) => name[0])
-                .join('')}
+                .join("")}
             </div>
-            <span className="text-xs text-white font-medium">{contact.assignedTo}</span>
+            <span className="text-xs text-white font-medium">
+              {contact.assignedTo}
+            </span>
           </div>
         );
-      case 'campaign':
+      case "campaign":
         return (
           <div className="inline-flex items-center rounded-full bg-gray-500/20 px-2 py-1 text-xs font-medium text-gray-300 border border-gray-500/30">
             {contact.campaign}
           </div>
         );
-      case 'phone':
+      case "phone":
         return (
           <div className="flex items-center">
             <Phone className="mr-1 h-3 w-3 text-gray-400" />
-            <span className="text-xs text-white font-medium">{displayField(contact.phone)}</span>
+            <span className="text-xs text-white font-medium">
+              {displayField(contact.phone)}
+            </span>
           </div>
         );
-      case 'cid':
-        return <span className="font-mono text-xs text-white">{contact.cid || 'N/A'}</span>;
-      case 'date':
-        return <span className="text-xs text-white">{formatCustomDate(contact.date)}</span>;
-      case 'lastActivity':
+      case "cid":
+        return (
+          <span className="font-mono text-xs text-white">
+            {contact.cid || "N/A"}
+          </span>
+        );
+      case "date":
+        return (
+          <span className="text-xs text-white">
+            {formatCustomDate(contact.date)}
+          </span>
+        );
+      case "lastActivity":
         return (
           <div>
-            <div className="text-xs text-white font-medium">{formatCustomDate(contact.lastActivity)}</div>
-            <div className="flex items-center text-gray-400" style={{ fontSize: '10px' }}>
+            <div className="text-xs text-white font-medium">
+              {formatCustomDate(contact.lastActivity)}
+            </div>
+            <div
+              className="flex items-center text-gray-400"
+              style={{ fontSize: "10px" }}
+            >
               <Activity className="mr-1 h-2.5 w-2.5" />
               {contact.activities} activities
             </div>
           </div>
         );
-      
+
       // New dynamic fields
-      case 'industry':
-        return <span className="text-xs text-white">{(contact as any).industry || 'N/A'}</span>;
-      case 'companySize':
-        return <span className="text-xs text-white">{(contact as any).companySize || 'N/A'}</span>;
-      case 'location':
-        return <span className="text-xs text-white">{(contact as any).location || 'N/A'}</span>;
-      case 'website':
+      case "industry":
+        return (
+          <span className="text-xs text-white">
+            {(contact as any).industry || "N/A"}
+          </span>
+        );
+      case "companySize":
+        return (
+          <span className="text-xs text-white">
+            {(contact as any).companySize || "N/A"}
+          </span>
+        );
+      case "location":
+        return (
+          <span className="text-xs text-white">
+            {(contact as any).location || "N/A"}
+          </span>
+        );
+      case "website":
         return (
           <span className="text-xs text-gray-400 hover:text-gray-300">
-            {(contact as any).website || 'N/A'}
+            {(contact as any).website || "N/A"}
           </span>
         );
-      case 'pipelineValue':
+      case "pipelineValue":
         return (
-          <span className="text-xs text-amber-400">
-            ${(contact as any).pipelineValue ? Number((contact as any).pipelineValue).toLocaleString() : '0'}
+          <span className="text-xs text-white">
+            $
+            {(contact as any).pipelineValue
+              ? Number((contact as any).pipelineValue).toLocaleString()
+              : "0"}
           </span>
         );
-      case 'leadScore':
+      case "leadScore":
         const score = (contact as any).leadScore || 0;
         return (
           <div className="flex items-center">
-            <span className={`text-xs font-medium ${score >= 8 ? 'text-amber-400' : score >= 6 ? 'text-yellow-400' : 'text-red-400'}`}>
+            <span
+              className={`text-xs font-medium ${
+                score >= 8
+                  ? "text-white"
+                  : score >= 6
+                  ? "text-white/60"
+                  : "text-red-400"
+              }`}
+            >
               {score}/10
             </span>
           </div>
         );
-      case 'interestLevel':
+      case "interestLevel":
         const interest = (contact as any).interestLevel || 0;
         return (
           <div className="flex items-center">
-            <span className={`text-xs font-medium ${interest >= 8 ? 'text-amber-400' : interest >= 6 ? 'text-yellow-400' : 'text-red-400'}`}>
+            <span
+              className={`text-xs font-medium ${
+                interest >= 8
+                  ? "text-white"
+                  : interest >= 6
+                  ? "text-white/60"
+                  : "text-red-400"
+              }`}
+            >
               {interest}/10
             </span>
           </div>
         );
-      case 'priority':
-        const priority = (contact as any).priority || 'medium';
+      case "priority":
+        const priority = (contact as any).priority || "medium";
         const priorityColors = {
-          high: 'text-red-400',
-          medium: 'text-yellow-400',
-          low: 'text-amber-400'
+          high: "text-red-400",
+          medium: "text-white/60",
+          low: "text-white/40",
         };
         return (
-          <span className={`text-xs font-medium ${priorityColors[priority as keyof typeof priorityColors]}`}>
+          <span
+            className={`text-xs font-medium ${
+              priorityColors[priority as keyof typeof priorityColors]
+            }`}
+          >
             {priority.charAt(0).toUpperCase() + priority.slice(1)}
           </span>
         );
-      case 'source':
-        return <span className="text-xs text-white">{(contact as any).source || 'N/A'}</span>;
-      case 'nextFollowUp':
+      case "source":
+        return (
+          <span className="text-xs text-white">
+            {(contact as any).source || "N/A"}
+          </span>
+        );
+      case "nextFollowUp":
         const followUp = (contact as any).nextFollowUp;
         return (
           <span className="text-xs text-white">
-            {followUp ? formatCustomDate(followUp) : 'Not scheduled'}
+            {followUp ? formatCustomDate(followUp) : "Not scheduled"}
           </span>
         );
-      case 'lastCallOutcome':
-        const outcome = (contact as any).lastCallOutcome || 'N/A';
+      case "lastCallOutcome":
+        const outcome = (contact as any).lastCallOutcome || "N/A";
         const outcomeColors = {
-          interested: 'text-amber-400',
-          'not-interested': 'text-red-400',
-          callback: 'text-yellow-400',
-          voicemail: 'text-gray-400',
-          'no-answer': 'text-gray-400'
+          interested: "text-white",
+          "not-interested": "text-red-400",
+          callback: "text-white/60",
+          voicemail: "text-gray-400",
+          "no-answer": "text-gray-400",
         };
         return (
-          <span className={`text-xs ${outcomeColors[outcome as keyof typeof outcomeColors] || 'text-white'}`}>
-            {outcome.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          <span
+            className={`text-xs ${
+              outcomeColors[outcome as keyof typeof outcomeColors] ||
+              "text-white"
+            }`}
+          >
+            {outcome.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
           </span>
         );
-      case 'callDuration':
+      case "callDuration":
         const duration = (contact as any).callDuration || 0;
         const minutes = Math.floor(duration / 60);
         const seconds = duration % 60;
         return (
           <span className="text-xs text-white">
-            {duration > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : 'N/A'}
+            {duration > 0
+              ? `${minutes}:${seconds.toString().padStart(2, "0")}`
+              : "N/A"}
           </span>
         );
-      case 'owner':
+      case "owner":
         return (
           <div className="flex items-center">
             <div className="mr-2 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-xs font-medium text-white">
-              {((contact as any).owner || 'U')
-                .split(' ')
+              {((contact as any).owner || "U")
+                .split(" ")
                 .map((name: string) => name[0])
-                .join('')}
+                .join("")}
             </div>
-            <span className="text-xs text-white">{(contact as any).owner || 'Unassigned'}</span>
+            <span className="text-xs text-white">
+              {(contact as any).owner || "Unassigned"}
+            </span>
           </div>
         );
-      case 'title':
-        return <span className="text-xs text-white">{(contact as any).title || contact.title || 'N/A'}</span>;
-      
+      case "title":
+        return (
+          <span className="text-xs text-white">
+            {(contact as any).title || contact.title || "N/A"}
+          </span>
+        );
+
       default:
         return <span className="text-xs text-white">-</span>;
     }
@@ -2183,9 +2326,9 @@ export default function CRM() {
 
   // Handler for adding columns
   const handleAddColumns = (selectedFields: string[]) => {
-    setAdditionalColumns(prev => [...prev, ...selectedFields]);
+    setAdditionalColumns((prev) => [...prev, ...selectedFields]);
     // Update column order to include new columns
-    setColumnOrder(prev => [...prev, ...selectedFields]);
+    setColumnOrder((prev) => [...prev, ...selectedFields]);
   };
 
   // Debug browser extension interference
@@ -2196,9 +2339,9 @@ export default function CRM() {
         try {
           return (
             sheet.href &&
-            (sheet.href.includes('chrome-extension://') ||
-              sheet.href.includes('moz-extension://') ||
-              sheet.href.includes('extension'))
+            (sheet.href.includes("chrome-extension://") ||
+              sheet.href.includes("moz-extension://") ||
+              sheet.href.includes("extension"))
           );
         } catch (e) {
           return false;
@@ -2206,23 +2349,28 @@ export default function CRM() {
       });
 
       if (extensionSheets.length > 0) {
-        console.log('🔍 Browser extensions detected affecting CSS:', extensionSheets.length);
         console.log(
-          'Extensions:',
+          "🔍 Browser extensions detected affecting CSS:",
+          extensionSheets.length
+        );
+        console.log(
+          "Extensions:",
           extensionSheets.map((s) => s.href)
         );
       }
 
       // Force override any external styles
-      const style = document.createElement('style');
+      const style = document.createElement("style");
       style.textContent = `
         table thead th {
-          background: #1f2937 !important;
-          background-color: #1f2937 !important;
-          color: #ffffff !important;
+          color: rgba(255, 255, 255, 0.6) !important;
+          font-size: 10px !important;
+          font-weight: 700 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.15em !important;
         }
       `;
-      style.setAttribute('data-force-override', 'true');
+      style.setAttribute("data-force-override", "true");
       document.head.appendChild(style);
     };
 
@@ -2232,27 +2380,27 @@ export default function CRM() {
   // Scroll handling for back to top button
   React.useEffect(() => {
     const handleScroll = () => {
-      const tableContainer = document.querySelector('.table-scroll-container');
+      const tableContainer = document.querySelector(".table-scroll-container");
       if (tableContainer) {
         setShowBackToTop(tableContainer.scrollTop > 300);
       }
     };
 
-    const tableContainer = document.querySelector('.table-scroll-container');
+    const tableContainer = document.querySelector(".table-scroll-container");
     if (tableContainer) {
-      tableContainer.addEventListener('scroll', handleScroll);
-      return () => tableContainer.removeEventListener('scroll', handleScroll);
+      tableContainer.addEventListener("scroll", handleScroll);
+      return () => tableContainer.removeEventListener("scroll", handleScroll);
     }
   }, []);
 
   const scrollToTop = () => {
-    const tableContainer = document.querySelector('.table-scroll-container');
+    const tableContainer = document.querySelector(".table-scroll-container");
     if (tableContainer) {
-      tableContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      tableContainer.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
-  const toggleFilterSection = (section: 'status' | 'tags' | 'quickFilters') => {
+  const toggleFilterSection = (section: "status" | "tags" | "quickFilters") => {
     setExpandedFilters((prev) => ({
       ...prev,
       [section]: !prev[section],
@@ -2274,21 +2422,21 @@ export default function CRM() {
 
     return (
       <th
-        className={`relative whitespace-nowrap px-6 py-5 text-left transition-all duration-300 ease-out ${
-          sortKey ? 'cursor-move' : ''
+        className={`relative whitespace-nowrap px-6 py-5 text-left transition-all duration-300 ease-out border-r border-b border-white/5 ${
+          sortKey ? "cursor-move" : ""
         } ${
           isDragging
-            ? 'scale-95 opacity-40'
+            ? "scale-95 opacity-40"
             : isDraggedOver
-              ? 'bg-gray-700/50'
-              : 'hover:bg-gray-700/30'
+            ? "bg-white/10"
+            : "hover:bg-white/5"
         }`}
         style={{
-          background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
+          background: "transparent",
           minWidth,
-          transform: isDraggedOver ? 'scale(1.02)' : 'scale(1)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          position: 'sticky',
+          transform: isDraggedOver ? "scale(1.02)" : "scale(1)",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          position: "sticky",
           top: 0,
           zIndex: 45,
         }}
@@ -2301,17 +2449,17 @@ export default function CRM() {
         onDragEnd={handleDragEnd}
       >
         {isDraggedOver && (
-          <div className="pointer-events-none absolute inset-0 animate-pulse rounded bg-gradient-to-r from-gray-600/20 to-gray-400/20" />
+          <div className="pointer-events-none absolute inset-0 animate-pulse bg-white/5" />
         )}
 
         <div className="relative z-10 flex items-center justify-between">
           <div className="group flex items-center">
             {sortKey && (
               <div
-                className={`drag-handle mr-2 transition-all duration-300 ${
+                className={`drag-handle mr-2.5 transition-all duration-300 ${
                   isDragging
-                    ? 'rotate-45 scale-125 transform text-gray-400'
-                    : 'text-gray-500 group-hover:scale-110 group-hover:text-gray-400'
+                    ? "rotate-45 scale-125 transform text-white"
+                    : "text-white/20 group-hover:scale-110 group-hover:text-white/50"
                 }`}
                 title="Drag to reorder column"
               >
@@ -2319,10 +2467,9 @@ export default function CRM() {
               </div>
             )}
             <span
-              className={`text-sm font-semibold transition-all duration-300 ${
-                isDragging ? 'text-gray-400' : 'text-white'
+              className={`text-[10px] font-bold uppercase tracking-[0.15em] transition-all duration-300 ${
+                isDragging ? "text-white/40" : "text-white/60"
               }`}
-              style={{ textTransform: 'capitalize' }}
             >
               {title}
             </span>
@@ -2330,8 +2477,8 @@ export default function CRM() {
 
           <SolidDropdown
             trigger={
-              <div className="cursor-pointer text-white transition-all hover:scale-110 hover:text-gray-300">
-                <MoreVertical className="h-3 w-3" />
+              <div className="cursor-pointer text-white/30 transition-all hover:scale-110 hover:text-white">
+                <ChevronDown className="h-3 w-3" />
               </div>
             }
             title={title}
@@ -2350,594 +2497,709 @@ export default function CRM() {
     );
   };
 
-
   return (
     <React.Fragment>
       {styleTag}
-      <div className="h-full w-full bg-black overflow-hidden flex flex-col">
-        <div className="flex-1 flex flex-col px-6 py-6 overflow-hidden">
-        {/* Sticky Header Section */}
-        <div className="bg-black pb-4 flex-shrink-0">
-        {/* Controls row */}
-        <div className="mb-4 max-w-full">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="border-amber-600 text-xs text-amber-400 transition-all hover:bg-amber-600 hover:text-white"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-              </Button>
-              <SolidDropdown
-                trigger={
+      <div className="h-full w-full bg-[radial-gradient(circle_at_top,_#1a1a1a_0%,_#000_100%)] overflow-hidden flex flex-col">
+        <div className="flex-1 flex flex-col px-8 py-8 overflow-hidden">
+          {/* Sticky Header Section */}
+          <div className="pb-6 flex-shrink-0 relative z-50">
+            {/* Controls row */}
+            <div className="mb-6 max-w-full">
+              <div className="floating-bar rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="border-white/20 text-xs text-white transition-all hover:bg-white/10"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </Button>
+                  <SolidDropdown
+                    trigger={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
+                      >
+                        {leadTypeFilter}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    }
+                    title="Lead Type"
+                    options={[
+                      "All leads",
+                      "My leads",
+                      "Junk leads",
+                      "Call backs",
+                      "Today's leads",
+                    ]}
+                    onSelect={(option: string) => setLeadTypeFilter(option)}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <SolidDropdown
+                    trigger={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
+                      >
+                        10 Records per page
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    }
+                    title="10 Records per page"
+                    options={[
+                      "10 Records per page",
+                      "20 Records per page",
+                      "30 Records per page",
+                      "40 Records per page",
+                      "50 Records per page",
+                    ]}
+                  />
                   <Button
                     variant="outline"
                     size="sm"
                     className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
                   >
-                    {leadTypeFilter}
-                    <ChevronDown className="ml-2 h-4 w-4" />
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
                   </Button>
-                }
-                title="Lead Type"
-                options={['All leads', 'My leads', 'Junk leads', 'Call backs', "Today's leads"]}
-                onSelect={(option: string) => setLeadTypeFilter(option)}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <SolidDropdown
-                trigger={
+                  <SolidDropdown
+                    trigger={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
+                      >
+                        {viewMode === "table" ? (
+                          <List className="h-4 w-4" />
+                        ) : (
+                          <LayoutGrid className="h-4 w-4" />
+                        )}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    }
+                    title="View Mode"
+                    options={["Table View", "Tile View"]}
+                    onOptionSelect={(option) => {
+                      if (option === "Table View") setViewMode("table");
+                      if (option === "Tile View") setViewMode("tile");
+                    }}
+                  />
+                  <SolidDropdown
+                    trigger={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-white/20 text-xs text-white transition-all hover:bg-white/10"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        New Lead
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    }
+                    title="Add Lead"
+                    options={["Import Leads", "New Lead"]}
+                  />
                   <Button
                     variant="outline"
                     size="sm"
                     className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
-                  >
-                    10 Records per page
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                }
-                title="10 Records per page"
-                options={[
-                  '10 Records per page',
-                  '20 Records per page',
-                  '30 Records per page',
-                  '40 Records per page',
-                  '50 Records per page',
-                ]}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-              <SolidDropdown
-                trigger={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
-                  >
-                    {viewMode === 'table' ? (
-                      <List className="h-4 w-4" />
-                    ) : (
-                      <LayoutGrid className="h-4 w-4" />
-                    )}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                }
-                title="View Mode"
-                options={['Table View', 'Tile View']}
-                onOptionSelect={(option) => {
-                  if (option === 'Table View') setViewMode('table');
-                  if (option === 'Tile View') setViewMode('tile');
-                }}
-              />
-              <SolidDropdown
-                trigger={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-amber-600 text-xs text-amber-400 transition-all hover:bg-amber-600 hover:text-white"
+                    onClick={() => setShowAddColumnsModal(true)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    New Lead
-                    <ChevronDown className="ml-2 h-4 w-4" />
+                    Add Columns
                   </Button>
-                }
-                title="Add Lead"
-                options={['Import Leads', 'New Lead']}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
-                onClick={() => setShowAddColumnsModal(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Columns
-              </Button>
-              {hiddenColumns.length > 0 && (
-                <SolidDropdown
-                  trigger={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
-                    >
-                      <Eye className="mr-2 h-4 w-4" />
-                      {t('common:actions.view_details')} {t('common:table.columns')} ({hiddenColumns.length})
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  }
-                  title={`${t('common:actions.view_details')} ${t('common:table.columns')}`}
-                  options={hiddenColumns.map(
-                    (col) => `${t('common:actions.view_details')} ${columnConfig[col as keyof typeof columnConfig]?.title || col}`
+                  {hiddenColumns.length > 0 && (
+                    <SolidDropdown
+                      trigger={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-gray-700 text-xs text-gray-300 transition-all hover:bg-gray-800"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          {t("common:actions.view_details")}{" "}
+                          {t("common:table.columns")} ({hiddenColumns.length})
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                      }
+                      title={`${t("common:actions.view_details")} ${t(
+                        "common:table.columns"
+                      )}`}
+                      options={hiddenColumns.map(
+                        (col) =>
+                          `${t("common:actions.view_details")} ${
+                            columnConfig[col as keyof typeof columnConfig]
+                              ?.title || col
+                          }`
+                      )}
+                      onOptionSelect={(option) => {
+                        const columnKey = hiddenColumns.find((col) =>
+                          option.includes(
+                            columnConfig[col as keyof typeof columnConfig]
+                              ?.title || col
+                          )
+                        );
+                        if (columnKey) handleUnhideColumn(columnKey);
+                      }}
+                    />
                   )}
-                  onOptionSelect={(option) => {
-                    const columnKey = hiddenColumns.find((col) =>
-                      option.includes(columnConfig[col as keyof typeof columnConfig]?.title || col)
-                    );
-                    if (columnKey) handleUnhideColumn(columnKey);
-                  }}
-                />
-              )}
+                </div>
+              </div>
             </div>
           </div>
 
-        </div>
-        </div>
-
-        {/* Total Records row */}
-        <div className="mb-6 flex items-center justify-between flex-shrink-0">
-          <div className="text-sm text-gray-400">{t('common:data_states.showing_total', { total: contacts.length })}</div>
-          <div className="flex items-center gap-2">
-            <button className="p-1 text-gray-300 transition-all hover:text-gray-400">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="text-xs text-gray-400">1 - 50</span>
-            <button className="p-1 text-gray-300 transition-all hover:text-gray-400">
-              <ChevronRight className="h-4 w-4" />
-            </button>
+          {/* Total Records row */}
+          <div className="mb-4 flex items-center justify-between flex-shrink-0 px-4">
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-2 rounded-full bg-white opacity-50 animate-pulse" />
+              <div className="text-[11px] uppercase tracking-widest text-white/70 font-bold">
+                {t("common:data_states.showing_total", {
+                  total: contacts.length,
+                })}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 glass-container rounded-full px-2 py-1">
+              <button className="p-1 px-2 text-white/60 transition-all hover:text-white">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div className="h-4 w-[1px] bg-white/10 mx-1" />
+              <span className="text-[10px] font-bold text-white/50 px-2 tracking-tighter">
+                1 / 50
+              </span>
+              <div className="h-4 w-[1px] bg-white/10 mx-1" />
+              <button className="p-1 px-2 text-white/60 transition-all hover:text-white">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Divider */}
-        <div className="mb-4 border-b border-gray-700 flex-shrink-0"></div>
-
-        {/* Action Bar */}
-        {selectedContacts.length > 0 && (
-          <div className="sticky top-0 z-20 flex-shrink-0 border-b border-gray-700 bg-gray-900 px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-white">
-                  {selectedContacts.length} contact{selectedContacts.length !== 1 ? 's' : ''}{' '}
-                  selected
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 bg-gray-700 text-xs text-white transition-all hover:bg-gray-800"
-                >
-                  <Mail className="mr-2 h-3.5 w-3.5" />
-                  Mail
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 bg-gray-700 text-xs text-white transition-all hover:bg-gray-800"
-                >
-                  <Calendar className="mr-2 h-3.5 w-3.5" />
-                  Create Task
-                </Button>
-                <SolidDropdown
-                  trigger={
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {/* Action Bar */}
+            {selectedContacts.length > 0 && (
+              <div className="sticky top-0 z-20 flex-shrink-0 border-b border-gray-700 bg-gray-900 px-6 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-white">
+                      {selectedContacts.length} contact
+                      {selectedContacts.length !== 1 ? "s" : ""} selected
+                    </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-8 bg-gray-700 text-xs text-white transition-all hover:bg-gray-800"
                     >
-                      Actions
-                      <ChevronDown className="ml-2 h-3.5 w-3.5" />
+                      <Mail className="mr-2 h-3.5 w-3.5" />
+                      Mail
                     </Button>
-                  }
-                  title="Actions"
-                  options={['Mass Update', 'Change Owner', 'Delete']}
-                />
-              </div>
-              <button
-                className="p-1 text-gray-400 transition-all hover:text-gray-300"
-                onClick={() => setSelectedContacts([])}
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content */}
-        <div
-          className="main-content-scroll flex flex-1 overflow-hidden pl-6"
-          style={{ gap: showFilters ? '24px' : '0px' }}
-        >
-          {/* Filter Sidebar */}
-          <div
-            className={`mt-6 h-[calc(100vh-140px)] rounded-lg border border-gray-800 bg-gray-900 transition-all duration-300 ease-in-out ${
-              showFilters
-                ? 'w-64 translate-x-0 overflow-y-auto p-4 opacity-100'
-                : 'w-0 -translate-x-full overflow-hidden border-0 p-0 opacity-0'
-            }`}
-          >
-            <div className="space-y-4">
-              {/* Filters Header */}
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="flex items-center text-sm font-semibold text-white">
-                  <Filter className="mr-2 h-4 w-4 text-amber-500" />
-                  Filters
-                </h3>
-                <button
-                  className="text-xs text-gray-400 hover:text-white"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setStatusFilter('all');
-                    setAssigneeFilter('all');
-                    setTagFilter('all');
-                    setLeadTypeFilter('All leads');
-                  }}
-                >
-                  Clear all
-                </button>
-              </div>
-
-              {/* Search Filter */}
-              <div>
-                <label className="mb-2 block text-sm text-gray-200">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 transform text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Name, email, company..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{
-                      fontSize: '10px',
-                      color: '#ffffff',
-                      backgroundColor: 'rgba(31, 41, 55, 0.5)',
-                      borderColor: 'rgba(55, 65, 81, 0.7)',
-                      border: '1px solid rgba(55, 65, 81, 0.7)',
-                      borderRadius: '6px',
-                      paddingLeft: '32px',
-                      paddingRight: '12px',
-                      paddingTop: '8px',
-                      paddingBottom: '8px',
-                      height: '32px',
-                      width: '100%',
-                      outline: 'none',
-                    }}
-                    className="search-input-small"
-                  />
-                </div>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <div
-                  className="mb-2 flex cursor-pointer items-center justify-between"
-                  onClick={() => toggleFilterSection('status')}
-                >
-                  <label className="text-sm text-gray-200">Status</label>
-                  <ChevronDown
-                    className={`h-3 w-3 text-gray-500 transition-transform duration-200 ${
-                      expandedFilters.status ? 'rotate-180 transform' : ''
-                    }`}
-                  />
-                </div>
-                {expandedFilters.status && (
-                  <div className="space-y-1">
-                    {Object.entries(statusConfig).map(([key, config]) => {
-                      const Icon = config.icon;
-                      const isActive = statusFilter === key;
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => setStatusFilter(isActive ? 'all' : key)}
-                          className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs transition-all ${
-                            isActive
-                              ? 'border border-amber-600/30 bg-amber-600/20 text-amber-400'
-                              : 'text-gray-200 hover:bg-gray-700/50 hover:text-white'
-                          }`}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 bg-gray-700 text-xs text-white transition-all hover:bg-gray-800"
+                    >
+                      <Calendar className="mr-2 h-3.5 w-3.5" />
+                      Create Task
+                    </Button>
+                    <SolidDropdown
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 bg-gray-700 text-xs text-white transition-all hover:bg-gray-800"
                         >
-                          <span className="flex items-center">
-                            <Icon className="mr-2 h-3 w-3" />
-                            {config.label}
-                          </span>
-                          <span className="text-gray-500">
-                            {contacts.filter((c) => c.status === key).length}
-                          </span>
-                        </button>
-                      );
-                    })}
+                          Actions
+                          <ChevronDown className="ml-2 h-3.5 w-3.5" />
+                        </Button>
+                      }
+                      title="Actions"
+                      options={["Mass Update", "Change Owner", "Delete"]}
+                    />
                   </div>
-                )}
-              </div>
-
-              {/* Owner Filter */}
-              <div>
-                <label className="mb-2 block text-sm text-gray-200">Owner</label>
-                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                  <SelectTrigger className="h-8 border-gray-700 bg-gray-800 text-xs">
-                    <SelectValue placeholder="All owners" />
-                  </SelectTrigger>
-                  <SelectContent className="border-gray-700 bg-gray-900/95 backdrop-blur-sm">
-                    <SelectItem value="all" className="text-xs">
-                      All owners
-                    </SelectItem>
-                    {teams.map((team) => (
-                      <SelectItem key={team.id} value={team.id} className="text-xs">
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Tags Filter */}
-              <div>
-                <div
-                  className="mb-2 flex cursor-pointer items-center justify-between"
-                  onClick={() => toggleFilterSection('tags')}
-                >
-                  <label className="text-sm text-gray-200">Tags</label>
-                  <ChevronDown
-                    className={`h-3 w-3 text-gray-500 transition-transform duration-200 ${
-                      expandedFilters.tags ? 'rotate-180 transform' : ''
-                    }`}
-                  />
-                </div>
-                {expandedFilters.tags && (
-                  <div className="space-y-1">
-                    {allTags.slice(0, 5).map((tag) => {
-                      const isActive = tagFilter === tag;
-                      return (
-                        <button
-                          key={tag}
-                          onClick={() => setTagFilter(isActive ? 'all' : tag)}
-                          className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs transition-all ${
-                            isActive
-                              ? 'border border-amber-600/30 bg-amber-600/20 text-amber-400'
-                              : 'text-gray-200 hover:bg-gray-700/50 hover:text-white'
-                          }`}
-                        >
-                          <span className="flex items-center">
-                            <Tag className="mr-2 h-3 w-3" />
-                            {tag}
-                          </span>
-                          <span className="text-gray-500">
-                            {contacts.filter((c) => c.tags.includes(tag)).length}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {allTags.length > 5 && (
-                      <button className="text-xs text-amber-400 hover:text-amber-300">
-                        +{allTags.length - 5} more
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Quick Filters */}
-              <div>
-                <div
-                  className="mb-2 flex cursor-pointer items-center justify-between"
-                  onClick={() => toggleFilterSection('quickFilters')}
-                >
-                  <label className="text-sm text-gray-200">Quick filters</label>
-                  <ChevronDown
-                    className={`h-3 w-3 text-gray-500 transition-transform duration-200 ${
-                      expandedFilters.quickFilters ? 'rotate-180 transform' : ''
-                    }`}
-                  />
-                </div>
-                {expandedFilters.quickFilters && (
-                  <div className="space-y-1">
-                    <button className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-800">
-                      <Star className="mr-2 h-3 w-3 text-yellow-400" />
-                      Starred only
-                    </button>
-                    <button className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-800">
-                      <Clock className="mr-2 h-3 w-3 text-gray-400" />
-                      Recently active
-                    </button>
-                    <button className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-800">
-                      <TrendingUp className="mr-2 h-3 w-3 text-amber-400" />
-                      High value
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out min-h-0">
-            {viewMode === 'table' ? (
-              <div className="flex flex-1 flex-col overflow-hidden min-h-0">
-                <div className="table-scroll-container flex-1 overflow-x-auto overflow-y-auto bg-gradient-to-b from-black to-gray-950" style={{ maxWidth: 'calc(100vw - 140px)' }}>
-                  <table className="w-full min-w-max">
-                    <thead className="sticky top-0 z-40 bg-gradient-to-b from-gray-900 to-gray-800">
-                      <tr>
-                        <th className="sticky left-0 z-50 px-6 py-5 text-center bg-gradient-to-r from-gray-900 to-gray-800">
-                          <div className="flex items-center justify-center">
-                            <SmallCheckbox
-                              checked={selectedContacts.length === sortedContacts.length}
-                              onCheckedChange={handleSelectAll}
-                            />
-                          </div>
-                        </th>
-                        {columnOrder.map((columnKey) => {
-                          const config = columnConfig[columnKey as keyof typeof columnConfig];
-                          return (
-                            <ColumnHeader
-                              key={columnKey}
-                              title={config.title}
-                              sortKey={columnKey}
-                              minWidth={config.minWidth}
-                            />
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody className="">
-                      {sortedContacts.map((contact) => {
-                        const statusInfo = statusConfig[contact.status] || statusConfig.new;
-                        const StatusIcon = statusInfo.icon;
-                        return (
-                          <tr
-                            key={contact.id}
-                            className="cursor-pointer text-xs transition-all duration-200 hover:bg-gray-900/30 group"
-                            onClick={() => navigate(`/leads/${contact.id}`)}
-                          >
-                            <td
-                              className="z-5 sticky left-0 px-6 py-4 bg-black group-hover:bg-gray-900/50"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <SmallCheckbox
-                                checked={selectedContacts.includes(contact.id)}
-                                onCheckedChange={() => handleSelectContact(contact.id)}
-                              />
-                            </td>
-                            {columnOrder.map((columnKey) => {
-                              const config = columnConfig[columnKey as keyof typeof columnConfig];
-                              return (
-                                <td
-                                  key={columnKey}
-                                  className="whitespace-nowrap px-6 py-4"
-                                  style={{ minWidth: config.minWidth }}
-                                >
-                                  {renderCellContent(columnKey, contact)}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              /* Cards View */
-              <div className="overflow-y-auto p-6">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {sortedContacts.map((contact) => {
-                    const statusInfo = statusConfig[contact.status] || statusConfig.new;
-                    const StatusIcon = statusInfo.icon;
-                    return (
-                      <Card
-                        key={contact.id}
-                        className="cursor-pointer border-gray-800 bg-gray-900 transition-all hover:border-gray-600 hover:bg-gray-800/50"
-                        onClick={() => navigate(`/leads/${contact.id}`)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="mb-3 flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center text-sm font-medium text-white">
-                                {displayField(contact.firstName)} {displayField(contact.lastName)}
-                                {contact.isStarred && (
-                                  <Star className="ml-1 h-3 w-3 fill-current text-yellow-400" />
-                                )}
-                              </div>
-                              <div className="mt-1 text-xs text-gray-400">{displayField(contact.email)}</div>
-                            </div>
-                            <div onClick={(e) => e.stopPropagation()} className="-m-2 p-2">
-                              <SmallCheckbox
-                                checked={selectedContacts.includes(contact.id)}
-                                onCheckedChange={() => handleSelectContact(contact.id)}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mb-3 space-y-2">
-                            <div className="text-sm text-white">{displayField(contact.company)}</div>
-                            <div className="text-xs text-gray-400">{contact.title}</div>
-                          </div>
-
-                          <div className="mb-3 flex items-center justify-between">
-                            <Badge
-                              className={`${statusInfo.color} text-xs text-white`}
-                            >
-                              <StatusIcon className="mr-1 h-3 w-3" />
-                              {statusInfo.label}
-                            </Badge>
-                          </div>
-
-                          <div className="mb-3 space-y-2">
-                            <div className="flex items-center text-xs">
-                              <div className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-gray-500 to-gray-600 text-xs font-medium text-white">
-                                {contact.assignedTo
-                                  .split(' ')
-                                  .map((name) => name[0])
-                                  .join('')}
-                              </div>
-                              <span className="text-gray-300">{contact.assignedTo}</span>
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              Campaign: {contact.campaign || 'Q4 Growth'}
-                            </div>
-                            <div className="text-xs text-gray-400">{displayField(contact.phone)}</div>
-                          </div>
-
-                          <div className="mt-3 flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 text-xs bg-amber-600 hover:bg-amber-700 text-white border-amber-600 hover:border-amber-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewCallDetails(contact);
-                              }}
-                            >
-                              <Phone className="mr-1 h-3 w-3" />
-                              Call
-                            </Button>
-                            <Button variant="outline" size="sm" className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 hover:border-emerald-700">
-                              <Mail className="mr-1 h-3 w-3" />
-                              Email
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  <button
+                    className="p-1 text-gray-400 transition-all hover:text-gray-300"
+                    onClick={() => setSelectedContacts([])}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             )}
+
+            {/* Main Content */}
+            <div
+              className="main-content-scroll flex flex-1 overflow-hidden pl-6"
+              style={{ gap: showFilters ? "24px" : "0px" }}
+            >
+              {/* Filter Sidebar */}
+              <div
+                className={`mt-6 h-[calc(100vh-140px)] rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl transition-all duration-300 ease-in-out ${
+                  showFilters
+                    ? "w-64 translate-x-0 overflow-y-auto p-5 opacity-100"
+                    : "w-0 -translate-x-full overflow-hidden border-0 p-0 opacity-0"
+                }`}
+              >
+                <div className="space-y-6">
+                  {/* Filters Header */}
+                  <div className="mb-6 flex items-center justify-between border-b border-white/5 pb-4">
+                    <h3 className="flex items-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
+                      <Filter className="mr-2 h-3.5 w-3.5 opacity-80" />
+                      Filters
+                    </h3>
+                    <button
+                      className="text-[10px] uppercase font-bold tracking-wider text-white/50 hover:text-white transition-colors"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setStatusFilter("all");
+                        setAssigneeFilter("all");
+                        setTagFilter("all");
+                        setLeadTypeFilter("All leads");
+                      }}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+
+                  {/* Search Filter */}
+                  <div>
+                    <label className="mb-3 block text-[10px] font-bold uppercase tracking-wider text-white/60">
+                      Search
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 transform text-white/50" />
+                      <input
+                        type="text"
+                        placeholder="Name, email, company..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                          fontSize: "11px",
+                          color: "#ffffff",
+                          backgroundColor: "rgba(255, 255, 255, 0.03)",
+                          backdropFilter: "blur(12px)",
+                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          borderRadius: "10px",
+                          paddingLeft: "36px",
+                          paddingRight: "12px",
+                          paddingTop: "10px",
+                          paddingBottom: "10px",
+                          height: "38px",
+                          width: "100%",
+                          outline: "none",
+                          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.02)",
+                        }}
+                        className="search-input-modern placeholder:text-white/40"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div>
+                    <div
+                      className="mb-3 flex cursor-pointer items-center justify-between group"
+                      onClick={() => toggleFilterSection("status")}
+                    >
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/60 group-hover:text-white/90 transition-colors">
+                        Status
+                      </label>
+                      <ChevronDown
+                        className={`h-3 w-3 text-white/50 transition-transform duration-200 ${
+                          expandedFilters.status ? "rotate-180 transform" : ""
+                        }`}
+                      />
+                    </div>
+                    {expandedFilters.status && (
+                      <div className="space-y-1 ml-1">
+                        {Object.entries(statusConfig).map(([key, config]) => {
+                          const Icon = config.icon;
+                          const isActive = statusFilter === key;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() =>
+                                setStatusFilter(isActive ? "all" : key)
+                              }
+                              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[11px] font-medium transition-all ${
+                                isActive
+                                  ? "bg-white/10 text-white shadow-lg border border-white/10"
+                                  : "text-white/80 hover:bg-white/5 hover:text-white"
+                              }`}
+                            >
+                              <span className="flex items-center">
+                                <Icon
+                                  className={`mr-2.5 h-3.5 w-3.5 ${
+                                    isActive ? "opacity-100" : "opacity-60"
+                                  }`}
+                                />
+                                {config.label}
+                              </span>
+                              <span className="text-[10px] font-bold opacity-50">
+                                {
+                                  contacts.filter((c) => c.status === key)
+                                    .length
+                                }
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Owner Filter */}
+                  <div>
+                    <label className="mb-3 block text-[10px] font-bold uppercase tracking-wider text-white/60">
+                      Owner
+                    </label>
+                    <Select
+                      value={assigneeFilter}
+                      onValueChange={setAssigneeFilter}
+                    >
+                      <SelectTrigger className="h-10 border-white/10 bg-white/5 text-[11px] font-medium rounded-xl backdrop-blur-md text-white/80 transition-colors hover:text-white">
+                        <SelectValue placeholder="All owners" />
+                      </SelectTrigger>
+                      <SelectContent className="border-white/10 bg-black/80 backdrop-blur-2xl">
+                        <SelectItem value="all" className="text-[11px]">
+                          All owners
+                        </SelectItem>
+                        {teams.map((team) => (
+                          <SelectItem
+                            key={team.id}
+                            value={team.id}
+                            className="text-[11px]"
+                          >
+                            {team.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Tags Filter */}
+                  <div>
+                    <div
+                      className="mb-3 flex cursor-pointer items-center justify-between group"
+                      onClick={() => toggleFilterSection("tags")}
+                    >
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/60 group-hover:text-white/90 transition-colors">
+                        Tags
+                      </label>
+                      <ChevronDown
+                        className={`h-3 w-3 text-white/50 transition-transform duration-200 ${
+                          expandedFilters.tags ? "rotate-180 transform" : ""
+                        }`}
+                      />
+                    </div>
+                    {expandedFilters.tags && (
+                      <div className="space-y-1 ml-1">
+                        {allTags.slice(0, 5).map((tag) => {
+                          const isActive = tagFilter === tag;
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() =>
+                                setTagFilter(isActive ? "all" : tag)
+                              }
+                              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[11px] font-medium transition-all ${
+                                isActive
+                                  ? "bg-white/10 text-white shadow-lg border border-white/10"
+                                  : "text-white/80 hover:bg-white/5 hover:text-white"
+                              }`}
+                            >
+                              <span className="flex items-center">
+                                <Tag
+                                  className={`mr-2.5 h-3.5 w-3.5 ${
+                                    isActive ? "opacity-100" : "opacity-60"
+                                  }`}
+                                />
+                                {tag}
+                              </span>
+                              <span className="text-[10px] font-bold opacity-50">
+                                {
+                                  contacts.filter((c) => c.tags.includes(tag))
+                                    .length
+                                }
+                              </span>
+                            </button>
+                          );
+                        })}
+                        {allTags.length > 5 && (
+                          <button className="text-[10px] font-bold text-white/60 hover:text-white transition-colors px-2 py-1">
+                            +{allTags.length - 5} MORE
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick Filters */}
+                  <div>
+                    <div
+                      className="mb-3 flex cursor-pointer items-center justify-between group"
+                      onClick={() => toggleFilterSection("quickFilters")}
+                    >
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/60 group-hover:text-white/90 transition-colors">
+                        Quick filters
+                      </label>
+                      <ChevronDown
+                        className={`h-3 w-3 text-white/50 transition-transform duration-200 ${
+                          expandedFilters.quickFilters
+                            ? "rotate-180 transform"
+                            : ""
+                        }`}
+                      />
+                    </div>
+                    {expandedFilters.quickFilters && (
+                      <div className="space-y-1 ml-1">
+                        <button className="flex w-full items-center rounded-lg px-2.5 py-2 text-[11px] font-medium text-white/80 hover:bg-white/5 hover:text-white transition-all">
+                          <Star className="mr-2.5 h-3.5 w-3.5 text-white/60" />
+                          Starred only
+                        </button>
+                        <button className="flex w-full items-center rounded-lg px-2.5 py-2 text-[11px] font-medium text-white/80 hover:bg-white/5 hover:text-white transition-all">
+                          <Clock className="mr-2.5 h-3.5 w-3.5 text-white/60" />
+                          Recently active
+                        </button>
+                        <button className="flex w-full items-center rounded-lg px-2.5 py-2 text-[11px] font-medium text-white/80 hover:bg-white/5 hover:text-white transition-all">
+                          <TrendingUp className="mr-2.5 h-3.5 w-3.5 text-white/60" />
+                          High value
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Container */}
+              <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out min-h-0">
+                {viewMode === "table" ? (
+                  <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+                    <div
+                      className="table-scroll-container flex-1 overflow-x-auto overflow-y-auto bg-gradient-to-b from-black to-gray-950"
+                      style={{ maxWidth: "calc(100vw - 140px)" }}
+                    >
+                      <table className="w-full min-w-max border-separate border-spacing-0">
+                        <thead className="sticky top-0 z-40">
+                          <tr className="bg-white/[0.04] backdrop-blur-3xl">
+                            <th
+                              className="sticky left-0 z-50 px-6 py-5 text-center border-r border-b border-white/5"
+                              style={{
+                                background: "rgba(10, 10, 10, 0.85)",
+                                backdropFilter: "blur(40px)",
+                                WebkitBackdropFilter: "blur(40px)",
+                              }}
+                            >
+                              <div className="flex items-center justify-center">
+                                <SmallCheckbox
+                                  checked={
+                                    selectedContacts.length ===
+                                    sortedContacts.length
+                                  }
+                                  onCheckedChange={handleSelectAll}
+                                />
+                              </div>
+                            </th>
+                            {columnOrder.map((columnKey) => {
+                              const config =
+                                columnConfig[
+                                  columnKey as keyof typeof columnConfig
+                                ];
+                              return (
+                                <ColumnHeader
+                                  key={columnKey}
+                                  title={config.title}
+                                  sortKey={columnKey}
+                                  minWidth={config.minWidth}
+                                />
+                              );
+                            })}
+                          </tr>
+                        </thead>
+                        <tbody className="">
+                          {sortedContacts.map((contact) => {
+                            const statusInfo =
+                              statusConfig[contact.status] || statusConfig.new;
+                            const StatusIcon = statusInfo.icon;
+                            return (
+                              <tr
+                                key={contact.id}
+                                className="cursor-pointer text-xs transition-all duration-200 hover:bg-gray-900/30 group"
+                                onClick={() => navigate(`/leads/${contact.id}`)}
+                              >
+                                <td
+                                  className="z-5 sticky left-0 px-6 py-4 bg-black group-hover:bg-gray-900/50"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <SmallCheckbox
+                                    checked={selectedContacts.includes(
+                                      contact.id
+                                    )}
+                                    onCheckedChange={() =>
+                                      handleSelectContact(contact.id)
+                                    }
+                                  />
+                                </td>
+                                {columnOrder.map((columnKey) => {
+                                  const config =
+                                    columnConfig[
+                                      columnKey as keyof typeof columnConfig
+                                    ];
+                                  return (
+                                    <td
+                                      key={columnKey}
+                                      className="whitespace-nowrap px-6 py-4"
+                                      style={{ minWidth: config.minWidth }}
+                                    >
+                                      {renderCellContent(columnKey, contact)}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  /* Cards View */
+                  <div className="overflow-y-auto p-6">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {sortedContacts.map((contact) => {
+                        const statusInfo =
+                          statusConfig[contact.status] || statusConfig.new;
+                        const StatusIcon = statusInfo.icon;
+                        return (
+                          <Card
+                            key={contact.id}
+                            className="cursor-pointer border-gray-800 bg-gray-900 transition-all hover:border-gray-600 hover:bg-gray-800/50"
+                            onClick={() => navigate(`/leads/${contact.id}`)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="mb-3 flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center text-sm font-medium text-white">
+                                    {displayField(contact.firstName)}{" "}
+                                    {displayField(contact.lastName)}
+                                    {contact.isStarred && (
+                                      <Star className="ml-1 h-3 w-3 fill-current text-yellow-400" />
+                                    )}
+                                  </div>
+                                  <div className="mt-1 text-xs text-gray-400">
+                                    {displayField(contact.email)}
+                                  </div>
+                                </div>
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="-m-2 p-2"
+                                >
+                                  <SmallCheckbox
+                                    checked={selectedContacts.includes(
+                                      contact.id
+                                    )}
+                                    onCheckedChange={() =>
+                                      handleSelectContact(contact.id)
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="mb-3 space-y-2">
+                                <div className="text-sm text-white">
+                                  {displayField(contact.company)}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {contact.title}
+                                </div>
+                              </div>
+
+                              <div className="mb-3 flex items-center justify-between">
+                                <Badge
+                                  className={`${statusInfo.color} premium-badge`}
+                                >
+                                  <StatusIcon className="mr-1 h-3 w-3" />
+                                  {statusInfo.label}
+                                </Badge>
+                              </div>
+
+                              <div className="mb-3 space-y-2">
+                                <div className="flex items-center text-xs">
+                                  <div className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-gray-500 to-gray-600 text-xs font-medium text-white">
+                                    {contact.assignedTo
+                                      .split(" ")
+                                      .map((name) => name[0])
+                                      .join("")}
+                                  </div>
+                                  <span className="text-gray-300">
+                                    {contact.assignedTo}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  Campaign: {contact.campaign || "Q4 Growth"}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {displayField(contact.phone)}
+                                </div>
+                              </div>
+
+                              <div className="mt-3 flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 text-xs bg-white text-black hover:bg-gray-200 border-white"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewCallDetails(contact);
+                                  }}
+                                >
+                                  <Phone className="mr-1 h-3 w-3" />
+                                  Call
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 hover:border-emerald-700"
+                                >
+                                  <Mail className="mr-1 h-3 w-3" />
+                                  Email
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <CallLogDetailsModal
+                isOpen={showCallDetails}
+                onClose={() => setShowCallDetails(false)}
+                callData={
+                  selectedCallContact
+                    ? getMockCallData(selectedCallContact)
+                    : undefined
+                }
+              />
+
+              <AddColumnsModal
+                isOpen={showAddColumnsModal}
+                onClose={() => setShowAddColumnsModal(false)}
+                onSave={handleAddColumns}
+                availableColumns={[]}
+                currentColumns={[
+                  ...Object.keys(baseColumnConfig),
+                  ...additionalColumns,
+                ]}
+              />
+            </div>
           </div>
         </div>
-        </div>
       </div>
-
-      {/* Call Details Modal */}
-      <CallLogDetailsModal
-        isOpen={showCallDetails}
-        onClose={() => setShowCallDetails(false)}
-        callData={selectedCallContact ? getMockCallData(selectedCallContact) : undefined}
-      />
-
-      {/* Add Columns Modal */}
-      <AddColumnsModal
-        isOpen={showAddColumnsModal}
-        onClose={() => setShowAddColumnsModal(false)}
-        onSave={handleAddColumns}
-        availableColumns={[]}
-        currentColumns={[...Object.keys(baseColumnConfig), ...additionalColumns]}
-      />
     </React.Fragment>
   );
 }

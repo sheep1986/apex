@@ -1,55 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/auth';
-import { useUserContext } from '../services/MinimalUserProvider';
-import {
-  ArrowRight,
-  Play,
-  CheckCircle,
-  Star,
-  Phone,
-  Zap,
-  BarChart3,
-  Shield,
-  Clock,
-  Target,
-  TrendingUp,
-  Users,
-  Award,
-  ChevronDown,
-  ArrowUp,
-  Brain,
-  Mic,
-  Activity,
-  Sparkles,
-  Bot,
-  Database,
-  Webhook,
-  Globe,
-  Calendar,
-  PhoneCall,
-  FileText,
-  Settings,
-  Building,
-  UserCheck,
-  RefreshCw,
-  DollarSign,
-  CheckSquare,
-  MessageSquare,
-  Briefcase,
-  MapPin,
-  Timer,
-  CreditCard,
-  UserPlus,
-  AlertTriangle,
-  Info,
-  Mail,
-  Layers,
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    Activity,
+    ArrowRight,
+    BarChart3,
+    Bot,
+    Building,
+    Calendar,
+    CheckCircle,
+    CheckSquare,
+    Clock,
+    Database,
+    DollarSign,
+    Globe,
+    Phone,
+    Play,
+    RefreshCw,
+    Settings,
+    Shield,
+    Sparkles,
+    Star,
+    Target,
+    TrendingUp,
+    UserCheck,
+    Users,
+    Webhook,
+    Zap
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/auth';
+import { useUserContext } from '../services/MinimalUserProvider';
 
 // Social proof data
 const testimonials = [
@@ -346,7 +329,7 @@ export function Landing() {
       <section className="bg-slate-800/50 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-3xl font-bold md:text-4xl">See Artificial Media AI in Action</h2>
+            <h2 className="mb-4 text-3xl font-bold md:text-4xl">See Trinity AI in Action</h2>
             <p className="text-lg text-slate-300">Watch how our AI qualifies leads in real-time</p>
           </div>
 
@@ -628,8 +611,8 @@ export function Landing() {
                   <div className="space-y-4">
                     <div className="rounded-lg bg-slate-800/50 p-4">
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="font-medium text-white">Q1 Outreach Campaign</span>
-                        <span className="text-sm text-slate-400">2,450 / 5,000 calls</span>
+                        <span className="font-medium text-white">Trinity AI Credits</span>
+                        <span className="text-sm text-slate-400">150 available</span>
                       </div>
                       <div className="mb-2 h-2 overflow-hidden rounded-full bg-slate-700">
                         <div className="h-full w-[49%] bg-gradient-to-r from-blue-500 to-purple-600" />
@@ -746,7 +729,7 @@ export function Landing() {
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-3xl font-bold md:text-4xl">Success Stories</h2>
             <p className="text-lg text-slate-300">
-              See how businesses are transforming their sales with Apex AI
+              See how businesses are transforming their sales with Trinity AI
             </p>
           </div>
 

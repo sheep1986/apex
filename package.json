@@ -1,5 +1,5 @@
 {
-  "name": "apex-frontend",
+  "name": "trinity-ai-platform",
   "version": "1.0.0",
   "type": "module",
   "packageManager": "pnpm@10.13.1",
@@ -13,8 +13,16 @@
     "test": "vitest --run --passWithNoTests",
     "test:watch": "vitest",
     "db:types": "./scripts/generate-supabase-types.sh",
+    "db:migrate": "node-pg-migrate",
+    "db:migrate:create": "node-pg-migrate create",
     "migrate:clerk": "node scripts/clerk-migration.js",
     "smoke-test": "./scripts/smoke-test.sh"
+  },
+  "node-pg-migrate": {
+    "migrationsTable": "pgmigrations",
+    "dir": "migrations",
+    "direction": "up",
+    "count": "1"
   },
   "dependencies": {
     "@clerk/clerk-react": "5.40.0",
@@ -75,6 +83,7 @@
     "autoprefixer": "^10.4.16",
     "jscodeshift": "^17.3.0",
     "jsdom": "^26.1.0",
+    "node-pg-migrate": "^8.0.3",
     "tailwindcss": "^3.4.15",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.8.1",

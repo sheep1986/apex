@@ -1,10 +1,10 @@
 // =============================================================================
 // SUPABASE AUTHENTICATION SERVICE
-// Centralized auth management for Apex AI platform
+// Centralized auth management for Trinity Labs AI platform
 // =============================================================================
 
-import { supabase } from './supabase-client';
-import type { User, Session, AuthError } from '@supabase/supabase-js';
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "./supabase-client";
 
 export interface UserProfile {
   id: string;
@@ -15,7 +15,7 @@ export interface UserProfile {
   full_name?: string;
   avatar_url?: string;
   phone?: string;
-  role: 'platform_owner' | 'org_admin' | 'manager' | 'member' | 'viewer';
+  role: "platform_owner" | "org_admin" | "manager" | "member" | "viewer";
   permissions: Record<string, any>;
   timezone: string;
   locale: string;
@@ -84,10 +84,13 @@ class AuthService {
   private async initializeAuth() {
     try {
       // Get initial session
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
       if (error) {
-        console.error('Error getting session:', error);
+        console.error("Error getting session:", error);
         this.updateState({ error: error.message, loading: false });
         return;
       }
@@ -100,11 +103,11 @@ class AuthService {
 
       // Listen for auth state changes
       supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        console.log("Auth state changed:", event, session?.user?.email);
+
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           await this.handleAuthStateChange(session);
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === "SIGNED_OUT") {
           this.updateState({
             user: null,
             profile: null,
@@ -115,12 +118,14 @@ class AuthService {
           });
         }
       });
-
     } catch (error) {
-      console.error('Error initializing auth:', error);
-      this.updateState({ 
-        error: error instanceof Error ? error.message : 'Authentication initialization failed',
-        loading: false 
+      console.error("Error initializing auth:", error);
+      this.updateState({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Authentication initialization failed",
+        loading: false,
       });
     }
   }
@@ -143,12 +148,14 @@ class AuthService {
     try {
       // Fetch user profile and organization
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select(`
+        .from("user_profiles")
+        .select(
+          `
           *,
           organization:organizations(*)
-        `)
-        .eq('id', session.user.id)
+        `
+        )
+        .eq("id", session.user.id)
         .single();
 
       if (profileError) {
@@ -166,16 +173,18 @@ class AuthService {
 
       // Update last active timestamp
       await this.updateLastActive();
-
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error("Error fetching user profile:", error);
       this.updateState({
         user: session.user,
         profile: null,
         organization: null,
         session,
         loading: false,
-        error: error instanceof Error ? error.message : 'Failed to load user profile',
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load user profile",
       });
     }
   }
@@ -183,7 +192,7 @@ class AuthService {
   // Update state and notify listeners
   private updateState(updates: Partial<AuthState>) {
     this.currentState = { ...this.currentState, ...updates };
-    this.listeners.forEach(listener => listener(this.currentState));
+    this.listeners.forEach((listener) => listener(this.currentState));
   }
 
   // Subscribe to auth state changes
@@ -191,10 +200,10 @@ class AuthService {
     this.listeners.push(listener);
     // Immediately call with current state
     listener(this.currentState);
-    
+
     // Return unsubscribe function
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      this.listeners = this.listeners.filter((l) => l !== listener);
     };
   }
 
@@ -204,15 +213,17 @@ class AuthService {
   }
 
   // Sign up new user
-  async signUp(data: SignUpData): Promise<{ success: boolean; error?: string; user?: User }> {
+  async signUp(
+    data: SignUpData
+  ): Promise<{ success: boolean; error?: string; user?: User }> {
     try {
       this.updateState({ loading: true, error: null });
 
       // Call the SaaS signup edge function
-      const response = await fetch('/functions/v1/saas-signup', {
-        method: 'POST',
+      const response = await fetch("/functions/v1/saas-signup", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
@@ -220,14 +231,15 @@ class AuthService {
       const result = await response.json();
 
       if (!result.success) {
-        throw new Error(result.error || 'Signup failed');
+        throw new Error(result.error || "Signup failed");
       }
 
       // Sign in the user after successful signup
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      const { data: signInData, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
 
       if (signInError) {
         throw signInError;
@@ -237,9 +249,9 @@ class AuthService {
         success: true,
         user: signInData.user,
       };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Signup failed';
+      const errorMessage =
+        error instanceof Error ? error.message : "Signup failed";
       this.updateState({ error: errorMessage, loading: false });
       return {
         success: false,
@@ -249,14 +261,17 @@ class AuthService {
   }
 
   // Sign in existing user
-  async signIn(data: SignInData): Promise<{ success: boolean; error?: string; user?: User }> {
+  async signIn(
+    data: SignInData
+  ): Promise<{ success: boolean; error?: string; user?: User }> {
     try {
       this.updateState({ loading: true, error: null });
 
-      const { data: signInData, error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      const { data: signInData, error } =
+        await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
 
       if (error) {
         throw error;
@@ -266,9 +281,9 @@ class AuthService {
         success: true,
         user: signInData.user,
       };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Sign in failed';
+      const errorMessage =
+        error instanceof Error ? error.message : "Sign in failed";
       this.updateState({ error: errorMessage, loading: false });
       return {
         success: false,
@@ -289,9 +304,9 @@ class AuthService {
       }
 
       return { success: true };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Sign out failed';
+      const errorMessage =
+        error instanceof Error ? error.message : "Sign out failed";
       this.updateState({ error: errorMessage, loading: false });
       return {
         success: false,
@@ -301,7 +316,9 @@ class AuthService {
   }
 
   // Reset password
-  async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
+  async resetPassword(
+    email: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -312,17 +329,18 @@ class AuthService {
       }
 
       return { success: true };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Password reset failed',
+        error: error instanceof Error ? error.message : "Password reset failed",
       };
     }
   }
 
   // Update password
-  async updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
+  async updatePassword(
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
@@ -333,26 +351,28 @@ class AuthService {
       }
 
       return { success: true };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Password update failed',
+        error:
+          error instanceof Error ? error.message : "Password update failed",
       };
     }
   }
 
   // Update user profile
-  async updateProfile(updates: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> {
+  async updateProfile(
+    updates: Partial<UserProfile>
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       if (!this.currentState.user) {
-        throw new Error('No authenticated user');
+        throw new Error("No authenticated user");
       }
 
       const { error } = await supabase
-        .from('user_profiles')
+        .from("user_profiles")
         .update(updates)
-        .eq('id', this.currentState.user.id);
+        .eq("id", this.currentState.user.id);
 
       if (error) {
         throw error;
@@ -362,11 +382,10 @@ class AuthService {
       await this.handleAuthStateChange(this.currentState.session);
 
       return { success: true };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Profile update failed',
+        error: error instanceof Error ? error.message : "Profile update failed",
       };
     }
   }
@@ -377,19 +396,20 @@ class AuthService {
       if (!this.currentState.user) return;
 
       await supabase
-        .from('user_profiles')
+        .from("user_profiles")
         .update({ last_active_at: new Date().toISOString() })
-        .eq('id', this.currentState.user.id);
-
+        .eq("id", this.currentState.user.id);
     } catch (error) {
-      console.error('Error updating last active:', error);
+      console.error("Error updating last active:", error);
       // Don't throw - this is not critical
     }
   }
 
   // Get current user session
   async getSession(): Promise<Session | null> {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     return session;
   }
 
@@ -411,10 +431,10 @@ class AuthService {
   // Check if user has permission
   hasPermission(permission: string): boolean {
     if (!this.currentState.profile) return false;
-    
+
     // Platform owners have all permissions
-    if (this.currentState.profile.role === 'platform_owner') return true;
-    
+    if (this.currentState.profile.role === "platform_owner") return true;
+
     // Check specific permissions
     return this.currentState.profile.permissions?.[permission] === true;
   }
@@ -422,7 +442,7 @@ class AuthService {
   // Check if user has role
   hasRole(role: string | string[]): boolean {
     if (!this.currentState.profile) return false;
-    
+
     const roles = Array.isArray(role) ? role : [role];
     return roles.includes(this.currentState.profile.role);
   }
@@ -430,10 +450,12 @@ class AuthService {
   // Get authentication token
   async getToken(): Promise<string | null> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       return session?.access_token || null;
     } catch (error) {
-      console.error('Error getting token:', error);
+      console.error("Error getting token:", error);
       return null;
     }
   }

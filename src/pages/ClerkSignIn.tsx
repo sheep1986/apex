@@ -5,7 +5,7 @@ export default function ClerkSignIn() {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome to Apex AI</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome to Trinity AI</h1>
           <p className="text-gray-400">Sign in to access your platform</p>
         </div>
         <SignIn 

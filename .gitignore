@@ -2,3 +2,11 @@
 .netlify
 node_modules
 node_modules
+
+# Backups and Archives
+backup_*
+_archive
+temp-fix
+backups/
+apps/frontend/node_modules
+apps/backend/node_modules

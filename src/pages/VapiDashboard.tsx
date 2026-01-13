@@ -1,90 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import {
-  Phone,
-  PhoneCall,
-  Bot,
-  Users,
-  TrendingUp,
-  Clock,
-  DollarSign,
-  Activity,
-  BarChart3,
-  Headphones,
-  MessageSquare,
-  AlertCircle,
-  Plus,
-  RefreshCw,
-  ArrowUp,
-  ArrowDown,
-  ArrowLeft,
-  Play,
-  Pause,
-  Target,
-  CheckCircle,
-  MoreHorizontal,
-  Zap,
-  Mic,
-  Timer,
-  ArrowUpRight,
-  ArrowDownRight,
-  Sparkles,
-  Volume2,
-  Calendar,
-  Filter,
-  Search,
-  ChevronRight,
-  ChevronLeft,
-  TrendingDown,
-  PlayCircle,
-  PauseCircle,
-  StopCircle,
-  Eye,
-  Settings,
-  Star,
-  Layers,
-  Users2,
-  PhoneOutgoing,
-  PhoneIncoming,
-  MicIcon,
-  Wallet,
-  TrendingUpIcon,
-  Award,
-  Flame,
-  BrainCircuit,
-  Gauge,
-  Rocket,
-  Crown,
-  Gem,
-  Infinity,
-  Radio,
-  Waves,
-  ThumbsUp,
-  ThumbsDown,
-  Meh,
-  ExternalLink,
-  ChevronDown,
-  ChevronUp,
-  X,
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useUserContext } from '../services/MinimalUserProvider';
-import { useVapiOutboundService, VapiOutboundCampaign } from '@/services/vapi-outbound.service';
-import { directSupabaseService } from '@/services/direct-supabase.service';
-import { SimpleCampaignWizard } from '@/components/ai-crm/SimpleCampaignWizard';
 import { CampaignEditWizard } from '@/components/ai-crm/CampaignEditWizard';
 import { DynamicConcurrencyManager } from '@/components/ai-crm/DynamicConcurrencyManager';
+import { SimpleCampaignWizard } from '@/components/ai-crm/SimpleCampaignWizard';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { useApiClient } from '@/lib/api-client';
+import { directSupabaseService } from '@/services/direct-supabase.service';
+import { useVapiOutboundService, VapiOutboundCampaign } from '@/services/vapi-outbound.service';
+import {
+    AlertCircle,
+    CheckCircle,
+    DollarSign,
+    ExternalLink,
+    Gauge,
+    Pause,
+    PauseCircle,
+    Play,
+    PlayCircle,
+    Plus,
+    RefreshCw,
+    Settings,
+    StopCircle,
+    Target,
+    TrendingUp,
+    Users
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient, useApiClient } from '@/lib/api-client';
+import { useUserContext } from '../services/MinimalUserProvider';
 
 // Interfaces for data structures
 interface CallMetrics {
@@ -379,7 +323,7 @@ const VapiDashboard: React.FC = () => {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-white">Apex Campaigns</h1>
+          <h1 className="text-2xl font-bold text-white">Trinity AICampaigns</h1>
         </div>
         <div className="flex items-center space-x-3">
           <Button

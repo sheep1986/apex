@@ -1,5 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ArrowUp, ArrowDown, Pin, Filter, EyeOff } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronRight,
+  EyeOff,
+  Filter,
+  Pin,
+} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface DropdownOption {
   label: string;
@@ -12,10 +20,10 @@ interface SolidDropdownProps {
   trigger: React.ReactNode;
   title: string;
   sortKey?: string;
-  onSort?: (key: string, order: 'asc' | 'desc') => void;
+  onSort?: (key: string, order: "asc" | "desc") => void;
   onUnsort?: () => void;
   onPinToggle?: () => void;
-  sortHistory?: ('asc' | 'desc')[];
+  sortHistory?: ("asc" | "desc")[];
   isPinned?: boolean;
   options?: string[];
   onOptionSelect?: (option: string) => void;
@@ -40,13 +48,16 @@ export const SolidDropdown: React.FC<SolidDropdownProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const options: DropdownOption[] = [];
@@ -56,7 +67,7 @@ export const SolidDropdown: React.FC<SolidDropdownProps> = ({
     customOptions.forEach((option) => {
       options.push({
         label: option,
-        icon: <span className="mr-2"></span>,
+        icon: <ChevronRight className="mr-2.5 h-3 w-3 opacity-50" />,
         onClick: () => {
           if (onOptionSelect) onOptionSelect(option);
           setIsOpen(false);
@@ -68,18 +79,18 @@ export const SolidDropdown: React.FC<SolidDropdownProps> = ({
     if (sortKey && onSort) {
       options.push(
         {
-          label: 'Sort ascending',
-          icon: <span className="mr-2">⬆️</span>,
+          label: "Sort ascending",
+          icon: <ArrowUp className="mr-2.5 h-3 w-3" />,
           onClick: () => {
-            onSort(sortKey, 'asc');
+            onSort(sortKey, "asc");
             setIsOpen(false);
           },
         },
         {
-          label: 'Sort descending',
-          icon: <span className="mr-2">⬇️</span>,
+          label: "Sort descending",
+          icon: <ArrowDown className="mr-2.5 h-3 w-3" />,
           onClick: () => {
-            onSort(sortKey, 'desc');
+            onSort(sortKey, "desc");
             setIsOpen(false);
           },
         }
@@ -88,8 +99,8 @@ export const SolidDropdown: React.FC<SolidDropdownProps> = ({
       // Always add unsort option if onUnsort is provided
       if (onUnsort) {
         options.push({
-          label: 'Unsort',
-          icon: <span className="mr-2">↕️</span>,
+          label: "Unsort",
+          icon: <ArrowUpDown className="mr-2.5 h-3 w-3" />,
           onClick: () => {
             onUnsort();
             setIsOpen(false);
@@ -101,8 +112,10 @@ export const SolidDropdown: React.FC<SolidDropdownProps> = ({
     // Pin/Unpin option
     if (onPinToggle) {
       options.push({
-        label: isPinned ? 'Unpin column' : 'Pin column',
-        icon: <span className="mr-2">{isPinned ? '📌' : '📍'}</span>,
+        label: isPinned ? "Unpin column" : "Pin column",
+        icon: (
+          <Pin className={`mr-2.5 h-3 w-3 ${isPinned ? "fill-current" : ""}`} />
+        ),
         onClick: () => {
           onPinToggle();
           setIsOpen(false);
@@ -113,12 +126,12 @@ export const SolidDropdown: React.FC<SolidDropdownProps> = ({
     options.push(
       {
         label: `Filter by ${title.toLowerCase()}`,
-        icon: <span className="mr-2">🔍</span>,
+        icon: <Filter className="mr-2.5 h-3 w-3" />,
         onClick: () => setIsOpen(false),
       },
       {
-        label: 'Hide column',
-        icon: <span className="mr-2">👁️‍🗨️</span>,
+        label: "Hide column",
+        icon: <EyeOff className="mr-2.5 h-3 w-3" />,
         onClick: () => {
           if (onHideColumn) onHideColumn();
           setIsOpen(false);
@@ -133,53 +146,50 @@ export const SolidDropdown: React.FC<SolidDropdownProps> = ({
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full z-[9999] mt-1 max-h-[300px] overflow-y-auto"
+          className="absolute right-0 top-full z-[9999] mt-2 max-h-[300px] overflow-y-auto custom-scrollbar"
           style={{
-            minWidth: '160px',
-            backgroundColor: '#111827',
-            border: '1px solid #374151',
-            borderRadius: '8px',
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.7)',
-            padding: '6px',
+            minWidth: "180px",
+            background: "rgba(12, 12, 12, 0.88)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: "12px",
+            boxShadow:
+              "0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.05)",
+            padding: "4px",
           }}
         >
+          <div className="px-3 py-2 border-b border-white/5 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+              {title}
+            </span>
+          </div>
           {options.map((option, index) => (
             <React.Fragment key={index}>
-              {index === 2 && sortKey && (
-                <div
-                  style={{
-                    height: '1px',
-                    backgroundColor: '#374151',
-                    margin: '6px 8px',
-                  }}
-                />
-              )}
               <div
                 onClick={option.onClick}
-                className="text-white"
+                className="group flex items-center px-3 py-2 cursor-pointer rounded-lg transition-all duration-300"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '6px 10px',
-                  cursor: 'pointer',
-                  borderRadius: '6px',
-                  color: '#ffffff !important',
-                  fontSize: '10px',
-                  backgroundColor: 'transparent',
-                  transition: 'all 0.2s ease',
+                  color: "rgba(255, 255, 255, 0.8)",
+                  fontSize: "11px",
+                  fontWeight: "500",
+                  letterSpacing: "0.01em",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.5)';
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.transform = 'translateX(2px)';
+                  e.currentTarget.style.backgroundColor =
+                    "rgba(255, 255, 255, 0.06)";
+                  e.currentTarget.style.color = "#ffffff";
+                  e.currentTarget.style.transform = "translateX(2px)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.transform = 'translateX(0)';
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
+                  e.currentTarget.style.transform = "translateX(0)";
                 }}
               >
-                {option.icon}
+                <span className="opacity-60 transition-opacity group-hover:opacity-100">
+                  {option.icon}
+                </span>
                 {option.label}
               </div>
             </React.Fragment>

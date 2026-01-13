@@ -1,5 +1,10 @@
-import { vapiService, VapiCall, VapiAssistant, VapiPhoneNumber } from './vapi-service';
-import { notificationService } from './notification.service';
+import { notificationService } from "./notification.service";
+import {
+  VapiAssistant,
+  VapiCall,
+  VapiPhoneNumber,
+  vapiService,
+} from "./vapi-service";
 
 export interface VapiAccountConfig {
   id: string;
@@ -7,12 +12,12 @@ export interface VapiAccountConfig {
   apiKey: string;
   isActive: boolean;
   lastSync?: Date;
-  syncStatus: 'connected' | 'disconnected' | 'syncing' | 'error';
+  syncStatus: "connected" | "disconnected" | "syncing" | "error";
   errorMessage?: string;
   metadata?: {
     organizationId?: string;
     userId?: string;
-    environment?: 'production' | 'staging' | 'development';
+    environment?: "production" | "staging" | "development";
   };
 }
 
@@ -26,7 +31,7 @@ export interface VapiAccountData {
   phoneNumbers: VapiPhoneNumber[];
   recentCalls: VapiCall[];
   lastSync: Date;
-  status: 'connected' | 'disconnected' | 'syncing' | 'error';
+  status: "connected" | "disconnected" | "syncing" | "error";
   errorDetails?: string;
 }
 
@@ -36,7 +41,7 @@ export interface AggregatedVapiData {
   totalMonthlySpend: number;
   accounts: VapiAccountData[];
   lastGlobalSync: Date;
-  overallStatus: 'healthy' | 'warning' | 'error';
+  overallStatus: "healthy" | "warning" | "error";
   syncErrors: string[];
 }
 
@@ -53,12 +58,14 @@ class VapiIntegrationService {
 
   // ==================== ACCOUNT MANAGEMENT ====================
 
-  addAccount(config: Omit<VapiAccountConfig, 'id' | 'syncStatus'>): string {
-    const accountId = `vapi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  addAccount(config: Omit<VapiAccountConfig, "id" | "syncStatus">): string {
+    const accountId = `vapi_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
     const newAccount: VapiAccountConfig = {
       ...config,
       id: accountId,
-      syncStatus: 'disconnected',
+      syncStatus: "disconnected",
     };
 
     this.accounts.push(newAccount);
@@ -88,17 +95,23 @@ class VapiIntegrationService {
 
     notificationService.notifyVapiAccountDisconnected({
       name: account.name,
-      reason: 'Account removed by user',
+      reason: "Account removed by user",
     });
 
     return true;
   }
 
-  updateAccount(accountId: string, updates: Partial<VapiAccountConfig>): boolean {
+  updateAccount(
+    accountId: string,
+    updates: Partial<VapiAccountConfig>
+  ): boolean {
     const accountIndex = this.accounts.findIndex((acc) => acc.id === accountId);
     if (accountIndex === -1) return false;
 
-    this.accounts[accountIndex] = { ...this.accounts[accountIndex], ...updates };
+    this.accounts[accountIndex] = {
+      ...this.accounts[accountIndex],
+      ...updates,
+    };
     this.saveAccountConfigs();
 
     // Re-test connection if API key changed
@@ -120,7 +133,7 @@ class VapiIntegrationService {
     if (!account) return false;
 
     try {
-      this.updateAccountStatus(accountId, 'syncing');
+      this.updateAccountStatus(accountId, "syncing");
 
       // Create a temporary Apex service instance with this account's API key
       const testService = new (vapiService.constructor as any)();
@@ -129,11 +142,12 @@ class VapiIntegrationService {
       // Test by fetching assistants (lightweight call)
       await testService.getAssistants();
 
-      this.updateAccountStatus(accountId, 'connected');
+      this.updateAccountStatus(accountId, "connected");
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.updateAccountStatus(accountId, 'error', errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      this.updateAccountStatus(accountId, "error", errorMessage);
 
       notificationService.notifyVapiSyncError({
         message: `Connection test failed for ${account.name}: ${errorMessage}`,
@@ -163,7 +177,7 @@ class VapiIntegrationService {
     if (!account || !account.isActive) return null;
 
     try {
-      this.updateAccountStatus(accountId, 'syncing');
+      this.updateAccountStatus(accountId, "syncing");
 
       // Create service instance for this account
       const accountService = new (vapiService.constructor as any)();
@@ -174,7 +188,9 @@ class VapiIntegrationService {
         accountService.getAssistants().catch(() => []),
         accountService.getPhoneNumbers().catch(() => []),
         accountService.getCalls({ limit: 50 }).catch(() => []),
-        accountService.getCallAnalytics().catch(() => ({ totalCost: 0, totalCalls: 0 })),
+        accountService
+          .getCallAnalytics()
+          .catch(() => ({ totalCost: 0, totalCalls: 0 })),
       ]);
 
       // Calculate credits (mock calculation - replace with real API)
@@ -190,17 +206,18 @@ class VapiIntegrationService {
         phoneNumbers,
         recentCalls: calls.slice(0, 10),
         lastSync: new Date(),
-        status: 'connected',
+        status: "connected",
       };
 
-      this.updateAccountStatus(accountId, 'connected');
+      this.updateAccountStatus(accountId, "connected");
       account.lastSync = new Date();
       this.saveAccountConfigs();
 
       return accountData;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown sync error';
-      this.updateAccountStatus(accountId, 'error', errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown sync error";
+      this.updateAccountStatus(accountId, "error", errorMessage);
 
       notificationService.notifyVapiSyncError({
         message: `Sync failed for ${account.name}: ${errorMessage}`,
@@ -213,7 +230,7 @@ class VapiIntegrationService {
 
   async syncAllAccounts(): Promise<AggregatedVapiData> {
     if (this.isGlobalSyncing) {
-      throw new Error('Sync already in progress');
+      throw new Error("Sync already in progress");
     }
 
     this.isGlobalSyncing = true;
@@ -223,7 +240,7 @@ class VapiIntegrationService {
       const activeAccounts = this.accounts.filter((acc) => acc.isActive);
 
       if (activeAccounts.length === 0) {
-        throw new Error('No active Apex accounts configured');
+        throw new Error("No active Trinity accounts configured");
       }
 
       // Sync all accounts in parallel
@@ -241,17 +258,26 @@ class VapiIntegrationService {
 
       // Aggregate data
       const aggregatedData: AggregatedVapiData = {
-        totalCredits: validAccountData.reduce((sum, acc) => sum + acc.credits, 0),
-        totalCalls: validAccountData.reduce((sum, acc) => sum + acc.totalCalls, 0),
-        totalMonthlySpend: validAccountData.reduce((sum, acc) => sum + acc.monthlySpend, 0),
+        totalCredits: validAccountData.reduce(
+          (sum, acc) => sum + acc.credits,
+          0
+        ),
+        totalCalls: validAccountData.reduce(
+          (sum, acc) => sum + acc.totalCalls,
+          0
+        ),
+        totalMonthlySpend: validAccountData.reduce(
+          (sum, acc) => sum + acc.monthlySpend,
+          0
+        ),
         accounts: validAccountData,
         lastGlobalSync: new Date(),
         overallStatus:
           syncErrors.length === 0
-            ? 'healthy'
+            ? "healthy"
             : syncErrors.length < activeAccounts.length
-              ? 'warning'
-              : 'error',
+            ? "warning"
+            : "error",
         syncErrors,
       };
 
@@ -267,7 +293,9 @@ class VapiIntegrationService {
         });
       } else {
         notificationService.notifyVapiSyncError({
-          message: `${syncErrors.length} account(s) failed to sync: ${syncErrors.join('; ')}`,
+          message: `${
+            syncErrors.length
+          } account(s) failed to sync: ${syncErrors.join("; ")}`,
         });
       }
 
@@ -282,19 +310,16 @@ class VapiIntegrationService {
   startAutoSync(intervalMinutes: number = 5): void {
     this.stopAutoSync();
 
-    this.syncInterval = setInterval(
-      () => {
-        this.syncAllAccounts().catch((error) => {
-          console.error('Auto-sync failed:', error);
-          notificationService.notifyError({
-            title: 'Auto-sync Failed',
-            message: error.message,
-            component: 'vapi-integration',
-          });
+    this.syncInterval = setInterval(() => {
+      this.syncAllAccounts().catch((error) => {
+        console.error("Auto-sync failed:", error);
+        notificationService.notifyError({
+          title: "Auto-sync Failed",
+          message: error.message,
+          component: "vapi-integration",
         });
-      },
-      intervalMinutes * 60 * 1000
-    );
+      });
+    }, intervalMinutes * 60 * 1000);
   }
 
   stopAutoSync(): void {
@@ -311,7 +336,9 @@ class VapiIntegrationService {
 
     // Return unsubscribe function
     return () => {
-      this.listeners = this.listeners.filter((listener) => listener !== callback);
+      this.listeners = this.listeners.filter(
+        (listener) => listener !== callback
+      );
     };
   }
 
@@ -320,7 +347,7 @@ class VapiIntegrationService {
       try {
         callback(data);
       } catch (error) {
-        console.error('Error in Apex data listener:', error);
+        console.error("Error in Apex data listener:", error);
       }
     });
   }
@@ -331,7 +358,7 @@ class VapiIntegrationService {
     const activeCalls: VapiCall[] = [];
 
     for (const account of this.accounts.filter(
-      (acc) => acc.isActive && acc.syncStatus === 'connected'
+      (acc) => acc.isActive && acc.syncStatus === "connected"
     )) {
       try {
         const accountService = new (vapiService.constructor as any)();
@@ -343,12 +370,15 @@ class VapiIntegrationService {
         });
 
         const inProgressCalls = calls.filter((call) =>
-          ['queued', 'ringing', 'in-progress'].includes(call.status)
+          ["queued", "ringing", "in-progress"].includes(call.status)
         );
 
         activeCalls.push(...inProgressCalls);
       } catch (error) {
-        console.error(`Failed to fetch active calls for ${account.name}:`, error);
+        console.error(
+          `Failed to fetch active calls for ${account.name}:`,
+          error
+        );
       }
     }
 
@@ -362,40 +392,43 @@ class VapiIntegrationService {
       const { type, data } = payload;
 
       switch (type) {
-        case 'call.started':
+        case "call.started":
           notificationService.notifyCallCompleted({
-            contactName: data.customer?.name || data.customer?.number || 'Unknown',
+            contactName:
+              data.customer?.name || data.customer?.number || "Unknown",
             duration: 0,
-            outcome: 'started',
+            outcome: "started",
             campaignName: data.metadata?.campaignName,
           });
           break;
 
-        case 'call.ended':
+        case "call.ended":
           notificationService.notifyCallCompleted({
-            contactName: data.customer?.name || data.customer?.number || 'Unknown',
+            contactName:
+              data.customer?.name || data.customer?.number || "Unknown",
             duration: data.duration || 0,
-            outcome: data.endedReason || 'completed',
+            outcome: data.endedReason || "completed",
             campaignName: data.metadata?.campaignName,
             leadScore: data.analysis?.leadScore,
           });
           break;
 
-        case 'call.failed':
+        case "call.failed":
           notificationService.notifyCallFailed({
-            contactName: data.customer?.name || data.customer?.number || 'Unknown',
-            phoneNumber: data.customer?.number || 'Unknown',
-            error: data.error || 'Unknown error',
+            contactName:
+              data.customer?.name || data.customer?.number || "Unknown",
+            phoneNumber: data.customer?.number || "Unknown",
+            error: data.error || "Unknown error",
             campaignName: data.metadata?.campaignName,
           });
           break;
 
         default:
-          console.log('Unknown webhook type:', type);
+          console.log("Unknown webhook type:", type);
       }
 
       notificationService.notifyWebhookReceived({
-        source: accountId ? `Apex (${accountId})` : 'Apex',
+        source: accountId ? `Trinity (${accountId})` : "Trinity",
         event: type,
         processed: true,
       });
@@ -407,12 +440,12 @@ class VapiIntegrationService {
         this.syncAllAccounts();
       }
     } catch (error) {
-      console.error('Webhook processing error:', error);
+      console.error("Webhook processing error:", error);
       notificationService.notifyWebhookReceived({
-        source: accountId ? `Apex (${accountId})` : 'Apex',
-        event: payload.type || 'unknown',
+        source: accountId ? `Trinity (${accountId})` : "Trinity",
+        event: payload.type || "unknown",
         processed: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
@@ -421,7 +454,7 @@ class VapiIntegrationService {
 
   private updateAccountStatus(
     accountId: string,
-    status: VapiAccountConfig['syncStatus'],
+    status: VapiAccountConfig["syncStatus"],
     errorMessage?: string
   ): void {
     const account = this.accounts.find((acc) => acc.id === accountId);
@@ -434,32 +467,32 @@ class VapiIntegrationService {
 
   private loadAccountConfigs(): void {
     try {
-      const stored = localStorage.getItem('vapi-accounts');
+      const stored = localStorage.getItem("vapi-accounts");
       if (stored) {
         this.accounts = JSON.parse(stored);
       }
     } catch (error) {
-      console.error('Failed to load Apex account configs:', error);
+      console.error("Failed to load Apex account configs:", error);
       this.accounts = [];
     }
   }
 
   private saveAccountConfigs(): void {
     try {
-      localStorage.setItem('vapi-accounts', JSON.stringify(this.accounts));
+      localStorage.setItem("vapi-accounts", JSON.stringify(this.accounts));
     } catch (error) {
-      console.error('Failed to save Apex account configs:', error);
+      console.error("Failed to save Apex account configs:", error);
     }
   }
 
   // ==================== HEALTH CHECKS ====================
 
   async performHealthCheck(): Promise<{
-    overall: 'healthy' | 'warning' | 'error';
+    overall: "healthy" | "warning" | "error";
     accounts: Array<{
       id: string;
       name: string;
-      status: 'healthy' | 'warning' | 'error';
+      status: "healthy" | "warning" | "error";
       lastSync?: Date;
       error?: string;
     }>;
@@ -467,36 +500,45 @@ class VapiIntegrationService {
   }> {
     const accountStatuses = await Promise.all(
       this.accounts.map(async (account) => {
-        const isHealthy = account.isActive && account.syncStatus === 'connected';
+        const isHealthy =
+          account.isActive && account.syncStatus === "connected";
         const hasRecentSync =
-          account.lastSync && Date.now() - account.lastSync.getTime() < 30 * 60 * 1000; // 30 minutes
+          account.lastSync &&
+          Date.now() - account.lastSync.getTime() < 30 * 60 * 1000; // 30 minutes
 
         return {
           id: account.id,
           name: account.name,
           status:
             isHealthy && hasRecentSync
-              ? ('healthy' as const)
+              ? ("healthy" as const)
               : isHealthy
-                ? ('warning' as const)
-                : ('error' as const),
+              ? ("warning" as const)
+              : ("error" as const),
           lastSync: account.lastSync,
           error: account.errorMessage,
         };
       })
     );
 
-    const healthyCount = accountStatuses.filter((acc) => acc.status === 'healthy').length;
-    const warningCount = accountStatuses.filter((acc) => acc.status === 'warning').length;
-    const errorCount = accountStatuses.filter((acc) => acc.status === 'error').length;
+    const healthyCount = accountStatuses.filter(
+      (acc) => acc.status === "healthy"
+    ).length;
+    const warningCount = accountStatuses.filter(
+      (acc) => acc.status === "warning"
+    ).length;
+    const errorCount = accountStatuses.filter(
+      (acc) => acc.status === "error"
+    ).length;
 
-    const overall = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : 'healthy';
+    const overall =
+      errorCount > 0 ? "error" : warningCount > 0 ? "warning" : "healthy";
 
     const recommendations: string[] = [];
 
     if (this.accounts.length === 0) {
       recommendations.push(
-        'No Apex accounts configured. Add at least one account to start syncing data.'
+        "No Trinity accounts configured. Add at least one account to start syncing data."
       );
     }
 
@@ -522,21 +564,21 @@ class VapiIntegrationService {
   // ==================== DEMO DATA ====================
 
   addDemoAccounts(): void {
-    const demoAccounts: Omit<VapiAccountConfig, 'id' | 'syncStatus'>[] = [
+    const demoAccounts: Omit<VapiAccountConfig, "id" | "syncStatus">[] = [
       {
-        name: 'Main Production Account',
-        apiKey: 'vapi_demo_key_1',
+        name: "Main Production Account",
+        apiKey: "vapi_demo_key_1",
         isActive: true,
         metadata: {
-          environment: 'production',
+          environment: "production",
         },
       },
       {
-        name: 'Backup Account',
-        apiKey: 'vapi_demo_key_2',
+        name: "Backup Account",
+        apiKey: "vapi_demo_key_2",
         isActive: true,
         metadata: {
-          environment: 'production',
+          environment: "production",
         },
       },
     ];
