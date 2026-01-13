@@ -2594,7 +2594,7 @@ export default function CRM() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-white/20 text-xs text-white transition-all hover:bg-white/10"
+                        className="border-primary/50 text-xs text-primary bg-primary/10 transition-all hover:bg-primary/20 hover:text-primary hover:border-primary shadow-[0_0_15px_rgba(34,197,94,0.15)] hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         New Lead
@@ -2825,7 +2825,7 @@ export default function CRM() {
                               }
                               className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[11px] font-medium transition-all ${
                                 isActive
-                                  ? "bg-white/10 text-white shadow-lg border border-white/10"
+                                  ? "bg-primary/20 text-primary shadow-lg border border-primary/30"
                                   : "text-white/80 hover:bg-white/5 hover:text-white"
                               }`}
                             >

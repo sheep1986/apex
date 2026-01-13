@@ -413,7 +413,7 @@ const Layout: React.FC = () => {
                       relative mx-2 rounded-lg
                       ${
                         isActive
-                          ? "bg-white/10 text-white"
+                          ? "bg-primary/10 text-primary shadow-[0_0_10px_rgba(34,197,94,0.1)] border border-primary/20"
                           : "text-white/70 hover:bg-white/10 hover:text-white"
                       }
                     `}
@@ -423,7 +423,7 @@ const Layout: React.FC = () => {
                       h-5 w-5 flex-shrink-0 transition-all duration-300
                       ${
                         isActive
-                          ? "text-white"
+                          ? "text-primary filter drop-shadow-[0_0_5px_rgba(34,197,94,0.5)]"
                           : "text-white/60 group-hover:text-white"
                       }
                     `}
@@ -454,7 +454,7 @@ const Layout: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900/50 via-black to-gray-900/50">
         {/* Top Bar */}
-        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-cyan-400/10 flex items-center justify-between px-4 sm:px-6 lg:px-8 relative z-50">
+        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-green-500/10 flex items-center justify-between px-4 sm:px-6 lg:px-8 relative z-50">
           <div className="flex items-center gap-4">
             <button
               className="md:hidden p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
