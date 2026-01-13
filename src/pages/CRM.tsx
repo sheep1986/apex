@@ -2825,14 +2825,16 @@ export default function CRM() {
                               }
                               className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[11px] font-medium transition-all ${
                                 isActive
-                                  ? "bg-primary/20 text-primary shadow-lg border border-primary/30"
+                                  ? "bg-transparent text-white"
                                   : "text-white/80 hover:bg-white/5 hover:text-white"
                               }`}
                             >
                               <span className="flex items-center">
                                 <Icon
                                   className={`mr-2.5 h-3.5 w-3.5 ${
-                                    isActive ? "opacity-100" : "opacity-60"
+                                    isActive
+                                      ? "text-primary drop-shadow-[0_0_5px_rgba(34,197,94,0.8)] opacity-100"
+                                      : "opacity-60"
                                   }`}
                                 />
                                 {config.label}

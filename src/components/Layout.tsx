@@ -413,8 +413,8 @@ const Layout: React.FC = () => {
                       relative mx-2 rounded-lg
                       ${
                         isActive
-                          ? "bg-primary/10 text-primary shadow-[0_0_10px_rgba(34,197,94,0.1)] border border-primary/20"
-                          : "text-white/70 hover:bg-white/10 hover:text-white"
+                          ? "bg-transparent text-white"
+                          : "text-white/70 hover:bg-white/5 hover:text-white"
                       }
                     `}
                   >
@@ -423,7 +423,7 @@ const Layout: React.FC = () => {
                       h-5 w-5 flex-shrink-0 transition-all duration-300
                       ${
                         isActive
-                          ? "text-primary filter drop-shadow-[0_0_5px_rgba(34,197,94,0.5)]"
+                          ? "text-primary filter drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-110"
                           : "text-white/60 group-hover:text-white"
                       }
                     `}
