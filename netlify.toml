@@ -4,6 +4,31 @@
   command = "corepack enable && pnpm install --frozen-lockfile && rm -rf node_modules/.cache && pnpm run build"
   environment = { CI = "true", NODE_VERSION = "20", NETLIFY_CACHE_CLEAR = "true" }
 
+[context.staging]
+  command = "pnpm run build"
+  environment = { VITE_API_URL = "https://staging.trinity-platform.app" }
+
+[dev]
+  command = "pnpm run dev"
+  targetPort = 5522
+  port = 3333
+  publish = "dist"
+
+[[redirects]]
+  from = "/api/vapi-outbound/*"
+  to = "/.netlify/functions/vapi-outbound/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/webhook/vapi"
+  to = "/.netlify/functions/vapi-webhook"
+  status = 200
+
+[[redirects]]
+  from = "/api/onboarding/*"
+  to = "/.netlify/functions/onboarding"
+  status = 200
+
 [[redirects]]
   from = "/api/*"
   to = "https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/api/:splat"

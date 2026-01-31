@@ -1,6 +1,0 @@
-pnpm-lock.yaml
-.pnpm-*
-node_modules/.pnpm
-*.log
-dist/
-logs/

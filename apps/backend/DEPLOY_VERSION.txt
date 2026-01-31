@@ -1,6 +1,0 @@
-Version: 1.0.2
-Deployed: 2025-09-08 22:15 UTC
-Fix: Ensure vapi-outbound endpoints are available
-Commit: latest
-
-This file triggers Railway deployment with the latest fixes including vapi-outbound endpoints.

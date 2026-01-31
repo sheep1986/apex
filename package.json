@@ -16,7 +16,8 @@
     "db:migrate": "node-pg-migrate",
     "db:migrate:create": "node-pg-migrate create",
     "migrate:clerk": "node scripts/clerk-migration.js",
-    "smoke-test": "./scripts/smoke-test.sh"
+    "smoke-test": "./scripts/smoke-test.sh",
+    "db:seed:staging": "npx tsx scripts/seed-staging.ts"
   },
   "node-pg-migrate": {
     "migrationsTable": "pgmigrations",
