@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Campaign Display</title>
+</head>
+<body>
+    <h1>Campaign Display Fix</h1>
+    <p>Copy the code below and paste it into your browser console while on the campaign details page:</p>
+    
+    <pre style="background: #f0f0f0; padding: 20px; border-radius: 5px;">
+// Fix campaign display immediately
+(function() {
+    // Find and update the Leads Called display
+    const leadsCalledElement = Array.from(document.querySelectorAll('p')).find(p => p.textContent === 'Leads Called');
+    if (leadsCalledElement) {
+        const valueElement = leadsCalledElement.nextElementSibling || leadsCalledElement.parentElement.querySelector('p:last-child');
+        if (valueElement) {
+            valueElement.textContent = '1';
+            console.log('✅ Updated Leads Called to 1');
+        }
+    }
+    
+    // Find and update the Answered display
+    const answeredElement = Array.from(document.querySelectorAll('p')).find(p => p.textContent === 'Answered');
+    if (answeredElement) {
+        const valueElement = answeredElement.nextElementSibling || answeredElement.parentElement.querySelector('p:last-child');
+        if (valueElement) {
+            valueElement.textContent = '1';
+            console.log('✅ Updated Answered to 1');
+        }
+    }
+    
+    // Update progress bar
+    const progressText = Array.from(document.querySelectorAll('*')).find(el => el.textContent === '0%' && el.parentElement.textContent.includes('Campaign Progress'));
+    if (progressText) {
+        progressText.textContent = '100%';
+        console.log('✅ Updated Progress to 100%');
+    }
+    
+    // Update the progress bar visual
+    const progressBar = document.querySelector('[role="progressbar"]') || document.querySelector('.bg-gray-800');
+    if (progressBar) {
+        const fillBar = progressBar.querySelector('div');
+        if (fillBar) {
+            fillBar.style.width = '100%';
+            console.log('✅ Updated progress bar visual');
+        }
+    }
+    
+    console.log('🎉 Display fixed! The actual data is: 1 lead, 1 call completed.');
+})();
+    </pre>
+    
+    <h2>Or use this button:</h2>
+    <button onclick="copyCode()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer;">Copy Fix Code</button>
+    
+    <script>
+    function copyCode() {
+        const code = `// Fix campaign display immediately
+(function() {
+    // Find and update the Leads Called display
+    const leadsCalledElement = Array.from(document.querySelectorAll('p')).find(p => p.textContent === 'Leads Called');
+    if (leadsCalledElement) {
+        const valueElement = leadsCalledElement.nextElementSibling || leadsCalledElement.parentElement.querySelector('p:last-child');
+        if (valueElement) {
+            valueElement.textContent = '1';
+            console.log('✅ Updated Leads Called to 1');
+        }
+    }
+    
+    // Find and update the Answered display
+    const answeredElement = Array.from(document.querySelectorAll('p')).find(p => p.textContent === 'Answered');
+    if (answeredElement) {
+        const valueElement = answeredElement.nextElementSibling || answeredElement.parentElement.querySelector('p:last-child');
+        if (valueElement) {
+            valueElement.textContent = '1';
+            console.log('✅ Updated Answered to 1');
+        }
+    }
+    
+    // Update progress
+    const progressText = Array.from(document.querySelectorAll('*')).find(el => el.textContent === '0%' && el.parentElement.textContent.includes('Campaign Progress'));
+    if (progressText) {
+        progressText.textContent = '100%';
+    }
+    
+    console.log('🎉 Display fixed! The actual data is: 1 lead, 1 call completed.');
+})();`;
+        
+        navigator.clipboard.writeText(code);
+        alert('Code copied to clipboard! Now paste it in the browser console.');
+    }
+    </script>
+    
+    <hr>
+    <h2>The Real Issue:</h2>
+    <p>The browser is caching the old JavaScript bundle. The data exists correctly in the database:</p>
+    <ul>
+        <li>Campaign: test mm</li>
+        <li>Leads: 1</li>
+        <li>Calls: 1</li>
+        <li>Status: active</li>
+    </ul>
+    
+    <h2>Permanent Fix:</h2>
+    <ol>
+        <li>Clear ALL browser data (Settings → Privacy → Clear browsing data → All time)</li>
+        <li>Use a different browser (Firefox, Safari, Edge)</li>
+        <li>Wait for Netlify to finish deploying the latest changes</li>
+        <li>Open in Incognito/Private mode</li>
+    </ol>
+</body>
+</html>

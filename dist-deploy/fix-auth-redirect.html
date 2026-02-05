@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fixing Authentication...</title>
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        .spinner {
+            border: 3px solid #333;
+            border-radius: 50%;
+            border-top: 3px solid #10b981;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 2rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h1 {
+            color: #10b981;
+            margin-bottom: 1rem;
+        }
+        .status {
+            color: #888;
+            margin-bottom: 0.5rem;
+        }
+        .button {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 2rem;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>Setting Up Development Mode</h1>
+        <div class="status" id="status">Configuring authentication...</div>
+        
+        <script>
+            // Enable dev auth
+            localStorage.setItem('dev-auth-enabled', 'true');
+            localStorage.setItem('dev-auth-role', 'client_admin');
+            
+            // Clear any Clerk/Supabase auth that might be interfering
+            localStorage.removeItem('clerk-db-jwt');
+            localStorage.removeItem('__clerk_db_jwt');
+            
+            // Update status
+            document.getElementById('status').textContent = 'Development mode enabled!';
+            
+            // Redirect after a moment
+            setTimeout(() => {
+                document.getElementById('status').innerHTML = 'Redirecting to campaigns... <br><br>If you are not redirected, <a href="/campaigns" style="color: #10b981;">click here</a>';
+                window.location.href = '/campaigns';
+            }, 1500);
+        </script>
+    </div>
+</body>
+</html>

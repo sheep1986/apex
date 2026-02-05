@@ -1,0 +1,98 @@
+{
+  "success": true,
+  "calls": [
+    {
+      "id": "1",
+      "type": "outbound",
+      "contact": {
+        "name": "Sean Wentz",
+        "phone": "+1234567890",
+        "company": "Emerald Green Energy"
+      },
+      "agent": {
+        "name": "AI Assistant",
+        "type": "ai"
+      },
+      "campaign": {
+        "name": "Solar Energy Campaign",
+        "id": "campaign-1"
+      },
+      "startTime": "2025-09-11T10:20:28.149Z",
+      "duration": 131,
+      "outcome": "connected",
+      "sentiment": "positive",
+      "cost": 0.281,
+      "recording": "https://storage.vapi.ai/recording1.wav",
+      "transcript": "Hi, this is Joanne calling from Emerald Green Energy. You spoke to 1 of our reps recently about solar energy for your property. We've prepared a free no obligation solar consultation for you.",
+      "notes": "Customer interested in solar consultation, appointment scheduled for Saturday at 3 PM.",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "type": "outbound",
+      "contact": {
+        "name": "Jane Smith",
+        "phone": "+0987654321",
+        "company": "Tech Corp"
+      },
+      "agent": {
+        "name": "AI Assistant",
+        "type": "ai"
+      },
+      "campaign": {
+        "name": "Business Solar Campaign",
+        "id": "campaign-2"
+      },
+      "startTime": "2025-09-11T09:15:22.445Z",
+      "duration": 95,
+      "outcome": "voicemail",
+      "sentiment": "neutral",
+      "cost": 0.15,
+      "recording": "https://storage.vapi.ai/recording2.wav",
+      "transcript": "This is an automated message for solar energy consultation services.",
+      "notes": "Left voicemail message",
+      "status": "completed"
+    },
+    {
+      "id": "3",
+      "type": "outbound",
+      "contact": {
+        "name": "Mike Johnson",
+        "phone": "+1122334455",
+        "company": "Local Business"
+      },
+      "agent": {
+        "name": "AI Assistant",
+        "type": "ai"
+      },
+      "campaign": {
+        "name": "Local Solar Campaign",
+        "id": "campaign-3"
+      },
+      "startTime": "2025-09-11T08:45:10.223Z",
+      "duration": 200,
+      "outcome": "interested",
+      "sentiment": "positive",
+      "cost": 0.35,
+      "recording": "https://storage.vapi.ai/recording3.wav",
+      "transcript": "Customer very interested in solar installation, requested detailed quote and site assessment.",
+      "notes": "High-quality lead, follow up within 24 hours",
+      "status": "completed"
+    }
+  ],
+  "metrics": {
+    "totalCalls": 3,
+    "connectedCalls": 3,
+    "totalDuration": 426,
+    "totalCost": 0.781,
+    "averageDuration": 142,
+    "connectionRate": 100,
+    "positiveRate": 67
+  },
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 3,
+    "totalPages": 1
+  }
+}

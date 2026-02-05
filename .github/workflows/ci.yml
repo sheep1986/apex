@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  quality-check:
+    name: Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10.13.1'
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Smoke tests
+        run: pnpm smoke-test
+        
+      - name: Type check
+        run: pnpm typecheck
+        
+      - name: Lint array operations
+        run: pnpm lint:arrays
+        
+      - name: Run tests
+        run: pnpm test
+        
+      - name: Build check
+        run: pnpm build
+        
+      - name: Check for deprecated Clerk props
+        run: |
+          if rg -n "afterSign(In|Up)Url" src; then
+            echo "❌ Found deprecated Clerk props. Run 'pnpm migrate:clerk' locally."
+            exit 1
+          else
+            echo "✅ No deprecated Clerk props found"
+          fi
+          
+      - name: Check for unsafe array operations
+        run: |
+          UNSAFE=$(rg -n "(\.filter|\.reduce)\(" src/services src/api src/utils | rg -v "safeFilter|safeReduce" || true)
+          if [ -n "$UNSAFE" ]; then
+            echo "❌ Found unsafe array operations in boundary layers:"
+            echo "$UNSAFE"
+            exit 1
+          else
+            echo "✅ No unsafe array operations found"
+          fi
+
+  build-preview:
+    name: Build Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10.13.1'
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Build for preview
+        run: pnpm build
+        env:
+          CI: true
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-preview
+          path: dist/
+          retention-days: 7

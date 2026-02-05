@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trigger Campaign Executor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            color: #10b981;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .info {
+            background: #374151;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Campaign Executor Trigger</h1>
+    
+    <div class="info">
+        <h3>⚠️ Vercel Deployment Issue Detected</h3>
+        <p>The backend is running on Vercel which doesn't support background tasks.</p>
+        <p>The campaign executor needs to be triggered manually or via cron job.</p>
+        <ul>
+            <li>✅ Campaigns are created successfully</li>
+            <li>✅ VAPI credentials are configured</li>
+            <li>❌ Campaign executor not running automatically</li>
+            <li>🔧 Solution: Trigger manually or deploy to Railway/Heroku</li>
+        </ul>
+    </div>
+
+    <h2>Manual Trigger Options:</h2>
+    
+    <button onclick="triggerLocal()">
+        🖥️ Trigger Local Backend
+    </button>
+    
+    <button onclick="triggerVercel()">
+        ☁️ Trigger Vercel Backend
+    </button>
+    
+    <button onclick="checkStatus()">
+        📊 Check Campaign Status
+    </button>
+
+    <div id="result"></div>
+
+    <script>
+        const VERCEL_URL = 'https://your-backend.vercel.app'; // Update with actual Vercel URL
+        const LOCAL_URL = 'http://localhost:3001';
+        
+        async function triggerLocal() {
+            await triggerExecutor(LOCAL_URL);
+        }
+        
+        async function triggerVercel() {
+            const url = prompt('Enter your Vercel backend URL:', VERCEL_URL);
+            if (url) {
+                await triggerExecutor(url);
+            }
+        }
+        
+        async function triggerExecutor(baseUrl) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ Triggering campaign executor...';
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/trigger-campaign-executor`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<span class="success">✅ Success!</span>\n${JSON.stringify(data, null, 2)}`;
+                    
+                    // Check status after trigger
+                    setTimeout(() => checkStatus(), 2000);
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ Error:</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Connection Error:</span>\n${error.message}\n\nMake sure the backend server is running and accessible.`;
+            }
+        }
+        
+        async function checkStatus() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '📊 Checking campaign status...';
+            
+            // This would connect to your backend to check campaign and call queue status
+            // For now, showing what to check
+            resultDiv.innerHTML = `
+📊 To verify campaigns are working:
+
+1. Check Supabase Dashboard:
+   - campaigns table: Should show 'active' status
+   - call_queue table: Should have entries with 'pending' status
+   - calls table: Should show new calls being created
+
+2. Check VAPI Dashboard:
+   - Should see outbound calls being initiated
+   - Check call logs for your phone numbers
+
+3. Backend Logs (if accessible):
+   - Look for "Campaign executor triggered"
+   - Look for "Making X calls"
+   - Check for any error messages
+
+If call_queue is still empty after triggering:
+- The campaign executor modifications need to be deployed to Vercel
+- Or switch to a persistent server platform like Railway
+`;
+        }
+    </script>
+</body>
+</html>

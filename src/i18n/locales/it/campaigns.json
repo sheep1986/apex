@@ -1,0 +1,33 @@
+{
+  "title": "Campagne",
+  "create_campaign": "Crea Campagna",
+  "campaign_wizard": "Procedura Guidata Campagna",
+  "campaign_settings": "Impostazioni Campagna",
+  "campaign_name": "Nome Campagna",
+  "status": {
+    "active": "Attivo",
+    "paused": "In Pausa",
+    "completed": "Completato",
+    "draft": "Bozza"
+  },
+  "analytics": {
+    "calls_made": "Chiamate Effettuate",
+    "success_rate": "Tasso di Successo",
+    "leads_qualified": "Lead Qualificati",
+    "cost_per_lead": "Costo per Lead",
+    "total_cost": "Costo Totale",
+    "duration": "Durata",
+    "contacts_called": "Contatti Chiamati",
+    "avg_call_duration": "Durata Media Chiamata"
+  },
+  "actions": {
+    "start": "Avvia",
+    "pause": "Pausa",
+    "resume": "Riprendi",
+    "stop": "Ferma",
+    "edit": "Modifica",
+    "duplicate": "Duplica",
+    "archive": "Archivia",
+    "view_details": "Visualizza Dettagli"
+  }
+}

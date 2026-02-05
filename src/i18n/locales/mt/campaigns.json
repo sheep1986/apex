@@ -1,0 +1,33 @@
+{
+  "title": "Kampanji",
+  "create_campaign": "Oħloq kampanja",
+  "campaign_wizard": "Wizard tal-kampanja",
+  "campaign_settings": "Settings tal-kampanja",
+  "campaign_name": "Isem tal-kampanja",
+  "status": {
+    "active": "Attiva",
+    "paused": "Ippawżata",
+    "completed": "Kompletata",
+    "draft": "Abbozz"
+  },
+  "analytics": {
+    "calls_made": "Ċempja magħmula",
+    "success_rate": "Rata ta' suċċess",
+    "leads_qualified": "Leads kwalifikati",
+    "cost_per_lead": "Kost għal kull lead",
+    "total_cost": "Kost totali",
+    "duration": "Tul ta' żmien",
+    "contacts_called": "Kuntatti ċċempja",
+    "avg_call_duration": "Tul medju taċ-ċempja"
+  },
+  "actions": {
+    "start": "Ibda",
+    "pause": "Pawża",
+    "resume": "Ikompli",
+    "stop": "Ieqaf",
+    "edit": "Editja",
+    "duplicate": "Duplika",
+    "archive": "Arkıvja",
+    "view_details": "Ara d-dettalji"
+  }
+}

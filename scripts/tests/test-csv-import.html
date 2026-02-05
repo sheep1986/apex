@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CSV Import</title>
+    <script src="https://unpkg.com/papaparse@5.5.3/papaparse.min.js"></script>
+</head>
+<body>
+    <h1>CSV Import Test</h1>
+    <input type="file" id="csvFile" accept=".csv">
+    <div id="results"></div>
+    
+    <script>
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        console.log('Parsed data:', results.data);
+                        console.log('Headers:', results.meta.fields);
+                        
+                        // Display results
+                        const div = document.getElementById('results');
+                        div.innerHTML = `
+                            <h2>Parsed ${results.data.length} rows</h2>
+                            <h3>Headers: ${results.meta.fields.join(', ')}</h3>
+                            <pre>${JSON.stringify(results.data.slice(0, 3), null, 2)}</pre>
+                        `;
+                        
+                        // Test phone number validation
+                        results.data.forEach(row => {
+                            const phone = row['Phone Number'];
+                            if (phone) {
+                                const cleaned = phone.replace(/\D/g, '');
+                                let formatted = null;
+                                if (cleaned.length === 10) {
+                                    formatted = `+1${cleaned}`;
+                                } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
+                                    formatted = `+${cleaned}`;
+                                } else if (cleaned.length > 10) {
+                                    formatted = `+${cleaned}`;
+                                }
+                                console.log(`${phone} -> ${formatted}`);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

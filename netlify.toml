@@ -12,16 +12,45 @@
   command = "pnpm run dev"
   targetPort = 5522
   port = 3333
-  publish = "dist"
 
 [[redirects]]
-  from = "/api/vapi-outbound/*"
-  to = "/.netlify/functions/vapi-outbound/:splat"
+  from = "/api/voice/webhook"
+  to = "/.netlify/functions/voice-webhook"
   status = 200
 
 [[redirects]]
-  from = "/api/webhook/vapi"
-  to = "/.netlify/functions/vapi-webhook"
+  from = "/api/voice-engine-auto-setup"
+  to = "/.netlify/functions/voice-engine-auto-setup"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/test-call"
+  to = "/.netlify/functions/voice-test-call"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/calls/*"
+  to = "/.netlify/functions/voice-calls"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/calls"
+  to = "/.netlify/functions/voice-calls"
+  status = 200
+
+[[redirects]]
+  from = "/api/campaign/*"
+  to = "/.netlify/functions/campaign-manager"
+  status = 200
+
+[[redirects]]
+  from = "/api/bootstrap"
+  to = "/.netlify/functions/bootstrap"
+  status = 200
+
+[[redirects]]
+  from = "/api/make-call"
+  to = "/.netlify/functions/make-call"
   status = 200
 
 [[redirects]]

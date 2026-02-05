@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Railway API</title>
+</head>
+<body>
+    <h1>Railway API Test</h1>
+    <button onclick="testAPI()">Test API with Real Token</button>
+    <pre id="output"></pre>
+    
+    <script>
+        async function testAPI() {
+            const output = document.getElementById('output');
+            
+            // This token is from the browser console logs
+            const token = 'eyJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDExMUFBQSIsImtpZCI6Imluc18yektibGd6NHpUU0ViNmZRcXA1NlBBS2ZEWFgiLCJ0eXAiOiJKV1QifQ.eyJhenAiOiJodHRwczovL2FxdWFtYXJpbmUta2xlcG9uLWJjYjA2Ni5uZXRsaWZ5LmFwcCIsImV4cCI6MTc1NzM3NTc4OCwiZnZhIjpbMTk5NiwtMV0sImlhdCI6MTc1NzM3NTcyOCwiaXNzIjoiaHR0cHM6Ly91bml0ZWQtY2hvdy0xMy5jbGVyay5hY2NvdW50cy5kZXYiLCJuYmYiOjE3NTczNzU3MTgsInNpZCI6InNlc3NfMzJOTDZlOWU5b2J2UXlLZTBFSVZQSEx3eVBuIiwic3RzIjoiYWN0aXZlIiwic3ViIjoidXNlcl8zMFlvd0o3ZDlrVE1UZnl6VVpGVmtGdjd0Q1oiLCJ2IjoyfQ.Y3AQbvodSc2XJak0-aoN4tKLx2v8gKmkmkHsqpVNHxTtFoUJtPPP0MGTPb6jg5DS1aozKXo95BzQ2bEyTZozgT-s07dNr5YVW4M2a5l27RKbKlIm4iJ75i-pry6PhHhn97sYwS5b2GbO0DtvzZ8HLUxFXdiMWUkiVltkE4LZghgaNEwp6qzJabuZXs6t56ickeedWJSg9Yp_O2SNAy5Is0z6_IqQleW_tzRh2eGNMyXG_EENFjlZo2WrQbE1yZinEHdxddH_9QVPjRK9ai_K3N7BK0l0OOwX4fHJiJh9g7et6yt5SpZASfUi04G7drLGN8UcLwgp3irniCKWD47Nnw';
+            
+            try {
+                // Test vapi-outbound/campaigns endpoint
+                output.textContent = 'Testing /api/vapi-outbound/campaigns...\n';
+                const response1 = await fetch('https://apex-backend-august-production.up.railway.app/api/vapi-outbound/campaigns', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const contentType1 = response1.headers.get('content-type');
+                output.textContent += `Response status: ${response1.status}\n`;
+                output.textContent += `Content-Type: ${contentType1}\n`;
+                
+                if (contentType1 && contentType1.includes('application/json')) {
+                    const data1 = await response1.json();
+                    output.textContent += `Response: ${JSON.stringify(data1, null, 2)}\n\n`;
+                } else {
+                    const text1 = await response1.text();
+                    output.textContent += `Response (text): ${text1.substring(0, 200)}...\n\n`;
+                }
+                
+                // Test campaigns endpoint
+                output.textContent += 'Testing /api/campaigns...\n';
+                const response2 = await fetch('https://apex-backend-august-production.up.railway.app/api/campaigns', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const contentType2 = response2.headers.get('content-type');
+                output.textContent += `Response status: ${response2.status}\n`;
+                output.textContent += `Content-Type: ${contentType2}\n`;
+                
+                if (contentType2 && contentType2.includes('application/json')) {
+                    const data2 = await response2.json();
+                    output.textContent += `Response: ${JSON.stringify(data2, null, 2)}\n`;
+                } else {
+                    const text2 = await response2.text();
+                    output.textContent += `Response (text): ${text2.substring(0, 200)}...\n`;
+                }
+                
+            } catch (error) {
+                output.textContent += `Error: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>

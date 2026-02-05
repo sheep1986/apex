@@ -1,0 +1,13 @@
+
+============================================
+    DUPLICATE CHECK API RUNNING
+============================================
+Server running at: http://localhost:3002
+
+Endpoints:
+  POST /api/check-duplicates
+  POST /api/campaign/launch-with-duplicates
+
+Ready to check for duplicate leads!
+============================================
+  

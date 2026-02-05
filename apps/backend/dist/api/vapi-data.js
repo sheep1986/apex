@@ -1,0 +1,147 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const clerk_auth_1 = require("../middleware/clerk-auth");
+const vapi_integration_service_1 = require("../services/vapi-integration-service");
+const supabase_js_1 = require("@supabase/supabase-js");
+const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const router = (0, express_1.Router)();
+router.use(clerk_auth_1.authenticateUser);
+router.get('/assistants', async (req, res) => {
+    try {
+        const organizationId = req.user?.organizationId;
+        if (!organizationId) {
+            return res.status(400).json({
+                error: 'User not associated with an organization',
+                assistants: []
+            });
+        }
+        console.log('🔍 Fetching VAPI assistants for organization:', organizationId);
+        const vapiService = await vapi_integration_service_1.VAPIIntegrationService.forOrganization(organizationId);
+        if (!vapiService) {
+            console.log('⚠️ No VAPI service available for organization');
+            return res.json({
+                assistants: [],
+                message: 'VAPI integration not configured. Please add your VAPI API key in Organization Settings.',
+                requiresConfiguration: true
+            });
+        }
+        const assistants = await vapiService.getAssistants();
+        console.log(`✅ Retrieved ${assistants.length} assistants from VAPI`);
+        res.json({
+            assistants,
+            count: assistants.length
+        });
+    }
+    catch (error) {
+        console.error('❌ Error fetching VAPI assistants:', error);
+        res.status(500).json({
+            error: 'Failed to fetch assistants',
+            assistants: []
+        });
+    }
+});
+router.get('/phone-numbers', async (req, res) => {
+    try {
+        const organizationId = req.user?.organizationId;
+        if (!organizationId) {
+            return res.status(400).json({
+                error: 'User not associated with an organization',
+                phoneNumbers: []
+            });
+        }
+        console.log('📱 Fetching phone numbers for organization:', organizationId);
+        let phoneNumbers = [];
+        try {
+            const { data: dbPhoneNumbers, error } = await supabase
+                .from('phone_numbers')
+                .select('*')
+                .eq('organization_id', organizationId);
+            if (!error && dbPhoneNumbers && dbPhoneNumbers.length > 0) {
+                console.log(`✅ Found ${dbPhoneNumbers.length} phone numbers in database`);
+                phoneNumbers = dbPhoneNumbers.map(phone => ({
+                    id: phone.id,
+                    number: phone.number,
+                    provider: phone.provider || 'vapi',
+                    country: phone.country_code || 'US',
+                    name: phone.number,
+                    status: phone.status
+                }));
+            }
+            else {
+                console.log('📡 No phone numbers in database, trying VAPI API...');
+                const vapiService = await vapi_integration_service_1.VAPIIntegrationService.forOrganization(organizationId);
+                if (!vapiService) {
+                    console.log('⚠️ No VAPI service available for organization');
+                    return res.json({
+                        phoneNumbers: [],
+                        message: 'VAPI integration not configured. Please add your VAPI API key in Organization Settings.',
+                        requiresConfiguration: true
+                    });
+                }
+                phoneNumbers = await vapiService.getPhoneNumbers();
+            }
+        }
+        catch (error) {
+            console.error('Error fetching from database, trying VAPI:', error);
+            const vapiService = await vapi_integration_service_1.VAPIIntegrationService.forOrganization(organizationId);
+            if (vapiService) {
+                phoneNumbers = await vapiService.getPhoneNumbers();
+            }
+        }
+        console.log(`✅ Retrieved ${phoneNumbers.length} phone numbers from VAPI`);
+        res.json({
+            phoneNumbers,
+            count: phoneNumbers.length
+        });
+    }
+    catch (error) {
+        console.error('❌ Error fetching VAPI phone numbers:', error);
+        res.status(500).json({
+            error: 'Failed to fetch phone numbers',
+            phoneNumbers: []
+        });
+    }
+});
+router.get('/all', async (req, res) => {
+    try {
+        const organizationId = req.user?.organizationId;
+        if (!organizationId) {
+            return res.status(400).json({
+                error: 'User not associated with an organization',
+                assistants: [],
+                phoneNumbers: []
+            });
+        }
+        console.log('🔄 Fetching all VAPI data for organization:', organizationId);
+        const vapiService = await vapi_integration_service_1.VAPIIntegrationService.forOrganization(organizationId);
+        if (!vapiService) {
+            console.log('⚠️ No VAPI service available for organization');
+            return res.json({
+                assistants: [],
+                phoneNumbers: [],
+                message: 'VAPI integration not configured'
+            });
+        }
+        const [assistants, phoneNumbers] = await Promise.all([
+            vapiService.getAssistants().catch(() => []),
+            vapiService.getPhoneNumbers().catch(() => [])
+        ]);
+        console.log(`✅ Retrieved ${assistants.length} assistants and ${phoneNumbers.length} phone numbers from VAPI`);
+        res.json({
+            assistants,
+            phoneNumbers,
+            assistantCount: assistants.length,
+            phoneNumberCount: phoneNumbers.length
+        });
+    }
+    catch (error) {
+        console.error('❌ Error fetching VAPI data:', error);
+        res.status(500).json({
+            error: 'Failed to fetch VAPI data',
+            assistants: [],
+            phoneNumbers: []
+        });
+    }
+});
+exports.default = router;

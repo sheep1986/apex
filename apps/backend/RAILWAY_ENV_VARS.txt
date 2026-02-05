@@ -1,0 +1,35 @@
+# Railway Environment Variables
+# Add these to your Railway project at:
+# https://railway.app/project/[your-project-id]/service/[your-service-id]/variables
+
+# REQUIRED - Without these, the server won't start
+SUPABASE_URL=https://twigokrtbvigiqnaybfy.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3aWdva3J0YnZpZ2lxbmF5YmZ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTEzNTI2OSwiZXhwIjoyMDY2NzExMjY5fQ.QXMRS8ygWhy_oExRD9FX3HNcdKQZEQ2eH7bGu-q6bZg
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3aWdva3J0YnZpZ2lxbmF5YmZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMzUyNjksImV4cCI6MjA2NjcxMTI2OX0.AcRI1NYcCYpRqvHZvux15kMbGPocFbvT6uLf5DD6v24
+
+# Authentication
+CLERK_SECRET_KEY=sk_test_DsaLetXMBb3y482PGFmdQz9QNSKC0LMFqgy0Pvob76
+CLERK_PUBLISHABLE_KEY=pk_test_dW5pdGVkLXNob3ctMTMuY2xlcmsuYWNjb3VudHMuZGV2JA
+
+# VAPI Integration
+VAPI_API_KEY=da8956d4-0508-474e-bd96-7eda82d2d943
+VAPI_WEBHOOK_SECRET=vapi_webhook_secret_key
+
+# AI Processing
+OPENAI_API_KEY=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
+AI_PROCESSING_ENABLED=true
+AI_MODEL=gpt-4-turbo-preview
+
+# Email
+RESEND_API_KEY=re_5TMv43Uj_2uyRqJq4RbogauoqtW2bYZwU
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters
+JWT_EXPIRES_IN=24h
+
+# Frontend URL (update this to your Netlify URL in production)
+FRONTEND_URL=https://aquamarine-klepon-bcb066.netlify.app
+CORS_ORIGIN=https://aquamarine-klepon-bcb066.netlify.app
+
+# Node Environment
+NODE_ENV=production

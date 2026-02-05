@@ -1,0 +1,296 @@
+{
+  "title": "Customer Relationship Management",
+  "subtitle": "Manage leads, contacts, and sales pipeline",
+  
+  "sections": {
+    "leads": "Leads",
+    "contacts": "Contacts",
+    "pipeline": "Sales Pipeline",
+    "activities": "Activities",
+    "reports": "Reports",
+    "settings": "CRM Settings"
+  },
+  
+  "lead": {
+    "title": "Lead",
+    "new_lead": "New Lead",
+    "edit_lead": "Edit Lead",
+    "lead_details": "Lead Details",
+    "lead_source": "Lead Source",
+    "lead_status": "Lead Status",
+    "lead_owner": "Lead Owner",
+    "lead_score": "Lead Score",
+    "qualification_status": "Qualification Status",
+    "contact_attempts": "Contact Attempts",
+    "last_contact": "Last Contact",
+    "next_follow_up": "Next Follow-up",
+    "conversion_probability": "Conversion Probability",
+    "estimated_value": "Estimated Value",
+    "expected_close_date": "Expected Close Date",
+    "lead_temperature": "Lead Temperature"
+  },
+  
+  "contact": {
+    "title": "Contact",
+    "new_contact": "New Contact",
+    "edit_contact": "Edit Contact",
+    "contact_details": "Contact Details",
+    "primary_contact": "Primary Contact",
+    "decision_maker": "Decision Maker",
+    "contact_method": "Preferred Contact Method",
+    "time_zone": "Time Zone",
+    "best_time_to_call": "Best Time to Call",
+    "do_not_call": "Do Not Call",
+    "email_opt_out": "Email Opt-out",
+    "communication_preferences": "Communication Preferences"
+  },
+  
+  "company": {
+    "title": "Company",
+    "company_name": "Company Name",
+    "company_size": "Company Size",
+    "industry": "Industry",
+    "annual_revenue": "Annual Revenue",
+    "website": "Website",
+    "headquarters": "Headquarters",
+    "number_of_employees": "Number of Employees",
+    "company_type": "Company Type"
+  },
+  
+  "fields": {
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "full_name": "Full Name",
+    "email": "Email Address",
+    "phone": "Phone Number",
+    "mobile": "Mobile Number",
+    "address": "Address",
+    "city": "City",
+    "state": "State/Province",
+    "postal_code": "Postal Code",
+    "country": "Country",
+    "job_title": "Job Title",
+    "department": "Department",
+    "linkedin": "LinkedIn Profile",
+    "notes": "Notes",
+    "tags": "Tags",
+    "custom_fields": "Custom Fields"
+  },
+  
+  "status": {
+    "new": "New",
+    "contacted": "Contacted",
+    "qualified": "Qualified",
+    "proposal": "Proposal Sent",
+    "negotiation": "In Negotiation",
+    "closed_won": "Closed Won",
+    "closed_lost": "Closed Lost",
+    "unqualified": "Unqualified",
+    "nurturing": "Nurturing",
+    "follow_up": "Follow-up Required",
+    "converted": "Converted",
+    "dead": "Dead Lead"
+  },
+  
+  "sources": {
+    "website": "Website",
+    "social_media": "Social Media",
+    "email_campaign": "Email Campaign",
+    "cold_call": "Cold Call",
+    "referral": "Referral",
+    "trade_show": "Trade Show",
+    "webinar": "Webinar",
+    "content_download": "Content Download",
+    "advertisement": "Advertisement",
+    "partner": "Partner",
+    "other": "Other"
+  },
+  
+  "temperature": {
+    "hot": "Hot",
+    "warm": "Warm",
+    "cold": "Cold"
+  },
+  
+  "pipeline": {
+    "stage": "Pipeline Stage",
+    "stages": "Pipeline Stages",
+    "probability": "Win Probability",
+    "value": "Deal Value",
+    "weighted_value": "Weighted Value",
+    "expected_close": "Expected Close",
+    "days_in_stage": "Days in Stage",
+    "time_to_close": "Time to Close",
+    "move_to_stage": "Move to Stage",
+    "stage_history": "Stage History"
+  },
+  
+  "activities": {
+    "title": "Activities",
+    "new_activity": "New Activity",
+    "activity_type": "Activity Type",
+    "activity_date": "Activity Date",
+    "activity_time": "Activity Time",
+    "duration": "Duration",
+    "outcome": "Outcome",
+    "follow_up_required": "Follow-up Required",
+    "completed": "Completed",
+    "scheduled": "Scheduled",
+    "overdue": "Overdue",
+    "today": "Today",
+    "this_week": "This Week",
+    "next_week": "Next Week"
+  },
+  
+  "activity_types": {
+    "call": "Phone Call",
+    "email": "Email",
+    "meeting": "Meeting",
+    "demo": "Product Demo",
+    "proposal": "Proposal",
+    "follow_up": "Follow-up",
+    "research": "Research",
+    "task": "Task",
+    "note": "Note"
+  },
+  
+  "import_export": {
+    "import_leads": "Import Leads",
+    "export_leads": "Export Leads",
+    "import_contacts": "Import Contacts",
+    "export_contacts": "Export Contacts",
+    "file_format": "File Format",
+    "csv_file": "CSV File",
+    "excel_file": "Excel File",
+    "mapping": "Field Mapping",
+    "preview": "Preview Import",
+    "import_success": "Import completed successfully",
+    "import_error": "Import failed",
+    "records_imported": "{{count}} records imported",
+    "records_updated": "{{count}} records updated",
+    "duplicate_handling": "Duplicate Handling",
+    "skip_duplicates": "Skip Duplicates",
+    "update_duplicates": "Update Duplicates",
+    "create_duplicates": "Create Duplicates"
+  },
+  
+  "filters": {
+    "filter_by": "Filter by",
+    "lead_status": "Lead Status",
+    "lead_source": "Lead Source",
+    "date_range": "Date Range",
+    "owner": "Owner",
+    "score_range": "Score Range",
+    "temperature": "Temperature",
+    "industry": "Industry",
+    "company_size": "Company Size",
+    "tags": "Tags",
+    "custom_filter": "Custom Filter",
+    "saved_filters": "Saved Filters",
+    "clear_filters": "Clear Filters",
+    "apply_filters": "Apply Filters"
+  },
+  
+  "bulk_actions": {
+    "title": "Bulk Actions",
+    "select_all": "Select All",
+    "select_none": "Select None",
+    "change_status": "Change Status",
+    "assign_owner": "Assign Owner",
+    "add_tags": "Add Tags",
+    "remove_tags": "Remove Tags",
+    "delete_selected": "Delete Selected",
+    "export_selected": "Export Selected",
+    "send_email": "Send Email",
+    "create_campaign": "Create Campaign",
+    "merge_duplicates": "Merge Duplicates"
+  },
+  
+  "scoring": {
+    "lead_scoring": "Lead Scoring",
+    "score": "Score",
+    "score_breakdown": "Score Breakdown",
+    "demographic_score": "Demographic Score",
+    "behavioural_score": "Behavioural Score",
+    "engagement_score": "Engagement Score",
+    "fit_score": "Fit Score",
+    "recalculate": "Recalculate Score",
+    "scoring_rules": "Scoring Rules",
+    "auto_scoring": "Automatic Scoring"
+  },
+  
+  "communication": {
+    "communication_history": "Communication History",
+    "send_email": "Send Email",
+    "make_call": "Make Call",
+    "schedule_meeting": "Schedule Meeting",
+    "send_sms": "Send SMS",
+    "add_note": "Add Note",
+    "email_sent": "Email Sent",
+    "call_made": "Call Made",
+    "meeting_scheduled": "Meeting Scheduled",
+    "sms_sent": "SMS Sent",
+    "note_added": "Note Added",
+    "last_email": "Last Email",
+    "last_call": "Last Call",
+    "last_meeting": "Last Meeting",
+    "response_rate": "Response Rate",
+    "engagement_level": "Engagement Level"
+  },
+  
+  "reports": {
+    "title": "Reports",
+    "lead_reports": "Lead Reports",
+    "conversion_reports": "Conversion Reports",
+    "activity_reports": "Activity Reports",
+    "performance_reports": "Performance Reports",
+    "pipeline_reports": "Pipeline Reports",
+    "forecast_reports": "Forecast Reports",
+    "source_analysis": "Source Analysis",
+    "roi_analysis": "ROI Analysis",
+    "time_to_conversion": "Time to Conversion",
+    "lead_velocity": "Lead Velocity",
+    "win_rate": "Win Rate",
+    "average_deal_size": "Average Deal Size",
+    "sales_cycle": "Sales Cycle Length"
+  },
+  
+  "messages": {
+    "lead_created": "Lead created successfully",
+    "lead_updated": "Lead updated successfully",
+    "lead_deleted": "Lead deleted successfully",
+    "contact_created": "Contact created successfully",
+    "contact_updated": "Contact updated successfully",
+    "contact_deleted": "Contact deleted successfully",
+    "activity_scheduled": "Activity scheduled successfully",
+    "activity_completed": "Activity marked as completed",
+    "email_sent": "Email sent successfully",
+    "call_logged": "Call logged successfully",
+    "note_saved": "Note saved successfully",
+    "status_updated": "Status updated successfully",
+    "assignment_changed": "Assignment changed successfully",
+    "tags_updated": "Tags updated successfully",
+    "duplicate_found": "Potential duplicate found",
+    "merge_completed": "Records merged successfully",
+    "no_leads_selected": "Please select at least one lead",
+    "no_contacts_selected": "Please select at least one contact",
+    "confirm_delete": "Are you sure you want to delete the selected records?",
+    "confirm_merge": "Are you sure you want to merge these records?",
+    "operation_cancelled": "Operation cancelled",
+    "permission_denied": "You don't have permission to perform this action"
+  },
+  
+  "validation": {
+    "required_field": "This field is required",
+    "invalid_email": "Please enter a valid email address",
+    "invalid_phone": "Please enter a valid phone number",
+    "invalid_url": "Please enter a valid URL",
+    "invalid_date": "Please enter a valid date",
+    "invalid_number": "Please enter a valid number",
+    "duplicate_email": "This email address already exists",
+    "duplicate_phone": "This phone number already exists",
+    "max_length": "Maximum {{max}} characters allowed",
+    "min_length": "Minimum {{min}} characters required",
+    "invalid_format": "Invalid format"
+  }
+}

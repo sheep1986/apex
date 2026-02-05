@@ -1,0 +1,35 @@
+{
+  "title": "Dashboard",
+  "overview": "Veduta ġenerali",
+  "analytics": "Analitika",
+  "campaigns": {
+    "title": "Kampanji",
+    "active": "Kampanji attivi",
+    "total": "Total tal-kampanji",
+    "running": "Qed jimxu",
+    "paused": "Ippawżati",
+    "completed": "Kompletati",
+    "create_new": "Oħloq kampanja ġdida"
+  },
+  "calls": {
+    "title": "Ċempja",
+    "total": "Total taċ-ċempja",
+    "successful": "Ta' suċċess",
+    "failed": "Fallew",
+    "in_progress": "F'progress",
+    "success_rate": "Rata ta' suċċess"
+  },
+  "leads": {
+    "title": "Leads",
+    "qualified": "Leads kwalifikati",
+    "total": "Total ta' leads",
+    "conversion_rate": "Rata ta' konverżjoni",
+    "review_queue": "Kju tar-reviżjoni"
+  },
+  "quick_stats": {
+    "today": "Illum",
+    "this_week": "Din il-ġimgħa",
+    "this_month": "Dan ix-xahar",
+    "all_time": "Kull ħin"
+  }
+}
