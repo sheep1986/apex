@@ -6,7 +6,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/api/:splat"
+    to = "/.netlify/functions/api-proxy/:splat"
   status = 200
   force = true
 
@@ -15,5 +15,5 @@
   [headers.values]
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
+   X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
