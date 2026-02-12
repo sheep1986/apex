@@ -196,7 +196,7 @@ export const DynamicConcurrencyManager: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Dynamic Concurrency Manager</h2>
-          <p className="text-gray-400">Monitor and optimize Vapi org-level concurrency in real-time</p>
+          <p className="text-gray-400">Monitor and optimize voice concurrency in real-time</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" className="border-gray-700">
@@ -207,10 +207,10 @@ export const DynamicConcurrencyManager: React.FC = () => {
             variant="outline" 
             size="sm" 
             className="border-gray-700"
-            onClick={() => window.open('https://dashboard.vapi.ai', '_blank')}
+            onClick={() => window.open('/billing', '_self')}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
-            Vapi Dashboard
+            Manage Plan
           </Button>
         </div>
       </div>
@@ -220,10 +220,10 @@ export const DynamicConcurrencyManager: React.FC = () => {
         <Alert className="border-orange-500 bg-orange-500/10">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>Nearing concurrency limit ({utilizationPercentage.toFixed(1)}% utilized). Consider upgrading your Vapi plan.</span>
-            <Button 
-              size="sm" 
-              onClick={() => window.open('https://dashboard.vapi.ai/billing', '_blank')}
+            <span>Nearing concurrency limit ({utilizationPercentage.toFixed(1)}% utilized). Consider upgrading your plan.</span>
+            <Button
+              size="sm"
+              onClick={() => window.open('/billing', '_self')}
               className="bg-orange-600 hover:bg-orange-700"
             >
               Upgrade Now
@@ -498,7 +498,7 @@ export const DynamicConcurrencyManager: React.FC = () => {
                 <h5 className="text-sm font-medium text-blue-400 mb-1">Queue Management Tips</h5>
                 <ul className="text-xs text-gray-300 space-y-1">
                   <li>• High priority campaigns get queue preference</li>
-                  <li>• Vapi automatically retries queued calls for up to 1 hour</li>
+                  <li>• The system automatically retries queued calls for up to 1 hour</li>
                   <li>• Pause low-priority campaigns during peak hours to prevent bottlenecks</li>
                   <li>• Monitor budget utilization to prevent overspending</li>
                 </ul>

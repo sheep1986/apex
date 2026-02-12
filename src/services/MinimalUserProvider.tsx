@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useUser } from '@/hooks/auth';
+import { supabase } from '@/services/supabase-client';
+import React, { ReactNode, createContext, useContext, useEffect, useState } from 'react';
 
 export interface UserContextType {
   userContext: {
@@ -9,6 +10,12 @@ export interface UserContextType {
     organization_id?: string;
     email?: string;
     role?: string;
+    plan?: string;
+    subscription_status?: string;
+    included_minutes?: number;
+    max_phone_numbers?: number;
+    max_assistants?: number;
+    max_concurrent_calls?: number;
   } | null;
   setUserContext: (context: any) => void;
 }
@@ -53,12 +60,35 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       console.log('🎯 MinimalUserProvider: Setting user context:', userInfo);
 
-      // Set token for API calls (dev mode uses role-specific token, supabase uses JWT)
-      if (import.meta.env.VITE_USE_DEV_AUTH === 'true') {
-        // For dev mode, use the role-specific token
-        const devToken = userInfo.role === 'platform_owner' ? 'test-token-platform_owner' : 'test-token';
-        localStorage.setItem('auth_token', devToken);
-        console.log('🔑 Dev auth token set:', devToken);
+      // Initialize Voice Service
+      if (userInfo.organization_id) {
+          console.log('🎙️ Initializing Voice Service for Organization:', userInfo.organization_id);
+          import('./voice-service').then(({ voiceService }) => {
+              voiceService.initializeWithOrganization(userInfo.organization_id!)
+                  .then((success) => {
+                      if (success) {
+                          console.log('✅ Voice Service Initialized Successfully');
+                      } else {
+                          console.warn('⚠️ Voice Service Initialization Failed (Likely no API Key)');
+                      }
+                  })
+                  .catch(err => console.error('❌ Voice Service Initialization Error:', err));
+          });
+
+          // Fetch org plan info
+          supabase
+            .from('organizations')
+            .select('plan, subscription_status, included_minutes, max_phone_numbers, max_assistants, max_concurrent_calls')
+            .eq('id', userInfo.organization_id)
+            .single()
+            .then(({ data: org }) => {
+              if (org) {
+                setUserContext((prev: any) => prev ? { ...prev, ...org } : prev);
+              }
+            })
+            .catch(() => {});
+      } else {
+          console.warn('⚠️ No Organization ID found for Voice Service Initialization');
       }
 
       setUserContext(userInfo);

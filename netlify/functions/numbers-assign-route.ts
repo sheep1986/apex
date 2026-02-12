@@ -17,9 +17,16 @@ export const handler: Handler = async (event) => {
     const { data: { user } } = await supabase.auth.getUser(authHeader.split(' ')[1]);
     if (!user) return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
 
+    // Check organization_members first, then profiles fallback
+    let organizationId: string | null = null;
     const { data: member } = await supabase.from('organization_members').select('organization_id').eq('user_id', user.id).single();
-    if (!member) return { statusCode: 403, headers, body: JSON.stringify({ error: 'No Org' }) };
-    const organizationId = member.organization_id;
+    if (member) {
+      organizationId = member.organization_id;
+    } else {
+      const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+      organizationId = profile?.organization_id || null;
+    }
+    if (!organizationId) return { statusCode: 403, headers, body: JSON.stringify({ error: 'No Org' }) };
 
     const { phoneNumberId, routeId } = JSON.parse(event.body || '{}');
 

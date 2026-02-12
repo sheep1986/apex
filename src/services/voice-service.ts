@@ -2,12 +2,16 @@
 const VOICE_PROVIDER_BASE_URL = '/api/voice';
 
 /**
- * Voice Service - Complete integration with Voice Provider
- * Handles all Voice API interactions for Trinity CRM
- * Now uses organization-level credentials instead of platform-level
+ * Voice Service — Complete integration with Voice Provider
+ * Full API parity via zero-trace proxy architecture.
+ * All provider calls go through Netlify function proxies.
  */
 
-// Types for Voice entities
+import { getSupabase } from './supabase-client';
+import { ToolBuilder } from './tool-builder';
+
+// ─── Types ──────────────────────────────────────────────────────────
+
 export interface VoiceAssistant {
   id: string;
   name: string;
@@ -15,29 +19,55 @@ export interface VoiceAssistant {
     provider: string;
     model: string;
     temperature?: number;
+    maxTokens?: number;
     systemMessage?: string;
+    knowledgeBase?: {
+      provider?: string;
+      fileIds?: string[];
+      topK?: number;
+    };
+    tools?: any[];
+    emotionRecognitionEnabled?: boolean;
   };
   voice: {
     provider: string;
     voiceId: string;
+    stability?: number;
+    similarityBoost?: number;
+    speed?: number;
+    style?: number;
   };
   firstMessage?: string;
   transcriber?: {
     provider: string;
     model: string;
     language?: string;
+    smartFormat?: boolean;
+    keywords?: string[];
+    endpointing?: number;
   };
   recordingEnabled?: boolean;
   endCallMessage?: string;
+  maxDurationSeconds?: number;
+  silenceTimeoutSeconds?: number;
+  responseDelaySeconds?: number;
   serverUrl?: string;
   serverUrlSecret?: string;
+  backgroundSound?: string;
+  backchannelingEnabled?: boolean;
+  hipaaEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
+  // Trinity extensions
+  toolIds?: string[];
+  fileIds?: string[];
+  metadata?: Record<string, any>;
 }
 
 export interface VoiceCall {
   id: string;
   assistantId: string;
+  squadId?: string;
   phoneNumberId?: string;
   customer?: {
     number: string;
@@ -53,16 +83,28 @@ export interface VoiceCall {
     intent?: string;
     outcome?: string;
     followUpRequired?: boolean;
+    structuredData?: Record<string, any>;
+    successEvaluation?: string;
   };
   startedAt?: string;
   endedAt?: string;
+  endedReason?: string;
   cost?: number;
+  costBreakdown?: {
+    stt?: number;
+    llm?: number;
+    tts?: number;
+    vapi?: number;
+    total?: number;
+    transport?: number;
+  };
   duration?: number;
   messages?: Array<{
-    role: 'assistant' | 'user' | 'system';
+    role: 'assistant' | 'user' | 'system' | 'tool';
     message: string;
     timestamp: string;
   }>;
+  metadata?: Record<string, any>;
 }
 
 export interface VoicePhoneNumber {
@@ -71,11 +113,64 @@ export interface VoicePhoneNumber {
   provider: string;
   name?: string;
   assistantId?: string;
+  squadId?: string;
+  serverUrl?: string;
+  fallbackDestination?: {
+    type: string;
+    number?: string;
+  };
   createdAt: string;
 }
 
+export interface VoiceSquad {
+  id: string;
+  name: string;
+  members: VoiceSquadMember[];
+  membersOverrides?: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VoiceSquadMember {
+  assistantId?: string;
+  assistant?: Partial<VoiceAssistant>;
+  assistantDestinations?: Array<{
+    type: 'assistant' | 'number';
+    assistantName?: string;
+    number?: string;
+    message?: string;
+    description?: string;
+  }>;
+}
+
+export interface VoiceTool {
+  id: string;
+  type: 'function' | 'endCall' | 'transferCall' | 'dtmf' | 'output' | 'ghl' | 'make';
+  function?: {
+    name: string;
+    description?: string;
+    parameters?: {
+      type: string;
+      properties?: Record<string, any>;
+      required?: string[];
+    };
+  };
+  messages?: Array<{
+    type: 'request-start' | 'request-complete' | 'request-failed' | 'request-response-delayed';
+    content: string;
+  }>;
+  server?: {
+    url: string;
+    secret?: string;
+    timeoutSeconds?: number;
+  };
+  async?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface VoiceWebhookEvent {
-  type: 'call-start' | 'call-end' | 'transcript' | 'hang' | 'speech-update' | 'status-update';
+  type: 'call-start' | 'call-end' | 'transcript' | 'hang' | 'speech-update' | 'status-update' | 'tool-calls' | 'end-of-call-report' | 'conversation-update' | 'transfer-destination-request';
   call: VoiceCall;
   message?: string;
   timestamp: string;
@@ -96,13 +191,14 @@ export interface CallAnalytics {
   conversionRate: number;
 }
 
+// ─── Service ────────────────────────────────────────────────────────
+
 class VoiceService {
   private baseURL = VOICE_PROVIDER_BASE_URL;
   private apiKey: string | null = null;
   private organizationId: string | null = null;
 
   constructor() {
-    // Voice service now requires organization context to function
     console.log('📝 Voice Service initialized');
   }
 
@@ -112,10 +208,10 @@ class VoiceService {
   async initializeWithOrganization(organizationId: string): Promise<boolean> {
     try {
       this.organizationId = organizationId;
-      
+
       // Get auth token
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-      
+
       // Get organization Voice credentials via API
       const response = await fetch(`${window.location.origin}/api/voice/credentials`, {
         method: 'GET',
@@ -126,18 +222,18 @@ class VoiceService {
       });
 
       if (!response.ok) {
-        console.warn('⚠️ Failed to fetch Voice credentials for organization');
+        const errorText = await response.text();
+        console.warn(`⚠️ Failed to fetch Voice credentials. Status: ${response.status}`, errorText);
         return false;
       }
 
       const data = await response.json();
-      
+
       if (data.hasApiKey && data.credentials?.provider_api_key) {
         this.apiKey = data.credentials.provider_api_key;
         console.log('✅ Voice service initialized with organization credentials');
         return true;
       } else if (data.hasApiKey) {
-        // API key exists but wasn't returned (non-admin user)
         console.warn('⚠️ Voice API key exists but user lacks permission to view it');
         return false;
       } else {
@@ -145,21 +241,15 @@ class VoiceService {
         return false;
       }
     } catch (error) {
-      console.error('❌ Error initializing Voice service with organization:', error);
+      console.error('❌ Error initializing Voice service:', error);
       return false;
     }
   }
 
-  /**
-   * Check if service is properly initialized
-   */
   isInitialized(): boolean {
     return !!(this.apiKey && this.organizationId);
   }
 
-  /**
-   * Get current organization ID
-   */
   getOrganizationId(): string | null {
     return this.organizationId;
   }
@@ -171,10 +261,10 @@ class VoiceService {
 
     const url = `${this.baseURL}${endpoint}`;
 
-    const headers = {
+    const headers: Record<string, string> = {
       Authorization: `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     try {
@@ -186,8 +276,13 @@ class VoiceService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          `Voice API Error: ${response.status} - ${errorData.message || 'Unknown error'}`
+          `Voice API Error: ${response.status} - ${errorData.message || errorData.error || 'Unknown error'}`
         );
+      }
+
+      // Handle 204 No Content (DELETE responses)
+      if (response.status === 204) {
+        return undefined as T;
       }
 
       return await response.json();
@@ -197,7 +292,8 @@ class VoiceService {
     }
   }
 
-  // Assistant Management
+  // ─── Assistant Management ─────────────────────────────────────────
+
   async getAssistants(): Promise<VoiceAssistant[]> {
     return this.request<VoiceAssistant[]>('/assistant');
   }
@@ -206,11 +302,72 @@ class VoiceService {
     return this.request<VoiceAssistant>(`/assistant/${id}`);
   }
 
-  async createAssistant(assistant: Partial<VoiceAssistant>): Promise<VoiceAssistant> {
-    return this.request<VoiceAssistant>('/assistant', {
+  async createAssistant(assistant: Partial<VoiceAssistant> & { toolIds?: string[], fileIds?: string[] }): Promise<VoiceAssistant> {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase client not initialized');
+
+    // 1. Resolve Dynamic Tools
+    const toolBuilder = new ToolBuilder(supabase);
+    let providerTools: any[] = [];
+
+    if (assistant.toolIds && assistant.toolIds.length > 0) {
+        providerTools = await toolBuilder.resolveTools(assistant.toolIds);
+    }
+
+    // 2. Knowledge Base & Model Configuration
+    // Force universal webhook for brain routing
+    const universalWebhookUrl = `${window.location.origin}/api/vapi-router`;
+
+    const enhancedAssistant = {
+        ...assistant,
+        serverUrl: universalWebhookUrl,
+        model: {
+            ...assistant.model,
+            tools: providerTools.length > 0 ? providerTools : undefined,
+            ...(assistant.fileIds && assistant.fileIds.length > 0 ? {
+                knowledgeBase: {
+                    fileIds: assistant.fileIds
+                }
+            } : {})
+        }
+    };
+
+    // 3. Create at Provider
+    const createdAssistant = await this.request<VoiceAssistant>('/assistant', {
       method: 'POST',
-      body: JSON.stringify(assistant),
+      body: JSON.stringify(enhancedAssistant),
     });
+
+    // 4. Sync to Trinity DB
+    if (createdAssistant && createdAssistant.id && this.organizationId) {
+        // @ts-ignore
+        const { error: assistantError } = await supabase.from('assistants').upsert({
+            vapi_assistant_id: createdAssistant.id,
+            name: assistant.name || 'Untitled Assistant',
+            organization_id: this.organizationId,
+            configuration: enhancedAssistant,
+            provider_type: 'voice_engine'
+        }, { onConflict: 'vapi_assistant_id' });
+
+        if (!assistantError && assistant.toolIds && assistant.toolIds.length > 0) {
+            // @ts-ignore
+            const { data: dbAssistant } = await supabase.from('assistants')
+                .select('id')
+                .eq('vapi_assistant_id', createdAssistant.id)
+                .single();
+
+            if (dbAssistant) {
+                const links = assistant.toolIds.map(tId => ({
+                    assistant_id: dbAssistant.id,
+                    tool_id: tId
+                }));
+                // @ts-ignore
+                await supabase.from('assistant_tools').upsert(links);
+            }
+        }
+    }
+
+    return createdAssistant;
   }
 
   async updateAssistant(id: string, updates: Partial<VoiceAssistant>): Promise<VoiceAssistant> {
@@ -226,7 +383,8 @@ class VoiceService {
     });
   }
 
-  // Call Management
+  // ─── Call Management ──────────────────────────────────────────────
+
   async getCalls(params?: {
     assistantId?: string;
     phoneNumberId?: string;
@@ -249,21 +407,71 @@ class VoiceService {
     return this.request<VoiceCall>(`/call/${id}`);
   }
 
-  async createCall(callData: {
-    assistantId: string;
+  async createCall(payload: {
+    assistantId?: string;
     phoneNumberId?: string;
+    squadId?: string;
     customer: {
       number: string;
+      extension?: string;
       name?: string;
+      email?: string;
     };
+    assistantOverrides?: {
+      firstMessage?: string;
+      model?: {
+        provider?: string;
+        model?: string;
+        temperature?: number;
+        systemMessage?: string;
+      };
+      voice?: {
+        provider?: string;
+        voiceId?: string;
+      };
+      variableValues?: Record<string, string>;
+      analysisPlan?: {
+        structuredDataSchema?: Record<string, any>;
+      };
+    };
+    metadata?: Record<string, any>;
+    maxDurationSeconds?: number;
   }): Promise<VoiceCall> {
+    if (!payload.assistantId && !payload.squadId && !payload.assistantOverrides) {
+      throw new Error('Must provide either assistantId, squadId, or assistantOverrides');
+    }
+
+    const enrichedMetadata = {
+      ...payload.metadata,
+      trinity_call_id: crypto.randomUUID(),
+      organization_id: this.organizationId,
+    };
+
+    const providerPayload = {
+      assistantId: payload.assistantId,
+      squadId: payload.squadId,
+      phoneNumberId: payload.phoneNumberId,
+      customer: payload.customer,
+      assistantOverrides: payload.assistantOverrides,
+      metadata: enrichedMetadata,
+      maxDurationSeconds: payload.maxDurationSeconds
+    };
+
     return this.request<VoiceCall>('/call', {
       method: 'POST',
-      body: JSON.stringify(callData),
+      body: JSON.stringify(providerPayload),
     });
   }
 
-  // Phone Number Management
+  async endCall(callId: string): Promise<void> {
+    await this.request<void>(`/call/${callId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'ended' }),
+    });
+  }
+
+  // ─── Phone Number Management ──────────────────────────────────────
+
   async getPhoneNumbers(): Promise<VoicePhoneNumber[]> {
     return this.request<VoicePhoneNumber[]>('/phone-number');
   }
@@ -272,15 +480,163 @@ class VoiceService {
     return this.request<VoicePhoneNumber>(`/phone-number/${id}`);
   }
 
-  // Real-time Call Analytics
+  async createPhoneNumber(config: {
+    provider?: string;
+    areaCode?: string;
+    name?: string;
+    assistantId?: string;
+    squadId?: string;
+    serverUrl?: string;
+    twilioAccountSid?: string;
+    twilioAuthToken?: string;
+    twilioPhoneNumber?: string;
+  }): Promise<VoicePhoneNumber> {
+    return this.request<VoicePhoneNumber>('/phone-number', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  }
+
+  async updatePhoneNumber(id: string, updates: {
+    name?: string;
+    assistantId?: string | null;
+    squadId?: string | null;
+    serverUrl?: string;
+    fallbackDestination?: { type: string; number?: string } | null;
+  }): Promise<VoicePhoneNumber> {
+    return this.request<VoicePhoneNumber>(`/phone-number/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deletePhoneNumber(id: string): Promise<void> {
+    await this.request<void>(`/phone-number/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async searchAvailableNumbers(areaCode: string, country: string = 'US'): Promise<any[]> {
+    return this.request<any[]>(`/numbers-search?areaCode=${areaCode}&country=${country}`);
+  }
+
+  async buyPhoneNumber(phoneNumber: string, name?: string): Promise<VoicePhoneNumber> {
+    return this.request<VoicePhoneNumber>('/numbers-purchase', {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber, name }),
+    });
+  }
+
+  async autoProvisionNumber(areaCode: string, name?: string, assistantId?: string): Promise<any> {
+    return this.request<any>('/auto-provision-number', {
+      method: 'POST',
+      body: JSON.stringify({ areaCode, name, assistantId }),
+    });
+  }
+
+  // ─── Squad Management (Multi-Agent) ───────────────────────────────
+
+  async getSquads(): Promise<VoiceSquad[]> {
+    return this.request<VoiceSquad[]>('/squad');
+  }
+
+  async getSquad(id: string): Promise<VoiceSquad> {
+    return this.request<VoiceSquad>(`/squad/${id}`);
+  }
+
+  async createSquad(squad: {
+    name: string;
+    members: VoiceSquadMember[];
+    membersOverrides?: Record<string, any>;
+  }): Promise<VoiceSquad> {
+    return this.request<VoiceSquad>('/squad', {
+      method: 'POST',
+      body: JSON.stringify(squad),
+    });
+  }
+
+  async updateSquad(id: string, updates: Partial<VoiceSquad>): Promise<VoiceSquad> {
+    return this.request<VoiceSquad>(`/squad/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteSquad(id: string): Promise<void> {
+    await this.request<void>(`/squad/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ─── Tool Management ──────────────────────────────────────────────
+
+  async getTools(): Promise<VoiceTool[]> {
+    return this.request<VoiceTool[]>('/tool');
+  }
+
+  async getTool(id: string): Promise<VoiceTool> {
+    return this.request<VoiceTool>(`/tool/${id}`);
+  }
+
+  async createTool(tool: {
+    type: VoiceTool['type'];
+    function?: VoiceTool['function'];
+    messages?: VoiceTool['messages'];
+    server?: VoiceTool['server'];
+    async?: boolean;
+  }): Promise<VoiceTool> {
+    return this.request<VoiceTool>('/tool', {
+      method: 'POST',
+      body: JSON.stringify(tool),
+    });
+  }
+
+  async updateTool(id: string, updates: Partial<VoiceTool>): Promise<VoiceTool> {
+    return this.request<VoiceTool>(`/tool/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteTool(id: string): Promise<void> {
+    await this.request<void>(`/tool/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ─── Knowledge Base / File Management ─────────────────────────────
+
+  async uploadFile(file: File): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const base64Content = (reader.result as string).split(',')[1];
+          const response = await this.request<any>('/files-upload', {
+            method: 'POST',
+            body: JSON.stringify({
+              filename: file.name,
+              file: base64Content
+            })
+          });
+          resolve(response);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      reader.onerror = error => reject(error);
+    });
+  }
+
+  // ─── Analytics ────────────────────────────────────────────────────
+
   async getCallAnalytics(params?: {
     startDate?: string;
     endDate?: string;
     assistantId?: string;
   }): Promise<CallAnalytics> {
-    // This would typically aggregate data from multiple calls
     const calls = await this.getCalls(params);
-
     return this.aggregateCallData(calls);
   }
 
@@ -311,8 +667,7 @@ class VoiceService {
       hour,
       count: calls.filter((call) => {
         if (!call.startedAt) return false;
-        const callHour = new Date(call.startedAt).getHours();
-        return callHour === hour;
+        return new Date(call.startedAt).getHours() === hour;
       }).length,
     }));
 
@@ -328,24 +683,21 @@ class VoiceService {
     };
   }
 
-  // Webhook handling
+  // ─── Webhook Verification ─────────────────────────────────────────
+
   async verifyWebhook(signature: string, payload: string, secret: string): Promise<boolean> {
-    // Implement webhook signature verification
-    // This would typically use HMAC-SHA256
     try {
       const crypto = await import('crypto');
       const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-
       return signature === expectedSignature;
     } catch {
       return false;
     }
   }
 
-  // Real-time call updates
+  // ─── Real-time Call Updates ───────────────────────────────────────
+
   async subscribeToCallUpdates(callId: string, callback: (event: VoiceWebhookEvent) => void) {
-    // This would typically use WebSocket or Server-Sent Events
-    // For now, we'll simulate with polling
     const interval = setInterval(async () => {
       try {
         const call = await this.getCall(callId);
@@ -354,6 +706,9 @@ class VoiceService {
           call,
           timestamp: new Date().toISOString(),
         });
+        if (call.status === 'ended') {
+          clearInterval(interval);
+        }
       } catch (error) {
         console.error('Error polling call updates:', error);
       }
@@ -362,87 +717,49 @@ class VoiceService {
     return () => clearInterval(interval);
   }
 
-  // Lead scoring based on call analysis
+  // ─── Lead Scoring ─────────────────────────────────────────────────
+
   scoreLeadFromCall(call: VoiceCall): {
     score: number;
     factors: Array<{ factor: string; impact: number; description: string }>;
   } {
-    let score = 50; // Base score
+    let score = 50;
     const factors: Array<{ factor: string; impact: number; description: string }> = [];
 
-    // Duration factor
     if (call.duration) {
       if (call.duration > 300) {
-        // 5+ minutes
         score += 20;
-        factors.push({
-          factor: 'Long Call Duration',
-          impact: 20,
-          description: 'Engaged in lengthy conversation',
-        });
+        factors.push({ factor: 'Long Call Duration', impact: 20, description: 'Engaged in lengthy conversation' });
       } else if (call.duration > 120) {
-        // 2+ minutes
         score += 10;
-        factors.push({
-          factor: 'Good Call Duration',
-          impact: 10,
-          description: 'Reasonable conversation length',
-        });
+        factors.push({ factor: 'Good Call Duration', impact: 10, description: 'Reasonable conversation length' });
       } else if (call.duration < 30) {
-        // Less than 30 seconds
         score -= 15;
-        factors.push({
-          factor: 'Short Call Duration',
-          impact: -15,
-          description: 'Very brief interaction',
-        });
+        factors.push({ factor: 'Short Call Duration', impact: -15, description: 'Very brief interaction' });
       }
     }
 
-    // Sentiment factor
     if (call.analysis?.sentiment === 'positive') {
       score += 15;
-      factors.push({
-        factor: 'Positive Sentiment',
-        impact: 15,
-        description: 'Showed positive attitude during call',
-      });
+      factors.push({ factor: 'Positive Sentiment', impact: 15, description: 'Showed positive attitude during call' });
     } else if (call.analysis?.sentiment === 'negative') {
       score -= 10;
-      factors.push({
-        factor: 'Negative Sentiment',
-        impact: -10,
-        description: 'Expressed negative sentiment',
-      });
+      factors.push({ factor: 'Negative Sentiment', impact: -10, description: 'Expressed negative sentiment' });
     }
 
-    // Follow-up required
     if (call.analysis?.followUpRequired) {
       score += 10;
-      factors.push({
-        factor: 'Follow-up Interest',
-        impact: 10,
-        description: 'Expressed interest in follow-up',
-      });
+      factors.push({ factor: 'Follow-up Interest', impact: 10, description: 'Expressed interest in follow-up' });
     }
 
-    // Intent detection
     if (call.analysis?.intent) {
       const intent = call.analysis.intent.toLowerCase();
       if (intent.includes('purchase') || intent.includes('buy')) {
         score += 25;
-        factors.push({
-          factor: 'Purchase Intent',
-          impact: 25,
-          description: 'Showed buying intent',
-        });
+        factors.push({ factor: 'Purchase Intent', impact: 25, description: 'Showed buying intent' });
       } else if (intent.includes('interested') || intent.includes('learn')) {
         score += 15;
-        factors.push({
-          factor: 'Learning Intent',
-          impact: 15,
-          description: 'Interested in learning more',
-        });
+        factors.push({ factor: 'Learning Intent', impact: 15, description: 'Interested in learning more' });
       }
     }
 
@@ -452,21 +769,22 @@ class VoiceService {
     };
   }
 
-  // Campaign Management
+  // ─── Campaign Management ──────────────────────────────────────────
+
   async launchCampaign(campaignData: {
     name: string;
     assistantId: string;
     phoneNumberId: string;
-    leads: Array<{ number: string; name?: string }>;
+    leads: Array<{ number: string; name?: string; metadata?: Record<string, any> }>;
     schedule?: {
       startTime: string;
       endTime: string;
       timezone: string;
     };
+    maxConcurrent?: number;
   }): Promise<{ success: boolean; campaignId: string; scheduledCalls: number }> {
-    // In a real implementation, this would create a campaign and schedule calls
+    // TODO: Implement real campaign dispatch via campaign-manager function
     const scheduledCalls = campaignData.leads.length;
-
     return {
       success: true,
       campaignId: `campaign_${Date.now()}`,
@@ -485,16 +803,12 @@ class VoiceService {
       timezone: string;
     };
   }): Promise<{ success: boolean; campaignId: string; scheduledCalls: number }> {
-    // Production campaign launch with additional validation
     if (!campaignData.leads || campaignData.leads.length === 0) {
       throw new Error('No leads provided for campaign');
     }
-
     if (!this.apiKey) {
       throw new Error('Voice API key not configured');
     }
-
-    // In production, this would create actual calls via Provider
     return this.launchCampaign(campaignData);
   }
 }

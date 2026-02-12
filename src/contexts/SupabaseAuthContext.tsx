@@ -1,8 +1,8 @@
+import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getSupabase } from '../services/supabase-client';
-import { supabaseService } from '../services/supabase-service';
-import type { User, Session } from '@supabase/supabase-js';
 import type { DatabaseUser } from '../services/supabase-service';
+import { supabaseService } from '../services/supabase-service';
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +13,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<any>;
+  signInWithOAuth: (provider: 'google' | 'apple') => Promise<any>;
+  organization: { id: string; name: string; slug: string } | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -158,6 +160,22 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     return { data, error };
   };
 
+  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) throw error;
+      return { data, error };
+    } catch (error) {
+      console.error('Error signing in with OAuth:', error);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     dbUser,
@@ -166,7 +184,9 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signUp,
     signIn,
     signOut,
-    resetPassword
+    resetPassword,
+    signInWithOAuth,
+    organization: dbUser?.organizations || null
   };
 
   return (

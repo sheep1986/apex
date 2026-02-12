@@ -57,23 +57,23 @@ export const handler: Handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing Assistant ID' }) };
     }
 
-    // 4. Check Credit Balance
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .select('credit_balance')
-      .eq('id', organizationId)
-      .single();
+    // 4. Check subscription + usage limits
+    const { data: allowed, error: checkError } = await supabase.rpc('check_call_allowed', {
+      p_organization_id: organizationId
+    });
 
-    if (orgError || !org) {
-      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Organization not found' }) };
+    if (checkError) {
+      console.error('Call check RPC failed:', checkError);
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to verify call allowance' }) };
     }
 
-    if (org.credit_balance < 0.10) {
-      console.warn(`⛔ Call blocked for Org ${organizationId}: Low Balance`);
-      return { 
-        statusCode: 402, 
-        headers, 
-        body: JSON.stringify({ error: 'Insufficient credits.' }) 
+    if (!allowed?.allowed) {
+      const reason = allowed?.reason || 'Call not permitted';
+      console.warn(`Call blocked for Org ${organizationId}: ${reason}`);
+      return {
+        statusCode: 402,
+        headers,
+        body: JSON.stringify({ error: reason })
       };
     }
 

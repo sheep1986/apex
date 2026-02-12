@@ -53,7 +53,7 @@ import {
 interface PlatformMetrics {
   railway: RailwayMetrics;
   supabase: SupabaseMetrics;
-  clerk: ClerkMetrics;
+  auth: AuthMetrics;
   server: ServerMetrics;
   timestamp: string;
 }
@@ -98,7 +98,7 @@ interface SupabaseMetrics {
   }>;
 }
 
-interface ClerkMetrics {
+interface AuthMetrics {
   status: 'healthy' | 'degraded' | 'down' | 'unknown';
   totalUsers: number;
   activeUsers24h: number;
@@ -357,24 +357,24 @@ export default function PlatformMonitoringDashboard() {
               <CardTitle className="flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
                   <Shield className="h-5 w-5" />
-                  Clerk
+                  Auth
                 </div>
-                <StatusBadge status={metrics?.clerk.status || 'unknown'} />
+                <StatusBadge status={metrics?.auth?.status || 'unknown'} />
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Total Users</span>
-                  <span className="text-white">{metrics?.clerk.totalUsers || 0}</span>
+                  <span className="text-white">{metrics?.auth?.totalUsers || 0}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Active 24h</span>
-                  <span className="text-white">{metrics?.clerk.activeUsers24h || 0}</span>
+                  <span className="text-white">{metrics?.auth?.activeUsers24h || 0}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Sign-ins 24h</span>
-                  <span className="text-white">{metrics?.clerk.signIns24h || 0}</span>
+                  <span className="text-white">{metrics?.auth?.signIns24h || 0}</span>
                 </div>
               </div>
             </CardContent>

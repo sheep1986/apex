@@ -1,3 +1,4 @@
+import { CallTimeline } from '@/components/telephony/CallTimeline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import {
     ArrowLeft,
     Building,
     Check,
+    Clock,
     Copy,
     DollarSign,
     Download,
@@ -586,6 +588,10 @@ export default function CallDetailsPage() {
               <FileText className="h-4 w-4" />
               <span>Summary</span>
             </TabsTrigger>
+            <TabsTrigger value="timeline" className="flex items-center space-x-2">
+                <Clock className="h-4 w-4" />
+                <span>Timeline</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="transcript" className="mt-6">
@@ -807,13 +813,21 @@ export default function CallDetailsPage() {
                 ) : (
                   <div className="py-8 text-center">
                     <FileText className="mx-auto mb-4 h-12 w-12 text-gray-500" />
-                    <p className="text-gray-400">No summary available for this call</p>
-                    <p className="mt-2 text-sm text-gray-500">
-                      AI summaries are generated for completed calls with transcripts
-                    </p>
+                    <p className="text-gray-400">No summary available</p>
                   </div>
                 )}
               </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="timeline" className="mt-6">
+            <Card className="border-gray-700 bg-gray-800/50">
+                <CardHeader>
+                    <CardTitle className="text-white">Call Lifecycle Audit</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <CallTimeline callId={call.id} />
+                </CardContent>
             </Card>
           </TabsContent>
         </Tabs>

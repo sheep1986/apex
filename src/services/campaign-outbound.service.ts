@@ -246,42 +246,17 @@ class CampaignOutboundService {
         console.log('🔄 Attempting to fetch campaigns directly from Supabase...');
         
         let organizationId = null;
-        
-        if (typeof window !== 'undefined' && (window as any).Clerk) {
-          try {
-            const clerk = (window as any).Clerk;
-            const user = clerk.user;
-            if (user) {
-              const userEmail = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress;
-              if (userEmail) {
-                const { data: userData, error: userError } = await supabase
-                  .from('users')
-                  .select('organization_id')
-                  .eq('email', userEmail)
-                  .single();
-                
-                if (!userError && userData?.organization_id) {
-                  organizationId = userData.organization_id;
-                }
-              }
-            }
-          } catch (clerkError) {
-             // ignore
-          }
-        }
-        
-        if (!organizationId) {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.email) {
-            const { data: userData } = await supabase
-              .from('users')
-              .select('organization_id')
-              .eq('email', user.email)
-              .single();
-            
-            if (userData?.organization_id) {
-              organizationId = userData.organization_id;
-            }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('organization_id')
+            .eq('email', user.email)
+            .single();
+
+          if (userData?.organization_id) {
+            organizationId = userData.organization_id;
           }
         }
         

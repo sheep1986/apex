@@ -4,7 +4,7 @@ import { useAuth } from './auth';
 interface PlatformMetrics {
   railway: RailwayMetrics;
   supabase: SupabaseMetrics;
-  clerk: ClerkMetrics;
+  auth: AuthMetrics;
   server: ServerMetrics;
   timestamp: string;
 }
@@ -49,7 +49,7 @@ interface SupabaseMetrics {
   }>;
 }
 
-interface ClerkMetrics {
+interface AuthMetrics {
   status: 'healthy' | 'degraded' | 'down' | 'unknown';
   totalUsers: number;
   activeUsers24h: number;
@@ -156,12 +156,12 @@ export function usePlatformMonitoring() {
       });
     }
 
-    // Check Clerk status
-    if (metricsData.clerk.status === 'down') {
+    // Check Auth status
+    if (metricsData.auth?.status === 'down') {
       newAlerts.push({
         type: 'error',
-        message: 'Clerk authentication is down',
-        service: 'clerk'
+        message: 'Authentication service is down',
+        service: 'auth'
       });
     }
 

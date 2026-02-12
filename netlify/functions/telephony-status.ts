@@ -62,7 +62,7 @@ export const handler: Handler = async (event) => {
         // 3. LOOKUP CALL
         const { data: voiceCall } = await supabase
             .from('voice_calls')
-            .select('id, organization_id, campaign_id, contact_id')
+            .select('id, organization_id, campaign_id, contact_id, status')
             .eq('provider_call_id', providerCallId)
             .single();
 
@@ -122,7 +122,21 @@ export const handler: Handler = async (event) => {
             }
         }
 
-        // 7. UPDATE VOICE CALL (Public Metrics Only)
+        // 7. STATE MACHINE & UPDATE
+        // A. Log Transition (Phase 3.7)
+        await supabase.from('call_state_transitions').insert({
+            voice_call_id: trinityCallId,
+            from_state: voiceCall.status,
+            to_state: 'ended',
+            actor: 'provider_webhook',
+            metadata: {
+                reason: rawReason,
+                providerId: hashedCallId,
+                timestamp: eventTime
+            }
+        });
+
+        // B. Update Core Table
         // **CRITICAL**: Do NOT write PII (transcript/summary) here unless it's strictly the "Outcome Label".
         await supabase
             .from('voice_calls')
@@ -135,6 +149,90 @@ export const handler: Handler = async (event) => {
                 updated_at: new Date().toISOString()
             })
             .eq('id', trinityCallId);
+
+        // 7.5 WORKFLOW HOOKS (Phase 3.7)
+        // Trigger async actions based on outcome
+        if (classifiedOutcome) {
+            const { data: hooks } = await supabase
+                .from('workflow_hooks')
+                .select('*')
+                .eq('organization_id', orgId)
+                .eq('is_active', true);
+
+            if (hooks && hooks.length > 0) {
+                // Async Fire & Forget (simulated for serverless)
+                // In a real message queue, we'd push to SQS/PgBoss here.
+                // For MVP, we evaluate and log/fetch lightly.
+                for (const hook of hooks) {
+                    try {
+                        const condition = hook.trigger_condition; // e.g. { "outcome": "Appointment Set" }
+                        if (condition.outcome === classifiedOutcome) {
+                            console.log(`🪝 [Hooks] Triggering ${hook.name} for ${classifiedOutcome}`);
+                            
+                            if (hook.action_type === 'webhook' && hook.action_config?.url) {
+                                // 1. Log Attempt (Pending)
+                                const payload = {
+                                    event: 'call.outcome',
+                                    callId: trinityCallId,
+                                    outcome: classifiedOutcome,
+                                    timestamp: new Date().toISOString()
+                                };
+
+                                const { data: logEntry, error: logErr } = await supabase
+                                    .from('workflow_hook_logs')
+                                    .insert({
+                                        organization_id: orgId,
+                                        hook_id: hook.id,
+                                        call_id: trinityCallId,
+                                        status: 'pending',
+                                        attempt_count: 1,
+                                        request_payload: payload
+                                    })
+                                    .select('id')
+                                    .single();
+
+                                if (logErr) console.error('Failed to create hook log', logErr);
+
+                                // 2. Execute Webhook
+                                try {
+                                    const response = await fetch(hook.action_config.url, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(payload)
+                                    });
+
+                                    // 3. Log Result (Success/Fail)
+                                    if (logEntry?.id) {
+                                        await supabase
+                                            .from('workflow_hook_logs')
+                                            .update({
+                                                status: response.ok ? 'success' : 'failed',
+                                                last_response_code: response.status,
+                                                response_body: await response.text().catch(() => null)
+                                            })
+                                            .eq('id', logEntry.id);
+                                    }
+                                } catch (fetchErr: any) {
+                                    console.error(`🪝 Hook Fail ${hook.name}`, fetchErr.message);
+                                    if (logEntry?.id) {
+                                        await supabase
+                                            .from('workflow_hook_logs')
+                                            .update({
+                                                status: 'failed',
+                                                last_response_code: 0,
+                                                response_body: fetchErr.message
+                                            })
+                                            .eq('id', logEntry.id);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (hookErr: any) {
+                         console.error(`🪝 Hook Error ${hook.id}`, hookErr.message);
+                    }
+                }
+            }
+        }
 
         // 8. PRIVATE DATA STORAGE (Service Role Only)
         // Store Transcript & Summary here securely.

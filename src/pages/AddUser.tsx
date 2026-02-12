@@ -99,7 +99,7 @@ const AddUser: React.FC = () => {
     setSubmitStatus('idle');
 
     try {
-      // Get Clerk authentication token or use mock token in development
+      // Get authentication token
       let token: string | null = null;
 
       token = await getToken();

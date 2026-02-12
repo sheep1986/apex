@@ -2,18 +2,8 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } f
 import { useAuth } from '../hooks/auth';
 import { supabase, getSupabase } from '../services/supabase-client';
 
-// API Configuration - Use proxy on Netlify to bypass CORS
-const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('netlify.com');
-const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-// Use Netlify proxy for production to avoid CORS issues
-const API_BASE_URL = isNetlify 
-  ? '/api'  // Use Netlify proxy (configured in netlify.toml)
-  : isLocalDev 
-    ? 'http://localhost:3001/api'  // Local development
-    : 'https://apex-backend-august-production.up.railway.app/api';  // Default to Railway
-
-console.log('🔗 API Connected to:', API_BASE_URL, isNetlify ? '(via Netlify redirects to Vercel)' : isLocalDev ? '(local dev)' : '(fallback)');
+// API Configuration - All API calls go through Netlify Functions
+const API_BASE_URL = '/api';
 const API_TIMEOUT = 5000; // 5 seconds - fail fast to use Supabase fallback
 const MAX_RETRIES = 1; // Don't retry - use Supabase fallback quickly
 const RETRY_DELAY = 1000; // 1 second
@@ -99,74 +89,18 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
     async (config) => {
       let token: string | null = null;
 
-      console.log('🔍 API Client: Getting token...');
-
-      // Check if we're using dev auth
-      const USE_DEV_AUTH = import.meta.env.VITE_USE_DEV_AUTH === 'true';
-
-      if (USE_DEV_AUTH) {
-        // Use development token based on current user role
-        const currentRole = localStorage.getItem('dev-auth-role') || 'client_admin';
-        token = `test-token-${currentRole}`;
-        console.log('🔑 API Client: Using dev token:', token);
-      }
-      
-      // Check if we have Clerk auth available
-      const USE_CLERK = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-      
-      // Only try other auth methods if dev auth is not being used
-      if (!USE_DEV_AUTH) {
-        if (USE_CLERK) {
-          // Try to get Clerk token from window.Clerk
-          try {
-            if (window.Clerk && window.Clerk.session) {
-              const clerkToken = await window.Clerk.session.getToken();
-              if (clerkToken) {
-                token = clerkToken;
-                console.log('🔍 API Client: Got Clerk token from window.Clerk');
-              }
-            } else if (getToken) {
-              // Fallback to getToken if provided
-              token = await getToken();
-              console.log('🔍 API Client: Got Clerk token from getToken');
-            }
-          } catch (error) {
-            console.warn('⚠️ Failed to get Clerk token:', error);
-          }
+      try {
+        const supabaseClient = getSupabase();
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.access_token) {
+          token = session.access_token;
         }
-        
-        if (!token) {
-          // Fallback to Supabase auth token
-          try {
-            const supabaseClient = getSupabase();
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session?.access_token) {
-              token = session.access_token;
-              console.log('🔍 API Client: Got Supabase token:', '***EXISTS***');
-            } else {
-              console.warn('⚠️ API Client: No Supabase session found');
-            }
-          } catch (error) {
-            console.error('❌ API Client: Error getting Supabase session:', error);
-          }
-        }
-        
-        // No fallback in production mode - user must be authenticated
-        if (!token) {
-          console.warn('⚠️ No authentication token available in production mode');
-        }
+      } catch (error) {
+        console.error('Error getting Supabase session:', error);
       }
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('🔍 API Client: Set Authorization header with token:', token);
-        console.log('🔍 API Client: Full request config:', {
-          url: config.url,
-          method: config.method,
-          headers: config.headers
-        });
-      } else {
-        console.warn('⚠️ No authentication token available - user needs to sign in');
       }
 
       // Temporarily disable request ID to avoid CORS issues
@@ -180,7 +114,7 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
           url: config.url,
           data: config.data,
           hasAuth: !!token,
-          authMode: USE_DEV_AUTH ? 'development' : 'supabase',
+          authMode: 'supabase',
         });
       }
 

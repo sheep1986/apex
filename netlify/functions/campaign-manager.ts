@@ -1,5 +1,27 @@
-import { Handler, schedule } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
+import { CircuitBreakerService } from './circuit-breaker';
+// ... (Imports)
+
+async function processItem(item: any) {
+    // ...
+    const { id: itemId, campaign_id, contact_id, organization_id, attempt_count } = item;
+    // ...
+
+        // --- PHASE 3.7 GOVERNANCE ENFORCEMENT ---
+        const { data: controls } = await supabase
+            // ... (existing control fetch)
+            
+        // ...
+        
+        // CIRCUIT BREAKER CHECK
+        const breaker = new CircuitBreakerService(supabase);
+        const { allowed, reason } = await breaker.checkLimit(organization_id, 0.10); // Est $0.10/min setup
+        
+        if (!allowed) {
+            throw new Error(`Circuit Breaker: ${reason}`);
+        }
+        // -----------------------
+
+        // B. Fetch Contact Data (Securely)
 import { v4 as uuidv4 } from 'uuid';
 import { hashIdentifier } from './security';
 // import axios from 'axios'; // Uncomment when installing axios
@@ -76,6 +98,21 @@ async function processItem(item: any) {
              throw new Error('Insufficient Funds: Balance below threshold.');
         }
 
+        // --- PHASE 3.7 GOVERNANCE ENFORCEMENT ---
+        const { data: controls } = await supabase
+            .from('organization_controls')
+            .select('is_suspended, shadow_mode, max_concurrency_override')
+            .eq('organization_id', organization_id)
+            .single();
+
+        if (controls?.is_suspended) {
+             // Hard Stop => do not retry immediately, maybe mark failed?
+             throw new Error('Governance: Organization Suspended.');
+        }
+        
+        const isShadowMode = controls?.shadow_mode || false;
+        // ----------------------------------------
+
         // B. Fetch Contact Data (Securely)
         const { data: contact } = await supabase
             .from('contacts')
@@ -117,7 +154,8 @@ async function processItem(item: any) {
             campaign?.script_config, 
             trinityCallId, 
             campaign?.type,
-            contact.name
+            contact.name,
+            isShadowMode // Pass flag
         );
 
         // F. Update Item State (Success)
@@ -162,52 +200,34 @@ async function processItem(item: any) {
     }
 }
 
-async function dispatchCall(to: string, config: any, trinityId: string, type: string, name: string) {
-    // REAL VAPI INTEGRATION (Phase 3.4)
-    if (!vapiApiKey) {
-        console.warn('⚠️ Missing VAPI_PRIVATE_API_KEY, using Stub');
-        return `stub_${Date.now()}`;
-    }
+async function dispatchCall(to: string, config: any, trinityId: string, type: string, name: string, isShadowMode: boolean = false) {
+    
+    // 1. Determine Provider
+    // For now, default to 'vapi' or generic 'shadow' if in shadow mode. 
+    // Ideally fetch from assistant config, but we have config object here.
+    // Shadow Mode handled by passing flag to VapiProvider, OR strictly using MockProvider.
+    // User Design says: "ProviderFactory.getProvider('vapi').dispatch(...)".
+    
+    const providerType = isShadowMode ? 'shadow' : 'vapi';
+    const provider = ProviderFactory.getProvider(providerType);
 
-    // Zero-Trace Metadata: Pass IDs, not PII
-    // Assistant ID should come from Config or Default
-    const assistantId = config?.assistantId || process.env.VITE_VAPI_ASSISTANT_ID; 
-
-    // Construct Payload
-    // Note: We send 'customer.number' to Vapi, but we do NOT log it.
+    // 2. Construct Payload
     const payload = {
-        phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID, // Use Trinity Number
-        customer: {
-            number: to,
-            name: name // Optional, Vapi might use it for TTS
-        },
-        assistantId: assistantId,
-        assistantOverrides: {
-            variableValues: {
-                name: name // Inject name into prompt
-            },
-            metadata: {
-                trinityCallId: trinityId, // CRITICAL: Link back to our DB
-                campaignType: type
-            }
-        }
+        to,
+        trinityCallId: trinityId,
+        campaignType: type,
+        customerName: name,
+        assistantId: config?.assistantId, // Extract from script_config
+        scriptConfig: config,
+        isShadowMode
     };
 
-    // Make Request (Using fetch native)
-    const response = await fetch('https://api.vapi.ai/call/phone', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${vapiApiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Vapi Dispatch Failed: ${response.status} ${errText}`);
+    // 3. Dispatch
+    try {
+        const response = await provider.dispatch(payload);
+        return response.providerCallId;
+    } catch (err: any) {
+        console.error(`[Dispatch] Provider Error:`, err.message);
+        throw err;
     }
-
-    const data = await response.json();
-    return data.id; // Provider Call ID
 }

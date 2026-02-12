@@ -5,7 +5,7 @@
   environment = { CI = "true", NODE_VERSION = "20", NETLIFY_CACHE_CLEAR = "true" }
 
 [context.staging]
-  command = "pnpm run build"
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm run build"
   environment = { VITE_API_URL = "https://staging.trinity-platform.app" }
 
 [dev]
@@ -39,6 +39,81 @@
   status = 200
 
 [[redirects]]
+  from = "/api/voice/credentials"
+  to = "/.netlify/functions/voice-credentials"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/assistant/*"
+  to = "/.netlify/functions/voice-assistant"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/assistant"
+  to = "/.netlify/functions/voice-assistant"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/phone-number/*"
+  to = "/.netlify/functions/voice-phone-number"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/phone-number"
+  to = "/.netlify/functions/voice-phone-number"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/numbers-search"
+  to = "/.netlify/functions/numbers-search"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/numbers-purchase"
+  to = "/.netlify/functions/numbers-purchase"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/auto-provision-number"
+  to = "/.netlify/functions/auto-provision-number"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/numbers-assign-route"
+  to = "/.netlify/functions/numbers-assign-route"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/files-upload"
+  to = "/.netlify/functions/files-upload"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/squad/*"
+  to = "/.netlify/functions/voice-squad"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/squad"
+  to = "/.netlify/functions/voice-squad"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/tool/*"
+  to = "/.netlify/functions/voice-tool"
+  status = 200
+
+[[redirects]]
+  from = "/api/voice/tool"
+  to = "/.netlify/functions/voice-tool"
+  status = 200
+
+[[redirects]]
+  from = "/api/vapi-router"
+  to = "/.netlify/functions/vapi-router"
+  status = 200
+
+[[redirects]]
   from = "/api/campaign/*"
   to = "/.netlify/functions/campaign-manager"
   status = 200
@@ -59,10 +134,35 @@
   status = 200
 
 [[redirects]]
-  from = "/api/*"
-  to = "https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/api/:splat"
+  from = "/api/billing/checkout"
+  to = "/.netlify/functions/billing-create-checkout"
   status = 200
-  force = true
+
+[[redirects]]
+  from = "/api/billing/manage-subscription"
+  to = "/.netlify/functions/billing-manage-subscription"
+  status = 200
+
+[[redirects]]
+  from = "/api/billing/webhook"
+  to = "/.netlify/functions/billing-webhook"
+  status = 200
+
+[[redirects]]
+  from = "/api/campaign/import"
+  to = "/.netlify/functions/campaign-import"
+  status = 200
+
+[[redirects]]
+  from = "/api/recording/*"
+  to = "/.netlify/functions/recording-proxy"
+  status = 200
+
+# SPA fallback - serve index.html for all non-API routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
   for = "/*"

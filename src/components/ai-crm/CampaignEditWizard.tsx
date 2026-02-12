@@ -950,7 +950,7 @@ The review section provides detailed estimates for your campaign including durat
 - Concurrent call throughput
 
 **💵 Cost Breakdown:**
-- Vapi hosting fees ($0.05/min)
+- Platform hosting fees ($0.05/min)
 - Speech-to-Text costs ($0.01/min)
 - Text-to-Speech costs ($0.05/min)
 - Language Model costs ($0.07/min)
@@ -972,7 +972,7 @@ The review section provides detailed estimates for your campaign including durat
 ### ⚡ **Key Factors:**
 
 - 📞 **Average Call Duration:** Default 2 minutes (adjustable)
-- 🔄 **Concurrent Calls:** Based on Vapi plan (10 default)
+- 🔄 **Concurrent Calls:** Based on your plan (10 default)
 - 🔁 **Retry Logic:** Impacts total attempts significantly
 - ⏰ **Working Hours:** Affects campaign timeline
 - 💳 **Credit Balance:** Determines if top-up needed
@@ -984,7 +984,7 @@ The review section provides detailed estimates for your campaign including durat
 - 📊 Use historical data for accurate duration
 - 🔄 Adjust concurrency for optimal throughput
 - 📈 Monitor actual vs. estimated costs
-- 🚨 Set up balance alerts in Vapi dashboard
+- 🚨 Set up balance alerts in your dashboard
       `
     }
   };
@@ -2425,7 +2425,7 @@ The review section provides detailed estimates for your campaign including durat
                     <p className="text-sm font-medium text-gray-300 mb-3">Cost per Minute Breakdown</p>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">Vapi Hosting</span>
+                        <span className="text-gray-400">Platform Hosting</span>
                         <span className="text-white">$0.05</span>
                       </div>
                       <div className="flex justify-between">
@@ -2468,7 +2468,7 @@ The review section provides detailed estimates for your campaign including durat
                   
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-sm text-gray-400">Current Vapi Credit Balance</Label>
+                      <Label className="text-sm text-gray-400">Current Credit Balance</Label>
                       <div className="flex items-center space-x-3 mt-1">
                         <Input
                           type="number"
@@ -2540,12 +2540,10 @@ The review section provides detailed estimates for your campaign including durat
                               Includes 20% buffer for variations in call duration
                             </p>
                             <a
-                              href="https://dashboard.vapi.ai/org/billing/credits"
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href="/billing"
                               className="mt-3 inline-flex items-center text-sm text-blue-400 hover:text-blue-300"
                             >
-                              Add Credits in Vapi Dashboard
+                              Add Credits
                               <ExternalLink className="w-3 h-3 ml-1" />
                             </a>
                           </div>
@@ -2564,7 +2562,7 @@ The review section provides detailed estimates for your campaign including durat
                       <ul className="space-y-1 list-disc list-inside">
                         <li>Estimates assume scrubbed contact lists and may vary based on actual call outcomes</li>
                         <li>No-answer and voicemail attempts count toward total minutes but may be shorter</li>
-                        <li>Consider upgrading your Vapi plan for better per-minute rates on high-volume campaigns</li>
+                        <li>Consider upgrading your plan for better per-minute rates on high-volume campaigns</li>
                         <li>Monitor campaign progress to adjust estimates based on actual performance</li>
                       </ul>
                     </div>

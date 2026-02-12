@@ -596,3 +596,4 @@ export function Organizations() {
     </div>
   );
 }
+export default Organizations;

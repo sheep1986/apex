@@ -15,7 +15,6 @@ export interface User {
   agencyName?: string;
   subscriptionPlan?: string;
   status: 'active' | 'inactive' | 'suspended';
-  clerkUserId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -120,7 +119,6 @@ export const useAuthStore = create<AuthState>()(
             agencyName: 'Artificial Media',
             subscriptionPlan: 'enterprise',
             status: 'active',
-            clerkUserId: 'user_2abc123',
             createdAt: '2024-01-15T10:30:00Z',
             updatedAt: '2024-01-15T10:30:00Z',
           };

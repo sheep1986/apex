@@ -2865,9 +2865,7 @@ The review section provides detailed estimates for your campaign including durat
                           className="w-48 bg-gray-900 border-gray-600 text-white"
                         />
                         <a
-                          href="https://dashboard.vapi.ai/org/billing/credits"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href="/billing"
                           className="text-emerald-400 hover:text-emerald-300 text-sm flex items-center"
                         >
                           Check Balance
@@ -2927,12 +2925,10 @@ The review section provides detailed estimates for your campaign including durat
                               Includes 20% buffer for variations in call duration
                             </p>
                             <a
-                              href="https://dashboard.vapi.ai/org/billing/credits"
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href="/billing"
                               className="mt-3 inline-flex items-center text-sm text-blue-400 hover:text-blue-300"
                             >
-                              Add Credits in Dashboard
+                              Add Credits
                               <ExternalLink className="w-3 h-3 ml-1" />
                             </a>
                           </div>

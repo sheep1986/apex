@@ -1,24 +1,26 @@
-import trinitySidebarFull from "@/assets/trinity-sidebar-full.png";
+
 import trinitySidebarIcon from "@/assets/trinity-sidebar-icon.png";
+import { useUser } from "@/hooks/auth";
 import { useNotificationStore } from "@/lib/notification-store";
 import { useUserContext } from "@/services/MinimalUserProvider";
-import { useUser as useClerkUser } from "@clerk/clerk-react";
 import {
     Activity,
     BarChart3,
+    BookOpen,
     Building,
-    Calendar,
-    Database,
     DollarSign,
     HeadphonesIcon,
     Home,
-    Menu,
     Monitor,
+    Phone,
     PhoneCall,
     Settings,
+    Share2,
     Shield,
     Target,
-    UserCheck
+    UserCheck,
+    Wallet,
+    Wrench,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -36,7 +38,7 @@ interface MenuItem {
 }
 
 // Platform Owner Menu Items
-const platformOwnerMenuItems = [
+const platformOwnerMenuItems: MenuItem[] = [
   {
     title: "Platform Overview",
     titleKey: "platform_overview",
@@ -88,19 +90,17 @@ const platformOwnerMenuItems = [
     icon: Shield,
     isActive: (path: string) => path === "/audit-logs",
   },
+  {
+    title: "Intelligent Routing",
+    titleKey: "squads",
+    url: "/squads",
+    icon: Share2,
+    isActive: (path: string) => path === "/squads",
+  },
 ];
 
 // Agency Menu Items
-const agencyMenuItems = [
-  {
-    /* HIDDEN for V1
-    title: "Agency Dashboard",
-    titleKey: "agency_dashboard",
-    url: "/agency",
-    icon: Home,
-    isActive: (path: string) => path === "/agency",
-    */
-  },
+const agencyMenuItems: MenuItem[] = [
   {
     title: "Client Management",
     titleKey: "client_management",
@@ -118,6 +118,41 @@ const agencyMenuItems = [
       path === "/campaigns" || path.startsWith("/campaigns/"),
   },
   {
+    title: "Assistants",
+    titleKey: "assistants",
+    url: "/ai-assistants",
+    icon: HeadphonesIcon,
+    isActive: (path: string) => path === "/ai-assistants",
+  },
+  {
+    title: "Telephony",
+    titleKey: "telephony",
+    url: "/telephony",
+    icon: Phone,
+    isActive: (path: string) => path === "/telephony",
+  },
+  {
+    title: "Tools",
+    titleKey: "tools",
+    url: "/tools",
+    icon: Wrench,
+    isActive: (path: string) => path === "/tools",
+  },
+  {
+    title: "Knowledge Base",
+    titleKey: "knowledge",
+    url: "/knowledge",
+    icon: BookOpen,
+    isActive: (path: string) => path === "/knowledge",
+  },
+  {
+    title: "Intelligent Routing",
+    titleKey: "squads",
+    url: "/squads",
+    icon: Share2,
+    isActive: (path: string) => path === "/squads",
+  },
+  {
     title: "Analytics",
     titleKey: "analytics",
     url: "/analytics",
@@ -125,22 +160,11 @@ const agencyMenuItems = [
     isActive: (path: string) => path === "/analytics",
   },
   {
-    /* HIDDEN for V1
-    title: "Team",
-    titleKey: "team",
-    url: "/team-management",
-    icon: Users,
-    isActive: (path: string) => path === "/team-management",
-    */
-  },
-  {
-    /* HIDDEN for V1
     title: "Billing",
     titleKey: "billing",
     url: "/billing",
-    icon: CreditCard,
+    icon: Wallet,
     isActive: (path: string) => path === "/billing",
-    */
   },
   {
     title: "Settings",
@@ -152,8 +176,8 @@ const agencyMenuItems = [
   },
 ];
 
-// Client Menu Items (original menu)
-const clientMenuItems = [
+// Client Menu Items
+const clientMenuItems: MenuItem[] = [
   {
     title: "Dashboard",
     titleKey: "dashboard",
@@ -170,18 +194,39 @@ const clientMenuItems = [
       path === "/campaigns" || path.startsWith("/campaigns/"),
   },
   {
-    title: "CRM",
-    titleKey: "crm",
-    url: "/crm",
-    icon: Database,
-    isActive: (path: string) => path === "/crm",
+    title: "Assistants",
+    titleKey: "assistants",
+    url: "/ai-assistants",
+    icon: HeadphonesIcon,
+    isActive: (path: string) => path === "/ai-assistants",
   },
   {
-    title: "Appointments",
-    titleKey: "appointments",
-    url: "/appointments",
-    icon: Calendar,
-    isActive: (path: string) => path === "/appointments",
+    title: "Telephony",
+    titleKey: "telephony",
+    url: "/telephony",
+    icon: Phone,
+    isActive: (path: string) => path === "/telephony",
+  },
+  {
+    title: "Tools",
+    titleKey: "tools",
+    url: "/tools",
+    icon: Wrench,
+    isActive: (path: string) => path === "/tools",
+  },
+  {
+    title: "Knowledge Base",
+    titleKey: "knowledge",
+    url: "/knowledge",
+    icon: BookOpen,
+    isActive: (path: string) => path === "/knowledge",
+  },
+  {
+    title: "Intelligent Routing",
+    titleKey: "squads",
+    url: "/squads",
+    icon: Share2,
+    isActive: (path: string) => path === "/squads",
   },
   {
     title: "All Calls",
@@ -205,20 +250,11 @@ const clientMenuItems = [
     isActive: (path: string) => path === "/analytics",
   },
   {
-    title: "Cost Analytics",
-    titleKey: "cost_analytics",
-    url: "/cost-analytics",
-    icon: DollarSign,
-    isActive: (path: string) => path === "/cost-analytics",
-  },
-  {
-    /* HIDDEN for V1
-    title: "Team",
-    titleKey: "team_management",
-    url: "/team-management",
-    icon: Users,
-    isActive: (path: string) => path === "/team-management",
-    */
+    title: "Billing",
+    titleKey: "billing",
+    url: "/billing",
+    icon: Wallet,
+    isActive: (path: string) => path === "/billing",
   },
   {
     title: "Organization",
@@ -244,12 +280,11 @@ const Layout: React.FC = () => {
   const { userContext } = useUserContext();
   const { addNotification, notifications } = useNotificationStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user: clerkUser } = useClerkUser();
+  const { user } = useUser();
 
-  // Initial redirect for platform owner (only on first load)
+  // Initial redirect
   useEffect(() => {
-    const email = clerkUser?.primaryEmailAddress?.emailAddress;
-    // Only redirect if on root paths or client-specific paths
+    const email = user?.primaryEmailAddress?.emailAddress;
     const clientPaths = [
       "/dashboard",
       "/campaigns",
@@ -262,54 +297,17 @@ const Layout: React.FC = () => {
     );
 
     if (email === "sean@artificialmedia.co.uk" && isOnClientPath) {
-      console.log(
-        "🚀 Redirecting platform owner away from client path to /platform"
-      );
-      navigate("/platform", { replace: true });
+      // navigate("/platform", { replace: true });
     }
-  }, [clerkUser, location.pathname, navigate]);
+  }, [user, location.pathname, navigate]);
 
   // Initialize demo notifications
   useEffect(() => {
     if (notifications.length === 0) {
-      console.log("🔔 Layout: Initializing demo notifications");
-
-      // Add some demo notifications
       addNotification({
         type: "success",
-        title: "Campaign Performance Alert",
-        message:
-          "Summer Sale campaign exceeded target conversion rate by 15%! Great job on the optimization.",
-        category: "campaigns",
-        priority: "medium",
-        source: "Campaign Engine",
-        read: false,
-        action: {
-          label: "View Campaign",
-          href: "/campaigns",
-        },
-      });
-
-      addNotification({
-        type: "warning",
-        title: "Low Credit Balance",
-        message:
-          "Trinity credits running low. Current balance: 150 credits. Consider topping up.",
-        category: "billing",
-        priority: "high",
-        source: "Billing System",
-        read: false,
-        action: {
-          label: "Add Credits",
-          href: "/billing",
-        },
-      });
-
-      addNotification({
-        type: "info",
-        title: "System Update Complete",
-        message:
-          "Platform has been updated to v2.1.3 with improved call quality and new analytics features.",
+        title: "System Online",
+        message: "Platform services operational.",
         category: "system",
         priority: "low",
         source: "System",
@@ -318,11 +316,8 @@ const Layout: React.FC = () => {
     }
   }, [notifications.length, addNotification]);
 
-  // Get the appropriate menu items based on user role
   const menuItems = useMemo(() => {
     const userRole = userContext?.role?.toLowerCase();
-    console.log("🎯 Layout: Determining menu for role:", userRole);
-
     switch (userRole) {
       case "platform_owner":
         return platformOwnerMenuItems;
@@ -346,61 +341,27 @@ const Layout: React.FC = () => {
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
-      {/* Custom Cyberpunk Sidebar with Hover Expansion */}
-      <div
-        className={`group relative transition-all duration-300 ease-in-out z-50 flex-shrink-0 ${
-          isMobileMenuOpen
-            ? "fixed inset-y-0 left-0 w-64 md:relative md:w-16 md:hover:w-64"
-            : "hidden md:block md:w-16 md:hover:w-64"
-        }`}
-      >
-        {/* Sidebar Background with Gradient Overlay */}
+      
+      {/* Sidebar */}
+      <div className={`
+          group relative transition-all duration-300 ease-in-out z-50 flex-shrink-0
+          ${isMobileMenuOpen 
+            ? "fixed inset-y-0 left-0 w-64 md:relative md:w-16 md:hover:w-64" 
+            : "hidden md:block md:w-16 md:hover:w-64"}
+      `}>
         <div className="absolute inset-0 bg-black/95 backdrop-blur-xl border-r border-white/10"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
-
-        {/* Sidebar Content */}
         <div className="relative h-full flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b border-white/10">
-            <div className="relative flex items-center h-12 w-full">
-              {/* Collapsed State: Icon (Slides to left and fades out) */}
-              <div
-                className={`absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-in-out ${
-                  isMobileMenuOpen
-                    ? "left-0 translate-x-0 opacity-0 pointer-events-none"
-                    : "left-1/2 -translate-x-1/2 opacity-100 group-hover:left-0 group-hover:translate-x-0 group-hover:opacity-0"
-                }`}
-              >
-                <img
-                  src={trinitySidebarIcon}
-                  alt="Trinity"
-                  className="h-9 w-9 object-contain max-w-none"
-                />
-              </div>
-
-              {/* Expanded State: Full Logo (Slides in from right) */}
-              <div
-                className={`absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-in-out flex items-center ${
-                  isMobileMenuOpen
-                    ? "left-0 translate-x-0 opacity-100"
-                    : "left-0 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
-                }`}
-              >
-                <img
-                  src={trinitySidebarFull}
-                  alt="Trinity Labs AI"
-                  className="h-9 w-auto object-contain"
-                />
-              </div>
+            {/* Header / Logo */}
+            <div className="p-4 border-b border-white/10 h-16 flex items-center justify-center overflow-hidden">
+                <img src={trinitySidebarIcon} alt="Logo" className="h-8 w-8 object-contain" />
             </div>
-          </div>
 
-          {/* Navigation */}
+             {/* Navigation */}
           <div className="flex-1 py-4 overflow-y-auto custom-scrollbar">
             <nav className="flex flex-col space-y-1">
               {menuItems.map((item) => {
-                // Skip admin-only items for non-admin users
                 if (
+                  (item.adminOnly) &&
                   userContext?.role !== "client_admin" &&
                   userContext?.role !== "platform_owner"
                 ) {
@@ -415,34 +376,14 @@ const Layout: React.FC = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`
                       nav-item flex items-center px-4 py-3.5 text-sm font-medium transition-all duration-300 
-                      relative mx-2 rounded-lg
-                      ${
-                        isActive
-                          ? "bg-transparent text-white"
-                          : "text-white/70 hover:bg-white/5 hover:text-white"
-                      }
+                      relative mx-2 rounded-lg group
+                      ${isActive ? "bg-transparent text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}
                     `}
                   >
-                    <item.icon
-                      className={`
-                      h-5 w-5 flex-shrink-0 transition-all duration-300
-                      ${
-                        isActive
-                          ? "text-primary filter drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-110"
-                          : "text-white/60 group-hover:text-white"
-                      }
-                    `}
-                    />
-                    <span
-                      className={`ml-3 tracking-wide whitespace-nowrap overflow-hidden transition-opacity duration-300 ${
-                        isMobileMenuOpen
-                          ? "opacity-100"
-                          : "opacity-0 group-hover:opacity-100"
-                      }`}
-                    >
+                    <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${isActive ? "text-green-500 scale-110" : "text-white/60 group-hover:text-white"}`} />
+                    <span className="ml-3 tracking-wide whitespace-nowrap overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100 absolute left-12">
                       {item.title}
                     </span>
-
                   </Link>
                 );
               })}
@@ -452,39 +393,20 @@ const Layout: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900/50 via-black to-gray-900/50">
-        {/* Top Bar */}
-        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-green-500/10 flex items-center justify-between px-4 sm:px-6 lg:px-8 relative z-50">
-          <div className="flex items-center gap-4">
-            <button
-              className="md:hidden p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <h2 className="text-lg sm:text-xl font-semibold text-white tracking-wide">
-              {(() => {
-                const activeItem = menuItems.find((item) =>
-                  item.isActive(location.pathname)
-                );
-                return activeItem ? activeItem.title : "Dashboard";
-              })()}
+      <div className="flex-1 flex flex-col bg-black">
+        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-6">
+            <h2 className="text-xl font-semibold text-white">
+                {menuItems.find(i => i.isActive(location.pathname))?.title || "Dashboard"}
             </h2>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 lg:gap-5">
-            <NotificationBell />
-            <UserDropdown />
-          </div>
+            <div className="flex items-center gap-4">
+                <NotificationBell />
+                <UserDropdown />
+            </div>
         </header>
-
-        {/* Main Content Area */}
         <main className="flex-1 overflow-auto bg-black">
-          <Outlet />
+            <Outlet />
         </main>
       </div>
-
-      {/* Debug Component - Remove in production */}
-      {/* <DebugAuth /> */}
     </div>
   );
 };

@@ -302,10 +302,6 @@ export class ErrorHandlingService {
     else if (error?.message?.includes('Voice') || error?.source === 'voice_provider') {
       errorDetails = this.parseVoiceProviderError(error, context);
     }
-    // Handle Clerk errors
-    else if (error?.clerkError || error?.message?.includes('Clerk')) {
-      errorDetails = this.parseClerkError(error, context);
-    }
     // Handle Stripe errors
     else if (error?.type?.startsWith('Stripe') || error?.message?.includes('Stripe')) {
       errorDetails = this.parseStripeError(error, context);
@@ -438,30 +434,6 @@ export class ErrorHandlingService {
       severity: 'medium',
       category: 'api',
       retryable: true,
-      context,
-    };
-  }
-
-  /**
-   * Parse Clerk authentication errors
-   */
-  private static parseClerkError(error: any, context?: ErrorContext): ErrorDetails {
-    const message = error.message || 'Authentication error';
-
-    if (message.includes('expired')) {
-      return { ...this.ERROR_CODES.AUTH_TOKEN_EXPIRED, context };
-    }
-    if (message.includes('invalid')) {
-      return { ...this.ERROR_CODES.AUTH_INVALID_CREDENTIALS, context };
-    }
-
-    return {
-      code: 'CLERK_ERROR',
-      message,
-      userMessage: 'An authentication error occurred. Please try signing in again.',
-      severity: 'high',
-      category: 'authentication',
-      retryable: false,
       context,
     };
   }

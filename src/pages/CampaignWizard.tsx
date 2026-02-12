@@ -4,15 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { supabase } from '@/services/supabase-client';
 import { AlertTriangle, CheckCircle, FileText, Loader2, Upload } from 'lucide-react';
+// @ts-ignore
 import Papa from 'papaparse';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext';
-import { supabase } from '../../services/supabase-service';
 
 export const CampaignWizard = () => {
-    const { userContext } = useSupabaseAuth();
+    const { organization } = useSupabaseAuth();
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -55,7 +56,7 @@ export const CampaignWizard = () => {
     };
 
     const handleSubmit = async () => {
-        if (!userContext?.organization_id) return;
+        if (!organization?.id) return;
         setLoading(true);
         setError(null);
 
@@ -64,17 +65,18 @@ export const CampaignWizard = () => {
             const { data: campaign, error: campError } = await supabase
                 .from('campaigns')
                 .insert({
-                    organization_id: userContext.organization_id,
+                    organization_id: organization?.id,
                     name,
                     status: 'draft',
                     type: 'voice_broadcast',
                     script_config: { prompt: script },
                     concurrency_limit: 1 // Safety default
-                })
+                } as any)
                 .select()
                 .single();
 
             if (campError) throw campError;
+            if (!campaign) throw new Error('Failed to create campaign');
 
             // 2. Process Contacts & Items
             // In a real app, this should be chunked or handled backend for large files.
@@ -99,17 +101,17 @@ export const CampaignWizard = () => {
                 
                 // Correct Path: Sequential Upsert.
                 const contactsToUpsert = batch.map(c => ({
-                    organization_id: userContext.organization_id,
+                    organization_id: organization?.id,
                     name: c.name, // Use 'name' not 'first_name' per schema
                     phone_e164: c.phone
-                }));
+                } as any));
 
                 const itemPromises = batch.map(async (c) => {
                     // Try find by E.164
                     let { data: existing } = await supabase
                         .from('contacts')
                         .select('id')
-                        .eq('organization_id', userContext.organization_id)
+                        .eq('organization_id', organization.id)
                         .eq('phone_e164', c.phone) // Correct column
                         .maybeSingle();
                         
@@ -117,21 +119,21 @@ export const CampaignWizard = () => {
                         const { data: newContact, error: createErr } = await supabase
                             .from('contacts')
                             .insert({
-                                organization_id: userContext.organization_id,
+                                organization_id: organization.id,
                                 name: c.name,
                                 phone_e164: c.phone
-                            })
+                            } as any)
                             .select('id')
                             .single();
                         if (createErr) console.error('Contact Create Fail', createErr);
                         existing = newContact;
                     }
 
-                    if (existing?.id) {
+                     if (existing?.id) {
                          return {
-                             organization_id: userContext.organization_id,
-                             campaign_id: campaign.id,
-                             contact_id: existing.id,
+                             organization_id: organization.id,
+                             campaign_id: (campaign as any).id,
+                             contact_id: (existing as any).id,
                              status: 'pending'
                          };
                     }
@@ -143,12 +145,12 @@ export const CampaignWizard = () => {
                 if (items.length > 0) {
                     const { error: itemError } = await supabase
                         .from('campaign_items')
-                        .insert(items);
+                        .insert(items as any);
                     if (itemError) throw itemError;
                 }
             }
 
-            navigate(`/campaigns/${campaign.id}`);
+            navigate(`/campaigns/${(campaign as any).id}`);
 
         } catch (err: any) {
             console.error(err);

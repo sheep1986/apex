@@ -10,7 +10,6 @@ export interface User {
   agencyName?: string;
   subscriptionPlan?: string;
   status: 'active' | 'inactive' | 'suspended';
-  clerkUserId?: string;
   createdAt: string;
   updatedAt: string;
 }

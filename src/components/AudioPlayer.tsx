@@ -46,11 +46,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       console.error('Audio error:', audioError.error);
       
       // Provide user-friendly error messages
-      if (url.includes('vapi.ai')) {
-        setError('Unable to load recording. The URL may have expired or requires authentication.');
-      } else {
-        setError('Unable to load audio file. Please check the URL.');
-      }
+      setError('Unable to load recording. The URL may have expired or requires authentication.');
       setIsPlaying(false);
     };
 
@@ -99,12 +95,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         audioRef.current.pause();
         setIsPlaying(false);
       } else {
-        // For Apex URLs, we might need to handle CORS differently
-        if (url.includes('vapi.ai')) {
-          // Try to play with crossOrigin set
+        // Handle external recording URLs with CORS
+        if (url.startsWith('http') && !url.includes(window.location.hostname)) {
           audioRef.current.crossOrigin = 'anonymous';
         }
-        
+
         await audioRef.current.play();
         setIsPlaying(true);
       }
@@ -118,8 +113,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleDownload = () => {
     if (!url) return;
     
-    // For Apex URLs, open in new tab as download might be restricted
-    if (url.includes('vapi.ai')) {
+    // For external recording URLs, open in new tab as download might be restricted
+    if (url.startsWith('http') && !url.includes(window.location.hostname)) {
       window.open(url, '_blank');
     } else {
       const a = document.createElement('a');
@@ -162,17 +157,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <div className="flex-1">
               <p className="text-sm text-red-400 font-medium">Audio Loading Error</p>
               <p className="text-xs text-red-400/70 mt-1">{error}</p>
-              {url.includes('vapi.ai') && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3 border-red-500/20 text-red-400 hover:bg-red-500/10"
-                  onClick={() => window.open(url, '_blank')}
-                >
-                  <Volume2 className="h-4 w-4 mr-2" />
-                  Open in New Tab
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3 border-red-500/20 text-red-400 hover:bg-red-500/10"
+                onClick={() => window.open(url, '_blank')}
+              >
+                <Volume2 className="h-4 w-4 mr-2" />
+                Open in New Tab
+              </Button>
             </div>
           </div>
         </div>
@@ -280,9 +273,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </div>
 
           {/* URL info for debugging */}
-          {url.includes('vapi.ai') && (
+          {url.startsWith('http') && !url.includes(window.location.hostname) && (
             <div className="text-xs text-gray-500">
-              <p>Recording - If playback fails, try opening in a new tab</p>
+              <p>Recording — If playback fails, try opening in a new tab</p>
             </div>
           )}
         </div>

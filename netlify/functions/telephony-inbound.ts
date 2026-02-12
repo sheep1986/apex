@@ -80,6 +80,34 @@ export const handler: Handler = async (event) => {
     
     const orgId = phoneNumber.organization_id;
 
+    // --- PHASE 3.7 GOVERNANCE ENFORCEMENT ---
+    const { data: controls } = await supabase
+        .from('organization_controls')
+        .select('is_suspended, shadow_mode')
+        .eq('organization_id', orgId)
+        .single();
+
+    if (controls?.is_suspended) {
+        console.warn(`⛔ [Governance] Suspended Org ${orgId} attempted Inbound Call`);
+        return { statusCode: 403, body: 'Forbidden' };
+    }
+
+    if (controls?.shadow_mode) {
+         console.log(`👻 [Governance] Shadow Mode: Simulating Inbound Call Success`);
+         // In Shadow Mode, we verify the number but DO NOT dispatch to valid Assistant (or send mock response)
+         // For inbound webhooks (Vapi), typically we return a JSON config. 
+         // Initializing a mock assistant or simple hangup is safest.
+         return { 
+             statusCode: 200, 
+             headers,
+             body: JSON.stringify({ 
+                 assistantId: null, 
+                 error: "Shadow Mode Active - No Dispatch" 
+             }) 
+         };
+    }
+    // ----------------------------------------
+
     // 4. IDEMPOTENCY
     // Check against Organization + ProviderID
     const { data: existingCall } = await supabase

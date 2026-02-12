@@ -1,28 +1,29 @@
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { supabase } from '@/services/supabase-client';
 import { BarChart2, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext';
-import { supabase } from '../../services/supabase-service';
 
 export const Campaigns = () => {
-    const { userContext } = useSupabaseAuth();
+    const { organization, user } = useSupabaseAuth();
     const [campaigns, setCampaigns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (userContext?.organization_id) {
+        if (organization?.id) {
             loadCampaigns();
         }
-    }, [userContext]);
+    }, [organization]);
 
     const loadCampaigns = async () => {
         try {
             const { data, error } = await supabase
                 .from('campaigns')
                 .select('*')
-                .eq('organization_id', userContext?.organization_id)
+                .eq('organization_id', organization?.id)
                 .order('created_at', { ascending: false });
             
             if (error) throw error;
@@ -85,3 +86,5 @@ export const Campaigns = () => {
         </div>
     );
 };
+
+export default Campaigns;

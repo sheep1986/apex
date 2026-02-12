@@ -31,8 +31,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useUser } from '../hooks/auth';
 import { useUserContext } from '../services/MinimalUserProvider';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 
 interface PlatformAccountData {
   credits: number;
@@ -50,10 +50,17 @@ interface PlatformAccountData {
 
 export function UserDropdown() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
-  const { user } = useUser();
+  const { signOut, user: authUser, dbUser } = useSupabaseAuth();
   const { userContext } = useUserContext();
   const { addNotification } = useNotificationStore();
+
+  // Map Supabase auth user to the shape the template expects
+  const user = {
+    firstName: dbUser?.full_name?.split(' ')[0] || authUser?.email?.split('@')[0] || 'User',
+    fullName: dbUser?.full_name || authUser?.email || 'User',
+    primaryEmailAddress: { emailAddress: authUser?.email || '' },
+    imageUrl: dbUser?.avatar_url || undefined,
+  };
 
   const [isOpen, setIsOpen] = useState(false);
   const [platformData, setPlatformData] = useState<PlatformAccountData>({
@@ -375,6 +382,7 @@ export function UserDropdown() {
             <LogOut className="mr-3 h-4 w-4" />
             <span>Sign Out</span>
           </DropdownMenuItem>
+          
         </div>
 
         {/* Footer */}

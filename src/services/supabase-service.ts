@@ -67,7 +67,6 @@ export interface Organization {
 export interface DatabaseUser {
   id: string;
   organization_id: string;
-  clerk_id?: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -363,44 +362,6 @@ class SupabaseService {
     return data as DatabaseUser[];
   }
 
-  async getUserByClerkId(clerkId: string) {
-    console.log('🔍 getUserByClerkId called with:', clerkId);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('clerk_id', clerkId)
-        .single();
-      
-      console.log('📊 Query result:', { data, error });
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No user found
-          console.log('⚠️ No user found with clerk_id:', clerkId);
-          return null;
-        }
-        // Log the full error for debugging
-        console.error('❌ Full error:', error);
-        throw error;
-      }
-      
-      if (!data) return null;
-      
-      const profile = data as any;
-      const nameParts = (profile.full_name || '').split(' ');
-      
-      return {
-        ...profile,
-        first_name: nameParts[0] || '',
-        last_name: nameParts.slice(1).join(' ') || '',
-      } as DatabaseUser;
-    } catch (err) {
-      console.error('❌ getUserByClerkId error:', err);
-      throw err;
-    }
-  }
-
   async getUserById(id: string) {
     console.log('🔍 getUserById called with:', id);
     const { data, error } = await supabase
@@ -609,34 +570,6 @@ class SupabaseService {
     
     if (error) throw error;
     return data as DatabaseUser;
-  }
-
-  async syncUserFromClerk(clerkUser: User, organizationId: string) {
-    const existingUser = await this.getUserByClerkId(clerkUser.id);
-    
-    const userData: Partial<DatabaseUser> = {
-      clerk_id: clerkUser.id,
-      first_name: clerkUser.firstName || '',
-      last_name: clerkUser.lastName || '',
-      email: clerkUser.primaryEmailAddress?.emailAddress || '',
-      avatar_url: clerkUser.imageUrl,
-      email_verified: clerkUser.primaryEmailAddress?.verification?.status === 'verified',
-      last_login_at: new Date().toISOString(),
-    };
-
-    if (existingUser) {
-      return await this.updateUser(existingUser.id, userData);
-    } else {
-      return await this.createUser({
-        ...userData,
-        organization_id: organizationId,
-        role: 'client_user', // Default role
-        permissions: {},
-        status: 'active',
-        timezone: 'UTC',
-        language: 'en',
-      });
-    }
   }
 
   // Campaigns

@@ -111,7 +111,7 @@ const features = [
       'Advanced voice platform',
       'Webhook event processing',
       'CSV import/export',
-      'Clerk authentication'
+      'Authentication'
     ]
   },
 ];

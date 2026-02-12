@@ -2,7 +2,6 @@ import { supabaseService } from './supabase-service';
 
 export interface OrganizationUser {
   id: string;
-  clerk_id: string;
   email: string;
   first_name?: string;
   last_name?: string;
@@ -43,7 +42,6 @@ class OrganizationService {
       const mockUsers: OrganizationUser[] = [
         {
           id: '1',
-          clerk_id: 'clerk_user_1',
           email: 'john.doe@example.com',
           first_name: 'John',
           last_name: 'Doe',
@@ -56,7 +54,6 @@ class OrganizationService {
         },
         {
           id: '2',
-          clerk_id: 'clerk_user_2',
           email: 'jane.smith@example.com',
           first_name: 'Jane',
           last_name: 'Smith',
@@ -69,7 +66,6 @@ class OrganizationService {
         },
         {
           id: '3',
-          clerk_id: 'clerk_user_3',
           email: 'bob.wilson@example.com',
           first_name: 'Bob',
           last_name: 'Wilson',

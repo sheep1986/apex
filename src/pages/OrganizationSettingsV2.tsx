@@ -704,6 +704,7 @@ const OrganizationSettingsV2: React.FC = () => {
         </Tabs>
       {/* Password Confirmation Dialog - HIDDEN for V1 */}
       </div>
+    </div>
   );
 };
 
