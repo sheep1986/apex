@@ -1,35 +1,13 @@
-import { CircuitBreakerService } from './circuit-breaker';
-// ... (Imports)
-
-async function processItem(item: any) {
-    // ...
-    const { id: itemId, campaign_id, contact_id, organization_id, attempt_count } = item;
-    // ...
-
-        // --- PHASE 3.7 GOVERNANCE ENFORCEMENT ---
-        const { data: controls } = await supabase
-            // ... (existing control fetch)
-            
-        // ...
-        
-        // CIRCUIT BREAKER CHECK
-        const breaker = new CircuitBreakerService(supabase);
-        const { allowed, reason } = await breaker.checkLimit(organization_id, 0.10); // Est $0.10/min setup
-        
-        if (!allowed) {
-            throw new Error(`Circuit Breaker: ${reason}`);
-        }
-        // -----------------------
-
-        // B. Fetch Contact Data (Securely)
+import { Handler, schedule } from '@netlify/functions';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { hashIdentifier } from './security';
-// import axios from 'axios'; // Uncomment when installing axios
+import { CircuitBreakerService } from './circuit-breaker';
 
 // Environment
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const vapiApiKey = process.env.VAPI_PRIVATE_API_KEY; 
+const vapiApiKey = process.env.VAPI_PRIVATE_API_KEY;
 
 const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
@@ -38,13 +16,56 @@ const BATCH_SIZE = 10;
 const WORKER_ID = `worker-${Date.now()}-${uuidv4().substring(0, 8)}`;
 const MIN_BALANCE_THRESHOLD = 1.00; // $1.00 minimum to start calls
 
+// Provider Factory (simplified inline for now)
+const ProviderFactory = {
+    getProvider(type: string) {
+        if (type === 'shadow') {
+            return {
+                async dispatch(payload: any) {
+                    console.log(`[Shadow] Would dispatch call to ${payload.to}`);
+                    return { providerCallId: `shadow-${uuidv4()}` };
+                }
+            };
+        }
+        // Default: Vapi provider
+        return {
+            async dispatch(payload: any) {
+                const response = await fetch('https://api.vapi.ai/call/phone', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${vapiApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        assistantId: payload.assistantId,
+                        customer: {
+                            number: payload.to,
+                            name: payload.customerName
+                        },
+                        metadata: {
+                            trinityCallId: payload.trinityCallId,
+                            campaignType: payload.campaignType
+                        }
+                    })
+                });
+                if (!response.ok) {
+                    const err = await response.text();
+                    throw new Error(`Vapi API Error: ${response.status} - ${err}`);
+                }
+                const data = await response.json();
+                return { providerCallId: data.id };
+            }
+        };
+    }
+};
+
 const runWorker = async () => {
     console.log(`[CampaignManager] Starting Run: ${WORKER_ID}`);
 
     try {
         // 1. Atomic Reservation via RPC (Concurrency Aware)
         const { data: items, error: rpcError } = await supabase
-            .rpc('reserve_campaign_items', { 
+            .rpc('reserve_campaign_items', {
                 p_batch_size: BATCH_SIZE,
                 p_worker_id: WORKER_ID
             });
@@ -55,7 +76,6 @@ const runWorker = async () => {
         }
 
         if (!items || items.length === 0) {
-            // No items to process (either empty or concurrency limited)
             return { statusCode: 200, body: JSON.stringify({ processed: 0 }) };
         }
 
@@ -87,18 +107,16 @@ async function processItem(item: any) {
 
     try {
         // A. Credit Enforcement (Hardening P0)
-        // Check organization balance via RPC (or ledger table if RPC unavailable)
         const { data: balance, error: balError } = await supabase
             .rpc('get_organization_balance', { p_organization_id: organization_id });
 
         if (balError) throw balError;
-        
-        // Fail-safe: If balance is null/undefined, treat as 0.
+
         if ((balance || 0) < MIN_BALANCE_THRESHOLD) {
              throw new Error('Insufficient Funds: Balance below threshold.');
         }
 
-        // --- PHASE 3.7 GOVERNANCE ENFORCEMENT ---
+        // --- GOVERNANCE ENFORCEMENT ---
         const { data: controls } = await supabase
             .from('organization_controls')
             .select('is_suspended, shadow_mode, max_concurrency_override')
@@ -106,12 +124,18 @@ async function processItem(item: any) {
             .single();
 
         if (controls?.is_suspended) {
-             // Hard Stop => do not retry immediately, maybe mark failed?
              throw new Error('Governance: Organization Suspended.');
         }
-        
+
         const isShadowMode = controls?.shadow_mode || false;
-        // ----------------------------------------
+
+        // CIRCUIT BREAKER CHECK
+        const breaker = new CircuitBreakerService(supabase);
+        const { allowed, reason } = await breaker.checkLimit(organization_id, 0.10);
+
+        if (!allowed) {
+            throw new Error(`Circuit Breaker: ${reason}`);
+        }
 
         // B. Fetch Contact Data (Securely)
         const { data: contact } = await supabase
@@ -138,9 +162,9 @@ async function processItem(item: any) {
                 organization_id,
                 contact_id,
                 direction: 'outbound',
-                status: 'queued', 
+                status: 'queued',
                 provider: 'voice_engine',
-                campaign_id 
+                campaign_id
             })
             .select('id')
             .single();
@@ -148,14 +172,14 @@ async function processItem(item: any) {
         if (callError) throw callError;
         const trinityCallId = callRow.id;
 
-        // E. Dispatch to Telephony Provider (Vapi Integration)
+        // E. Dispatch to Telephony Provider
         const providerCallId = await dispatchCall(
-            contact.phone_e164, 
-            campaign?.script_config, 
-            trinityCallId, 
+            contact.phone_e164,
+            campaign?.script_config,
+            trinityCallId,
             campaign?.type,
             contact.name,
-            isShadowMode // Pass flag
+            isShadowMode
         );
 
         // F. Update Item State (Success)
@@ -175,54 +199,41 @@ async function processItem(item: any) {
 
     } catch (err: any) {
         console.error(`[CampaignManager] Item Fail ${hashedItemId}`, err.message);
-        
-        // Retry Logic
+
         const currentCount = attempt_count || 0;
         const nextAttempt = currentCount + 1;
         const isTerminalInfo = err.message.includes('Insufficient Funds') || err.message.includes('Invalid Contact');
-        
-        // If funds low, maybe pause campaign entirely? For now, just fail item.
-        
+
         await supabase
             .from('campaign_items')
             .update({
-                status: isTerminalInfo ? 'failed' : 'pending', // Re-queue if transient? or 'failed' and rely on manual retry? Spec says exponential backoff.
+                status: isTerminalInfo ? 'failed' : 'pending',
                 last_error: err.message?.substring(0, 255),
                 attempt_count: nextAttempt,
                 reserved_at: null,
                 reserved_by: null,
-                // Retry in 5m if not terminal, otherwise far future
                 next_try_at: new Date(Date.now() + (isTerminalInfo ? 1000 * 60 * 60 * 24 : 1000 * 60 * 5)).toISOString()
             })
             .eq('id', itemId);
-            
+
         throw err;
     }
 }
 
 async function dispatchCall(to: string, config: any, trinityId: string, type: string, name: string, isShadowMode: boolean = false) {
-    
-    // 1. Determine Provider
-    // For now, default to 'vapi' or generic 'shadow' if in shadow mode. 
-    // Ideally fetch from assistant config, but we have config object here.
-    // Shadow Mode handled by passing flag to VapiProvider, OR strictly using MockProvider.
-    // User Design says: "ProviderFactory.getProvider('vapi').dispatch(...)".
-    
     const providerType = isShadowMode ? 'shadow' : 'vapi';
     const provider = ProviderFactory.getProvider(providerType);
 
-    // 2. Construct Payload
     const payload = {
         to,
         trinityCallId: trinityId,
         campaignType: type,
         customerName: name,
-        assistantId: config?.assistantId, // Extract from script_config
+        assistantId: config?.assistantId,
         scriptConfig: config,
         isShadowMode
     };
 
-    // 3. Dispatch
     try {
         const response = await provider.dispatch(payload);
         return response.providerCallId;
