@@ -28,7 +28,9 @@ import { voiceService, type VoiceAssistant } from '@/services/voice-service';
 import {
   Activity,
   AlertCircle,
+  BarChart3,
   Bot,
+  Brain,
   Copy,
   Edit,
   Loader2,
@@ -39,9 +41,11 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  Shield,
   Sliders,
   Trash2,
   Volume2,
+  Wand2,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -79,6 +83,37 @@ interface AssistantFormState {
   endCallMessage: string;
   backgroundSound: string;
   backchannelingEnabled: boolean;
+  // Analysis
+  summaryEnabled: boolean;
+  summaryPrompt: string;
+  structuredDataEnabled: boolean;
+  structuredDataSchema: string;
+  successEvalEnabled: boolean;
+  successEvalRubric: string;
+  // Behavior
+  firstMessageMode: string;
+  waitSeconds: number;
+  smartEndpointingEnabled: boolean;
+  punctuationSeconds: number;
+  noPunctuationSeconds: number;
+  numberSeconds: number;
+  stopNumWords: number;
+  stopVoiceSeconds: number;
+  stopBackoffSeconds: number;
+  endCallEnabled: boolean;
+  endCallMaxDurationMessage: string;
+  idleMessages: string;
+  idleTimeoutSeconds: number;
+  idleMaxSpokenCount: number;
+  // Advanced
+  voicemailDetectionEnabled: boolean;
+  voicemailProvider: string;
+  backgroundDenoisingEnabled: boolean;
+  hipaaEnabled: boolean;
+  stereoRecordingEnabled: boolean;
+  variableValues: string;
+  videoRecordingEnabled: boolean;
+  transcriptSavingEnabled: boolean;
 }
 
 const defaultForm: AssistantFormState = {
@@ -108,6 +143,37 @@ const defaultForm: AssistantFormState = {
   endCallMessage: '',
   backgroundSound: 'off',
   backchannelingEnabled: false,
+  // Analysis
+  summaryEnabled: false,
+  summaryPrompt: '',
+  structuredDataEnabled: false,
+  structuredDataSchema: '',
+  successEvalEnabled: false,
+  successEvalRubric: '',
+  // Behavior
+  firstMessageMode: 'assistant-speaks-first',
+  waitSeconds: 0,
+  smartEndpointingEnabled: true,
+  punctuationSeconds: 0.1,
+  noPunctuationSeconds: 1.5,
+  numberSeconds: 0.5,
+  stopNumWords: 0,
+  stopVoiceSeconds: 0.2,
+  stopBackoffSeconds: 1.0,
+  endCallEnabled: false,
+  endCallMaxDurationMessage: '',
+  idleMessages: '',
+  idleTimeoutSeconds: 10,
+  idleMaxSpokenCount: 3,
+  // Advanced
+  voicemailDetectionEnabled: false,
+  voicemailProvider: 'twilio',
+  backgroundDenoisingEnabled: false,
+  hipaaEnabled: false,
+  stereoRecordingEnabled: false,
+  variableValues: '',
+  videoRecordingEnabled: false,
+  transcriptSavingEnabled: true,
 };
 
 // ── Voice / Model Options ───────────────────────────────────────────────────
@@ -115,6 +181,12 @@ const MODEL_OPTIONS = [
   { provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
   { provider: 'anthropic', models: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'] },
   { provider: 'together-ai', models: ['meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo'] },
+  { provider: 'groq', models: ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'] },
+  { provider: 'google', models: ['gemini-1.5-pro', 'gemini-1.5-flash'] },
+  { provider: 'openrouter', models: ['meta-llama/llama-3.1-70b-instruct', 'anthropic/claude-3.5-sonnet'] },
+  { provider: 'perplexity', models: ['llama-3.1-sonar-large-128k-online'] },
+  { provider: 'deepinfra', models: ['meta-llama/Meta-Llama-3.1-70B-Instruct'] },
+  { provider: 'custom-llm', models: ['custom'] },
 ];
 
 const VOICE_OPTIONS = [
@@ -139,6 +211,34 @@ const VOICE_OPTIONS = [
     { id: 'stella', label: 'Stella' },
     { id: 'athena', label: 'Athena' },
   ]},
+  { provider: 'playht', voices: [
+    { id: 'jennifer', label: 'Jennifer' },
+    { id: 'michael', label: 'Michael' },
+    { id: 'emma', label: 'Emma' },
+  ]},
+  { provider: 'rime', voices: [
+    { id: 'mist', label: 'Mist' },
+    { id: 'wave', label: 'Wave' },
+    { id: 'glow', label: 'Glow' },
+  ]},
+  { provider: 'azure', voices: [
+    { id: 'en-US-JennyNeural', label: 'Jenny (Neural)' },
+    { id: 'en-US-GuyNeural', label: 'Guy (Neural)' },
+    { id: 'en-US-AriaNeural', label: 'Aria (Neural)' },
+  ]},
+  { provider: 'lmnt', voices: [
+    { id: 'lily', label: 'Lily' },
+    { id: 'daniel', label: 'Daniel' },
+  ]},
+  { provider: 'cartesia', voices: [
+    { id: 'sonic-english', label: 'Sonic English' },
+  ]},
+  { provider: 'neets', voices: [
+    { id: 'vits', label: 'VITS' },
+  ]},
+  { provider: 'smallest-ai', voices: [
+    { id: 'lightning', label: 'Lightning' },
+  ]},
 ];
 
 const LANGUAGE_OPTIONS = [
@@ -159,10 +259,19 @@ const LANGUAGE_OPTIONS = [
   { value: 'ar', label: 'Arabic' },
 ];
 
+const TRANSCRIBER_OPTIONS = [
+  { provider: 'deepgram', models: ['nova-2', 'nova-2-general', 'nova-2-phonecall'] },
+  { provider: 'gladia', models: ['default'] },
+  { provider: 'assembly-ai', models: ['default'] },
+  { provider: 'talkscriber', models: ['default'] },
+];
+
 const BACKGROUND_SOUND_OPTIONS = [
   { value: 'off', label: 'None' },
   { value: 'office', label: 'Office' },
   { value: 'static', label: 'Static' },
+  { value: 'cafe', label: 'Cafe' },
+  { value: 'restaurant', label: 'Restaurant' },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -187,6 +296,22 @@ function getProviderLabel(provider: string): string {
     '11labs': 'ElevenLabs',
     'deepgram': 'Deepgram',
     'together-ai': 'Together AI',
+    'groq': 'Groq',
+    'google': 'Google',
+    'openrouter': 'OpenRouter',
+    'perplexity': 'Perplexity',
+    'deepinfra': 'DeepInfra',
+    'custom-llm': 'Custom LLM',
+    'playht': 'PlayHT',
+    'rime': 'Rime',
+    'azure': 'Azure',
+    'lmnt': 'LMNT',
+    'cartesia': 'Cartesia',
+    'neets': 'Neets',
+    'smallest-ai': 'Smallest AI',
+    'gladia': 'Gladia',
+    'assembly-ai': 'AssemblyAI',
+    'talkscriber': 'Talkscriber',
   };
   return map[provider] || provider;
 }
@@ -258,9 +383,35 @@ export default function AIAssistants() {
     setError(null);
 
     try {
+      // Parse variable values from key=value lines
+      const parsedVariableValues: Record<string, string> = {};
+      if (formState.variableValues.trim()) {
+        formState.variableValues.trim().split('\n').forEach(line => {
+          const eqIdx = line.indexOf('=');
+          if (eqIdx > 0) {
+            parsedVariableValues[line.slice(0, eqIdx).trim()] = line.slice(eqIdx + 1).trim();
+          }
+        });
+      }
+
+      // Parse structured data schema
+      let parsedSchema: Record<string, any> | undefined;
+      if (formState.structuredDataEnabled && formState.structuredDataSchema.trim()) {
+        try {
+          parsedSchema = JSON.parse(formState.structuredDataSchema);
+        } catch {
+          setError('Structured Data Schema must be valid JSON');
+          setIsSaving(false);
+          return;
+        }
+      }
+
       const payload: Partial<VoiceAssistant> = {
         name: formState.name.trim(),
         firstMessage: formState.firstMessage.trim() || undefined,
+        firstMessageMode: formState.firstMessageMode !== 'assistant-speaks-first'
+          ? formState.firstMessageMode as VoiceAssistant['firstMessageMode']
+          : undefined,
         model: {
           provider: formState.modelProvider,
           model: formState.model,
@@ -293,6 +444,60 @@ export default function AIAssistants() {
         endCallMessage: formState.endCallMessage.trim() || undefined,
         backgroundSound: formState.backgroundSound !== 'off' ? formState.backgroundSound : undefined,
         backchannelingEnabled: formState.backchannelingEnabled || undefined,
+        // Analysis Plan
+        analysisPlan: (formState.summaryEnabled || formState.structuredDataEnabled || formState.successEvalEnabled) ? {
+          summaryPlan: formState.summaryEnabled ? {
+            enabled: true,
+            prompt: formState.summaryPrompt.trim() || undefined,
+          } : undefined,
+          structuredDataPlan: formState.structuredDataEnabled ? {
+            enabled: true,
+            schema: parsedSchema,
+          } : undefined,
+          successEvaluationPlan: formState.successEvalEnabled ? {
+            enabled: true,
+            rubric: formState.successEvalRubric.trim() || undefined,
+          } : undefined,
+        } : undefined,
+        // Artifact Plan
+        artifactPlan: {
+          recordingEnabled: formState.recordingEnabled,
+          videoRecordingEnabled: formState.videoRecordingEnabled || undefined,
+          transcriptPlan: { enabled: formState.transcriptSavingEnabled },
+        },
+        // Behavior Plans
+        startSpeakingPlan: {
+          waitSeconds: formState.waitSeconds || undefined,
+          smartEndpointingEnabled: formState.smartEndpointingEnabled,
+          transcriptionEndpointingPlan: {
+            onPunctuationSeconds: formState.punctuationSeconds,
+            onNoPunctuationSeconds: formState.noPunctuationSeconds,
+            onNumberSeconds: formState.numberSeconds,
+          },
+        },
+        stopSpeakingPlan: {
+          numWords: formState.stopNumWords || undefined,
+          voiceSeconds: formState.stopVoiceSeconds || undefined,
+          backoffSeconds: formState.stopBackoffSeconds || undefined,
+        },
+        endCallPlan: formState.endCallEnabled ? {
+          enabled: true,
+          maxCallDurationMessage: formState.endCallMaxDurationMessage.trim() || undefined,
+        } : undefined,
+        messagePlan: (formState.idleMessages.trim()) ? {
+          idleMessages: formState.idleMessages.split('\n').map(m => m.trim()).filter(Boolean),
+          idleTimeoutSeconds: formState.idleTimeoutSeconds,
+          idleMaxSpokenCount: formState.idleMaxSpokenCount,
+        } : undefined,
+        // Advanced
+        voicemailDetection: formState.voicemailDetectionEnabled ? {
+          enabled: true,
+          provider: formState.voicemailProvider || undefined,
+        } : undefined,
+        backgroundDenoisingEnabled: formState.backgroundDenoisingEnabled || undefined,
+        hipaaEnabled: formState.hipaaEnabled || undefined,
+        stereoRecordingEnabled: formState.stereoRecordingEnabled || undefined,
+        variableValues: Object.keys(parsedVariableValues).length > 0 ? parsedVariableValues : undefined,
       };
 
       if (editingAssistant) {
@@ -385,6 +590,39 @@ export default function AIAssistants() {
       endCallMessage: assistant.endCallMessage || '',
       backgroundSound: assistant.backgroundSound || 'off',
       backchannelingEnabled: assistant.backchannelingEnabled ?? false,
+      // Analysis
+      summaryEnabled: assistant.analysisPlan?.summaryPlan?.enabled ?? false,
+      summaryPrompt: assistant.analysisPlan?.summaryPlan?.prompt || '',
+      structuredDataEnabled: assistant.analysisPlan?.structuredDataPlan?.enabled ?? false,
+      structuredDataSchema: assistant.analysisPlan?.structuredDataPlan?.schema
+        ? JSON.stringify(assistant.analysisPlan.structuredDataPlan.schema, null, 2) : '',
+      successEvalEnabled: assistant.analysisPlan?.successEvaluationPlan?.enabled ?? false,
+      successEvalRubric: assistant.analysisPlan?.successEvaluationPlan?.rubric || '',
+      // Behavior
+      firstMessageMode: assistant.firstMessageMode || 'assistant-speaks-first',
+      waitSeconds: assistant.startSpeakingPlan?.waitSeconds ?? 0,
+      smartEndpointingEnabled: assistant.startSpeakingPlan?.smartEndpointingEnabled ?? true,
+      punctuationSeconds: assistant.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds ?? 0.1,
+      noPunctuationSeconds: assistant.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds ?? 1.5,
+      numberSeconds: assistant.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds ?? 0.5,
+      stopNumWords: assistant.stopSpeakingPlan?.numWords ?? 0,
+      stopVoiceSeconds: assistant.stopSpeakingPlan?.voiceSeconds ?? 0.2,
+      stopBackoffSeconds: assistant.stopSpeakingPlan?.backoffSeconds ?? 1.0,
+      endCallEnabled: assistant.endCallPlan?.enabled ?? false,
+      endCallMaxDurationMessage: assistant.endCallPlan?.maxCallDurationMessage || '',
+      idleMessages: assistant.messagePlan?.idleMessages?.join('\n') || '',
+      idleTimeoutSeconds: assistant.messagePlan?.idleTimeoutSeconds ?? 10,
+      idleMaxSpokenCount: assistant.messagePlan?.idleMaxSpokenCount ?? 3,
+      // Advanced
+      voicemailDetectionEnabled: assistant.voicemailDetection?.enabled ?? false,
+      voicemailProvider: assistant.voicemailDetection?.provider || 'twilio',
+      backgroundDenoisingEnabled: assistant.backgroundDenoisingEnabled ?? false,
+      hipaaEnabled: assistant.hipaaEnabled ?? false,
+      stereoRecordingEnabled: assistant.stereoRecordingEnabled ?? false,
+      variableValues: assistant.variableValues
+        ? Object.entries(assistant.variableValues).map(([k, v]) => `${k}=${v}`).join('\n') : '',
+      videoRecordingEnabled: assistant.artifactPlan?.videoRecordingEnabled ?? false,
+      transcriptSavingEnabled: assistant.artifactPlan?.transcriptPlan?.enabled ?? true,
     });
     setShowCreateDialog(true);
   };
@@ -715,7 +953,7 @@ export default function AIAssistants() {
           </DialogHeader>
 
           <Tabs defaultValue="basics" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-gray-900 border border-gray-800">
+            <TabsList className="grid w-full grid-cols-4 bg-gray-900 border border-gray-800">
               <TabsTrigger value="basics" className="text-xs data-[state=active]:bg-gray-800">
                 <Bot className="mr-1 h-3 w-3" /> Basics
               </TabsTrigger>
@@ -728,8 +966,19 @@ export default function AIAssistants() {
               <TabsTrigger value="transcriber" className="text-xs data-[state=active]:bg-gray-800">
                 <Mic className="mr-1 h-3 w-3" /> Transcriber
               </TabsTrigger>
+            </TabsList>
+            <TabsList className="grid w-full grid-cols-4 bg-gray-900 border border-gray-800 mt-1">
               <TabsTrigger value="call" className="text-xs data-[state=active]:bg-gray-800">
                 <Settings2 className="mr-1 h-3 w-3" /> Call
+              </TabsTrigger>
+              <TabsTrigger value="analysis" className="text-xs data-[state=active]:bg-gray-800">
+                <BarChart3 className="mr-1 h-3 w-3" /> Analysis
+              </TabsTrigger>
+              <TabsTrigger value="behavior" className="text-xs data-[state=active]:bg-gray-800">
+                <Brain className="mr-1 h-3 w-3" /> Behavior
+              </TabsTrigger>
+              <TabsTrigger value="advanced" className="text-xs data-[state=active]:bg-gray-800">
+                <Wand2 className="mr-1 h-3 w-3" /> Advanced
               </TabsTrigger>
             </TabsList>
 
@@ -981,8 +1230,11 @@ export default function AIAssistants() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-950 border-gray-700">
-                      <SelectItem value="deepgram">Deepgram</SelectItem>
-                      <SelectItem value="talkscriber">Talkscriber</SelectItem>
+                      {TRANSCRIBER_OPTIONS.map(t => (
+                        <SelectItem key={t.provider} value={t.provider}>
+                          {getProviderLabel(t.provider)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -996,9 +1248,9 @@ export default function AIAssistants() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-950 border-gray-700">
-                      <SelectItem value="nova-2">Nova 2</SelectItem>
-                      <SelectItem value="nova-2-general">Nova 2 General</SelectItem>
-                      <SelectItem value="nova-2-phonecall">Nova 2 Phone Call</SelectItem>
+                      {(TRANSCRIBER_OPTIONS.find(t => t.provider === formState.transcriberProvider)?.models || ['default']).map(model => (
+                        <SelectItem key={model} value={model}>{model}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1166,6 +1418,383 @@ export default function AIAssistants() {
                   className="border-gray-700 bg-gray-900 text-white"
                 />
                 <p className="text-xs text-gray-500">Final message spoken before the assistant ends the call.</p>
+              </div>
+            </TabsContent>
+
+            {/* ── Tab: Analysis ──────────────────────────────────────── */}
+            <TabsContent value="analysis" className="space-y-4 mt-4">
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Call Summary</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Generate an automatic summary after each call ends.</p>
+                </div>
+                <Switch
+                  checked={formState.summaryEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, summaryEnabled: checked }))}
+                />
+              </div>
+
+              {formState.summaryEnabled && (
+                <div className="grid gap-2 pl-4 border-l-2 border-emerald-800">
+                  <Label htmlFor="summaryPrompt">Summary Prompt</Label>
+                  <Textarea
+                    id="summaryPrompt"
+                    value={formState.summaryPrompt}
+                    onChange={(e) => setFormState(prev => ({ ...prev, summaryPrompt: e.target.value }))}
+                    placeholder="Custom prompt for generating the call summary..."
+                    className="border-gray-700 bg-gray-900 text-white min-h-[80px]"
+                  />
+                  <p className="text-xs text-gray-500">Leave empty to use the default summary prompt.</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Structured Data Extraction</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Extract structured fields from calls (e.g. budget, interest level, name).</p>
+                </div>
+                <Switch
+                  checked={formState.structuredDataEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, structuredDataEnabled: checked }))}
+                />
+              </div>
+
+              {formState.structuredDataEnabled && (
+                <div className="grid gap-2 pl-4 border-l-2 border-emerald-800">
+                  <Label htmlFor="structuredDataSchema">JSON Schema</Label>
+                  <Textarea
+                    id="structuredDataSchema"
+                    value={formState.structuredDataSchema}
+                    onChange={(e) => setFormState(prev => ({ ...prev, structuredDataSchema: e.target.value }))}
+                    placeholder={'{\n  "type": "object",\n  "properties": {\n    "budget": { "type": "string" },\n    "interested": { "type": "boolean" }\n  }\n}'}
+                    className="border-gray-700 bg-gray-900 text-white min-h-[120px] font-mono text-xs"
+                  />
+                  <p className="text-xs text-gray-500">Define the JSON schema for data to extract from each call.</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Success Evaluation</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Automatically score whether the call achieved its goal.</p>
+                </div>
+                <Switch
+                  checked={formState.successEvalEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, successEvalEnabled: checked }))}
+                />
+              </div>
+
+              {formState.successEvalEnabled && (
+                <div className="grid gap-2 pl-4 border-l-2 border-emerald-800">
+                  <Label htmlFor="successEvalRubric">Evaluation Rubric</Label>
+                  <Textarea
+                    id="successEvalRubric"
+                    value={formState.successEvalRubric}
+                    onChange={(e) => setFormState(prev => ({ ...prev, successEvalRubric: e.target.value }))}
+                    placeholder="e.g. Call is successful if an appointment is booked and the caller confirms their email..."
+                    className="border-gray-700 bg-gray-900 text-white min-h-[80px]"
+                  />
+                  <p className="text-xs text-gray-500">Describe the criteria for a successful call.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ── Tab: Behavior ──────────────────────────────────────── */}
+            <TabsContent value="behavior" className="space-y-4 mt-4">
+              <div className="grid gap-2">
+                <Label>First Message Mode</Label>
+                <Select
+                  value={formState.firstMessageMode}
+                  onValueChange={(value) => setFormState(prev => ({ ...prev, firstMessageMode: value }))}
+                >
+                  <SelectTrigger className="border-gray-700 bg-gray-900 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-950 border-gray-700">
+                    <SelectItem value="assistant-speaks-first">Assistant Speaks First</SelectItem>
+                    <SelectItem value="assistant-speaks-first-with-model-generated-message">Assistant Speaks First (Model Generated)</SelectItem>
+                    <SelectItem value="assistant-waits-for-user">Assistant Waits for User</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">Controls who speaks first when a call begins.</p>
+              </div>
+
+              {/* Start Speaking Plan */}
+              <div className="space-y-3 rounded-lg border border-gray-800 p-4">
+                <h4 className="text-sm font-medium text-emerald-400">Start Speaking Plan</h4>
+                <p className="text-xs text-gray-500">Controls when the assistant begins responding after the user stops speaking.</p>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm">Smart Endpointing</Label>
+                    <p className="text-xs text-gray-500 mt-0.5">AI-powered detection of when the user has finished speaking.</p>
+                  </div>
+                  <Switch
+                    checked={formState.smartEndpointingEnabled}
+                    onCheckedChange={(checked) => setFormState(prev => ({ ...prev, smartEndpointingEnabled: checked }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Wait Time Before Speaking</Label>
+                    <span className="text-xs font-mono text-gray-400">{formState.waitSeconds.toFixed(1)}s</span>
+                  </div>
+                  <Slider
+                    value={[formState.waitSeconds]}
+                    onValueChange={(val) => setFormState(prev => ({ ...prev, waitSeconds: val[0] }))}
+                    min={0} max={3} step={0.1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">After Punctuation</Label>
+                    <span className="text-xs font-mono text-gray-400">{formState.punctuationSeconds.toFixed(1)}s</span>
+                  </div>
+                  <Slider
+                    value={[formState.punctuationSeconds]}
+                    onValueChange={(val) => setFormState(prev => ({ ...prev, punctuationSeconds: val[0] }))}
+                    min={0} max={3} step={0.1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Without Punctuation</Label>
+                    <span className="text-xs font-mono text-gray-400">{formState.noPunctuationSeconds.toFixed(1)}s</span>
+                  </div>
+                  <Slider
+                    value={[formState.noPunctuationSeconds]}
+                    onValueChange={(val) => setFormState(prev => ({ ...prev, noPunctuationSeconds: val[0] }))}
+                    min={0} max={5} step={0.1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">After Number</Label>
+                    <span className="text-xs font-mono text-gray-400">{formState.numberSeconds.toFixed(1)}s</span>
+                  </div>
+                  <Slider
+                    value={[formState.numberSeconds]}
+                    onValueChange={(val) => setFormState(prev => ({ ...prev, numberSeconds: val[0] }))}
+                    min={0} max={3} step={0.1}
+                  />
+                </div>
+              </div>
+
+              {/* Stop Speaking Plan */}
+              <div className="space-y-3 rounded-lg border border-gray-800 p-4">
+                <h4 className="text-sm font-medium text-emerald-400">Stop Speaking Plan</h4>
+                <p className="text-xs text-gray-500">Controls when the assistant stops speaking if interrupted by the user.</p>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Word Threshold</Label>
+                    <span className="text-xs font-mono text-gray-400">{formState.stopNumWords} words</span>
+                  </div>
+                  <Slider
+                    value={[formState.stopNumWords]}
+                    onValueChange={(val) => setFormState(prev => ({ ...prev, stopNumWords: val[0] }))}
+                    min={0} max={10} step={1}
+                  />
+                  <p className="text-xs text-gray-500">How many words the user must speak to trigger interruption (0 = any).</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Voice Detection Time</Label>
+                    <span className="text-xs font-mono text-gray-400">{formState.stopVoiceSeconds.toFixed(1)}s</span>
+                  </div>
+                  <Slider
+                    value={[formState.stopVoiceSeconds]}
+                    onValueChange={(val) => setFormState(prev => ({ ...prev, stopVoiceSeconds: val[0] }))}
+                    min={0} max={2} step={0.1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Backoff Time</Label>
+                    <span className="text-xs font-mono text-gray-400">{formState.stopBackoffSeconds.toFixed(1)}s</span>
+                  </div>
+                  <Slider
+                    value={[formState.stopBackoffSeconds]}
+                    onValueChange={(val) => setFormState(prev => ({ ...prev, stopBackoffSeconds: val[0] }))}
+                    min={0} max={5} step={0.1}
+                  />
+                  <p className="text-xs text-gray-500">How long to wait before the assistant can resume speaking after being interrupted.</p>
+                </div>
+              </div>
+
+              {/* End Call Plan */}
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Auto End Call</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Automatically end the call when the max duration is reached.</p>
+                </div>
+                <Switch
+                  checked={formState.endCallEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, endCallEnabled: checked }))}
+                />
+              </div>
+
+              {formState.endCallEnabled && (
+                <div className="grid gap-2 pl-4 border-l-2 border-emerald-800">
+                  <Label htmlFor="endCallMaxDurationMessage">Max Duration Message</Label>
+                  <Input
+                    id="endCallMaxDurationMessage"
+                    value={formState.endCallMaxDurationMessage}
+                    onChange={(e) => setFormState(prev => ({ ...prev, endCallMaxDurationMessage: e.target.value }))}
+                    placeholder="e.g. We've reached the time limit. Thank you for your call!"
+                    className="border-gray-700 bg-gray-900 text-white"
+                  />
+                </div>
+              )}
+
+              {/* Idle Messages */}
+              <div className="space-y-3 rounded-lg border border-gray-800 p-4">
+                <h4 className="text-sm font-medium text-emerald-400">Idle Messages</h4>
+                <p className="text-xs text-gray-500">Messages the assistant speaks when the conversation goes silent.</p>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="idleMessages">Messages (one per line)</Label>
+                  <Textarea
+                    id="idleMessages"
+                    value={formState.idleMessages}
+                    onChange={(e) => setFormState(prev => ({ ...prev, idleMessages: e.target.value }))}
+                    placeholder={"Are you still there?\nIs there anything else I can help with?\nTake your time, I'm here when you're ready."}
+                    className="border-gray-700 bg-gray-900 text-white min-h-[80px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Idle Timeout</Label>
+                      <span className="text-xs font-mono text-gray-400">{formState.idleTimeoutSeconds}s</span>
+                    </div>
+                    <Slider
+                      value={[formState.idleTimeoutSeconds]}
+                      onValueChange={(val) => setFormState(prev => ({ ...prev, idleTimeoutSeconds: val[0] }))}
+                      min={5} max={60} step={5}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Max Times</Label>
+                      <span className="text-xs font-mono text-gray-400">{formState.idleMaxSpokenCount}x</span>
+                    </div>
+                    <Slider
+                      value={[formState.idleMaxSpokenCount]}
+                      onValueChange={(val) => setFormState(prev => ({ ...prev, idleMaxSpokenCount: val[0] }))}
+                      min={1} max={10} step={1}
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Tab: Advanced ──────────────────────────────────────── */}
+            <TabsContent value="advanced" className="space-y-4 mt-4">
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Voicemail Detection</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Detect voicemail/answering machines and handle accordingly.</p>
+                </div>
+                <Switch
+                  checked={formState.voicemailDetectionEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, voicemailDetectionEnabled: checked }))}
+                />
+              </div>
+
+              {formState.voicemailDetectionEnabled && (
+                <div className="grid gap-2 pl-4 border-l-2 border-emerald-800">
+                  <Label>Detection Provider</Label>
+                  <Select
+                    value={formState.voicemailProvider}
+                    onValueChange={(value) => setFormState(prev => ({ ...prev, voicemailProvider: value }))}
+                  >
+                    <SelectTrigger className="border-gray-700 bg-gray-900 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-950 border-gray-700">
+                      <SelectItem value="twilio">Twilio</SelectItem>
+                      <SelectItem value="vapi">Vapi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Background Denoising</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Remove background noise from the caller's audio.</p>
+                </div>
+                <Switch
+                  checked={formState.backgroundDenoisingEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, backgroundDenoisingEnabled: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Stereo Recording</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Record assistant and caller on separate audio channels.</p>
+                </div>
+                <Switch
+                  checked={formState.stereoRecordingEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, stereoRecordingEnabled: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Video Recording</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Enable video recording for web calls.</p>
+                </div>
+                <Switch
+                  checked={formState.videoRecordingEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, videoRecordingEnabled: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div>
+                  <Label>Transcript Saving</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Save the full transcript for each call.</p>
+                </div>
+                <Switch
+                  checked={formState.transcriptSavingEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, transcriptSavingEnabled: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-blue-400" />
+                  <div>
+                    <Label>HIPAA Compliance</Label>
+                    <p className="text-xs text-gray-500 mt-0.5">Enable HIPAA-compliant mode. Requires a HIPAA-enabled Vapi account.</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={formState.hipaaEnabled}
+                  onCheckedChange={(checked) => setFormState(prev => ({ ...prev, hipaaEnabled: checked }))}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="variableValues">Variable Values</Label>
+                <Textarea
+                  id="variableValues"
+                  value={formState.variableValues}
+                  onChange={(e) => setFormState(prev => ({ ...prev, variableValues: e.target.value }))}
+                  placeholder={"companyName=Acme Corp\nagentName=Sarah\ntimezone=EST"}
+                  className="border-gray-700 bg-gray-900 text-white min-h-[100px] font-mono text-xs"
+                />
+                <p className="text-xs text-gray-500">Key=value pairs (one per line). These can be referenced in the system prompt as {"{{variableName}}"}.</p>
               </div>
             </TabsContent>
           </Tabs>

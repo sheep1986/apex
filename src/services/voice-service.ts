@@ -12,6 +12,56 @@ import { ToolBuilder } from './tool-builder';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
+// ─── Analysis & Behavior Plans ──────────────────────────────────
+
+export interface AnalysisPlan {
+  summaryPlan?: { enabled?: boolean; prompt?: string };
+  structuredDataPlan?: { enabled?: boolean; schema?: Record<string, any> };
+  successEvaluationPlan?: { enabled?: boolean; rubric?: string };
+}
+
+export interface ArtifactPlan {
+  recordingEnabled?: boolean;
+  videoRecordingEnabled?: boolean;
+  transcriptPlan?: { enabled?: boolean };
+  recordingPath?: string;
+}
+
+export interface MessagePlan {
+  idleMessages?: string[];
+  idleTimeoutSeconds?: number;
+  idleMaxSpokenCount?: number;
+}
+
+export interface StartSpeakingPlan {
+  waitSeconds?: number;
+  smartEndpointingEnabled?: boolean;
+  transcriptionEndpointingPlan?: {
+    onPunctuationSeconds?: number;
+    onNoPunctuationSeconds?: number;
+    onNumberSeconds?: number;
+  };
+}
+
+export interface StopSpeakingPlan {
+  numWords?: number;
+  voiceSeconds?: number;
+  backoffSeconds?: number;
+}
+
+export interface EndCallPlan {
+  enabled?: boolean;
+  maxCallDurationMessage?: string;
+}
+
+export interface VoicemailDetection {
+  enabled?: boolean;
+  provider?: string;
+  machineDetectionTimeout?: number;
+  machineDetectionSpeechThreshold?: number;
+  machineDetectionSpeechEndThreshold?: number;
+}
+
 export interface VoiceAssistant {
   id: string;
   name: string;
@@ -56,6 +106,20 @@ export interface VoiceAssistant {
   backgroundSound?: string;
   backchannelingEnabled?: boolean;
   hipaaEnabled?: boolean;
+  // Analysis & Behavior Plans
+  analysisPlan?: AnalysisPlan;
+  artifactPlan?: ArtifactPlan;
+  messagePlan?: MessagePlan;
+  startSpeakingPlan?: StartSpeakingPlan;
+  stopSpeakingPlan?: StopSpeakingPlan;
+  endCallPlan?: EndCallPlan;
+  voicemailDetection?: VoicemailDetection;
+  // Additional settings
+  firstMessageMode?: 'assistant-speaks-first' | 'assistant-speaks-first-with-model-generated-message' | 'assistant-waits-for-user';
+  backgroundDenoisingEnabled?: boolean;
+  stereoRecordingEnabled?: boolean;
+  variableValues?: Record<string, string>;
+  credentialOverrides?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
   // Trinity extensions
