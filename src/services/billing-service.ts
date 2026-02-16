@@ -187,8 +187,6 @@ class BillingService {
     newBalance: number;
   }> {
     try {
-      console.log(`Purchasing credit package: ${packageId}`);
-
       // In production, this would process the payment through Stripe/etc
       const packages = await this.getCreditPackages();
       const selectedPackage = packages.find((p) => p.id === packageId);
@@ -203,8 +201,6 @@ class BillingService {
       // Mock successful transaction
       const transactionId = `txn_${Math.random().toString(36).substr(2, 9)}`;
       const creditsAdded = selectedPackage.credits + (selectedPackage.bonus || 0);
-
-      console.log(`✅ Credits purchased successfully: +${creditsAdded} credits`);
 
       return {
         success: true,
@@ -227,8 +223,6 @@ class BillingService {
     prorationAmount?: number;
   }> {
     try {
-      console.log(`Changing plan to: ${planId}`);
-
       // In production, this would update the subscription
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
@@ -284,8 +278,6 @@ class BillingService {
     name: string;
   }): Promise<PaymentMethod> {
     try {
-      console.log('Adding new payment method...');
-
       // In production, this would tokenize the card with Stripe
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
@@ -299,7 +291,6 @@ class BillingService {
         isDefault: false,
       };
 
-      console.log('✅ Payment method added successfully');
       return newPaymentMethod;
     } catch (error) {
       console.error('Error adding payment method:', error);
@@ -310,12 +301,8 @@ class BillingService {
   // Set default payment method
   async setDefaultPaymentMethod(paymentMethodId: string): Promise<void> {
     try {
-      console.log(`Setting default payment method: ${paymentMethodId}`);
-
       // In production, this would update in your backend
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.log('✅ Default payment method updated');
     } catch (error) {
       console.error('Error setting default payment method:', error);
       throw error;
@@ -325,12 +312,8 @@ class BillingService {
   // Remove payment method
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
     try {
-      console.log(`Removing payment method: ${paymentMethodId}`);
-
       // In production, this would remove from Stripe and your backend
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.log('✅ Payment method removed');
     } catch (error) {
       console.error('Error removing payment method:', error);
       throw error;
@@ -427,20 +410,28 @@ class BillingService {
     return baseRate + (duration - 1) * perMinuteRate;
   }
 
-  // Setup auto-recharge
+  // Setup auto-recharge — calls the billing-auto-recharge Netlify function
   async setupAutoRecharge(config: {
     enabled: boolean;
-    threshold: number; // Credits remaining to trigger recharge
-    amount: number; // Amount to recharge in dollars
+    threshold: number;
+    amount: number;
     paymentMethodId: string;
   }): Promise<void> {
     try {
-      console.log('Setting up auto-recharge:', config);
-
-      // In production, this would save to your backend
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.log('✅ Auto-recharge configured');
+      const response = await fetch('/.netlify/functions/billing-auto-recharge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: config.enabled,
+          threshold_usd: config.threshold,
+          recharge_amount_usd: config.amount,
+          max_monthly_recharges: 5,
+          stripe_payment_method_id: config.paymentMethodId,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to configure auto-recharge');
+      }
     } catch (error) {
       console.error('Error setting up auto-recharge:', error);
       throw error;
@@ -453,8 +444,6 @@ class BillingService {
     effectiveDate: Date;
   }> {
     try {
-      console.log('Canceling subscription:', reason);
-
       // In production, this would cancel in Stripe and your backend
       await new Promise((resolve) => setTimeout(resolve, 1500));
 

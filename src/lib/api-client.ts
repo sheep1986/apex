@@ -107,17 +107,6 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
       // config.headers['X-Request-ID'] =
       //   `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Log request in development
-      if (import.meta.env.DEV) {
-        console.log('🚀 API Request:', {
-          method: config.method?.toUpperCase(),
-          url: config.url,
-          data: config.data,
-          hasAuth: !!token,
-          authMode: 'supabase',
-        });
-      }
-
       return config;
     },
     (error) => {
@@ -129,15 +118,6 @@ const createApiClient = (getToken?: () => Promise<string | null>): AxiosInstance
   // Response Interceptor
   instance.interceptors.response.use(
     (response) => {
-      // Log response in development
-      if (import.meta.env.DEV) {
-        console.log('✅ API Response:', {
-          status: response.status,
-          url: response.config.url,
-          data: response.data,
-        });
-      }
-
       return response;
     },
     async (error: AxiosError) => {

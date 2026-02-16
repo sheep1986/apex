@@ -14,7 +14,6 @@ export const DevAuthSwitcher: React.FC = () => {
   }, []);
 
   const switchToOwner = () => {
-    console.log('🔄 Switching to Platform Owner mode');
     localStorage.setItem('dev_auth_mode', 'owner');
     localStorage.setItem('auth_token', 'owner-token');
     setCurrentMode('owner');
@@ -25,7 +24,6 @@ export const DevAuthSwitcher: React.FC = () => {
   };
 
   const switchToClient = () => {
-    console.log('🔄 Switching to Client Admin mode');
     localStorage.setItem('dev_auth_mode', 'client');
     localStorage.setItem('auth_token', 'test-token');
     setCurrentMode('client');

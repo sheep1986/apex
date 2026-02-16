@@ -98,7 +98,6 @@ export class CampaignProcessorFrontendService {
     const { data: leads } = await query;
 
     if (!leads || leads.length === 0) {
-      console.log('No leads to process');
       return { processed: 0 };
     }
 

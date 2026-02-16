@@ -10,15 +10,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || PRODUCTION_ANO
 // Ensure URL has https:// prefix
 const finalSupabaseUrl = supabaseUrl.startsWith('http') ? supabaseUrl : `https://${supabaseUrl}`;
 
-// Debug logging in production
-if (typeof window !== 'undefined') {
-  console.log('🔍 Supabase Config:', {
-    envUrl: import.meta.env.VITE_SUPABASE_URL,
-    finalUrl: finalSupabaseUrl,
-    hasKey: !!supabaseAnonKey
-  });
-}
-
 if (!finalSupabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase URL or anonymous key is missing from environment variables.');
 }
@@ -38,8 +29,6 @@ export function getSupabase() {
     const safeUrl = finalSupabaseUrl.startsWith('http') 
       ? finalSupabaseUrl 
       : `https://${finalSupabaseUrl.replace(/^https?:\/\//, '')}`;
-    
-    console.log('🔐 Creating Supabase client with URL:', safeUrl);
     
     _supabase = createClient(safeUrl, supabaseAnonKey, {
       auth: {

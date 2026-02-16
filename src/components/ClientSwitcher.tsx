@@ -128,7 +128,6 @@ export default function ClientSwitcher() {
     // 1. Update the user's session
     // 2. Redirect to client dashboard
     // 3. Load client-specific data
-    console.log(`Switching to client: ${clientId}`);
   };
 
   return (

@@ -61,9 +61,38 @@ const getStatusColor = (status: string) => {
       return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
     case 'queued':
       return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+    case 'scheduled':
+      return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
     default:
       return 'bg-gray-500/10 text-gray-400 border-gray-500/30';
   }
+};
+
+const formatEndedReason = (reason?: string): string => {
+  if (!reason) return '';
+  const map: Record<string, string> = {
+    'assistant-error': 'Assistant Error',
+    'assistant-not-found': 'Assistant Not Found',
+    'db-error': 'Database Error',
+    'no-server-available': 'No Server Available',
+    'license-check-failed': 'License Check Failed',
+    'pipeline-error-openai-llm-failed': 'LLM Failed',
+    'pipeline-error-deepgram-transcriber-failed': 'Transcriber Failed',
+    'pipeline-error-eleven-labs-voice-failed': 'Voice Failed',
+    'silence-timed-out': 'Silence Timeout',
+    'max-duration-reached': 'Max Duration',
+    'manually-canceled': 'Manually Ended',
+    'phone-call-provider-closed-websocket': 'Provider Closed',
+    'customer-busy': 'Customer Busy',
+    'customer-ended-call': 'Customer Hung Up',
+    'customer-did-not-answer': 'No Answer',
+    'customer-did-not-give-microphone-permission': 'No Mic Permission',
+    'assistant-said-end-call-phrase': 'End Call Phrase',
+    'voicemail': 'Voicemail',
+    'assistant-forwarded-call': 'Call Forwarded',
+    'assistant-joined-call': 'Joined Call',
+  };
+  return map[reason] || reason.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 
 const getSentimentColor = (sentiment?: string) => {
@@ -421,6 +450,7 @@ export default function AllCalls() {
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="ringing">Ringing</SelectItem>
                   <SelectItem value="queued">Queued</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -486,6 +516,18 @@ export default function AllCalls() {
                         <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
                           <span>{getCallTypeLabel(call.type)}</span>
                           {call.customer?.number && <span>{call.customer.number}</span>}
+                          {call.endedReason && (
+                            <span className="text-gray-500">{formatEndedReason(call.endedReason)}</span>
+                          )}
+                          {call.analysis?.successEvaluation && (
+                            <Badge variant="outline" className={
+                              call.analysis.successEvaluation === 'pass'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : 'bg-red-500/10 text-red-400 border-red-500/30'
+                            }>
+                              {call.analysis.successEvaluation}
+                            </Badge>
+                          )}
                           {call.summary && (
                             <span className="max-w-xs truncate text-gray-400">{call.summary}</span>
                           )}
@@ -502,7 +544,11 @@ export default function AllCalls() {
                           {call.startedAt ? new Date(call.startedAt).toLocaleTimeString() : ''}
                         </p>
                       </div>
-                      <div className="text-right text-sm">
+                      <div className="text-right text-sm" title={
+                        call.costBreakdown
+                          ? `STT: ${formatCost(call.costBreakdown.stt || 0)} | LLM: ${formatCost(call.costBreakdown.llm || 0)} | TTS: ${formatCost(call.costBreakdown.tts || 0)} | Transport: ${formatCost(call.costBreakdown.transport || 0)}`
+                          : undefined
+                      }>
                         <p className="text-white">{formatDuration(call.duration || 0)}</p>
                         <p className="text-xs text-gray-500">{formatCost(call.cost || 0)}</p>
                       </div>
@@ -593,6 +639,8 @@ export default function AllCalls() {
                   endedAt: selectedCall.endedAt,
                   direction: selectedCall.type === 'inboundPhoneCall' ? 'inbound' : 'outbound',
                   providerCallId: selectedCall.id,
+                  costBreakdown: selectedCall.costBreakdown,
+                  endedReason: selectedCall.endedReason,
                   analysis: {
                     sentiment:
                       selectedCall.analysis?.sentiment === 'positive'
@@ -602,6 +650,8 @@ export default function AllCalls() {
                           : 0.5,
                     keywords: [],
                     summary: selectedCall.summary || '',
+                    structuredData: selectedCall.analysis?.structuredData,
+                    successEvaluation: selectedCall.analysis?.successEvaluation,
                   },
                 }
               : undefined

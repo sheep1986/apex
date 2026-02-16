@@ -2266,9 +2266,8 @@ The review section provides detailed estimates for your campaign including durat
                           : m
                       ));
                     }}
-                    onResendInvitation={async (invitationId: string) => {
-                      // Mock resend logic
-                      console.log('Resending invitation:', invitationId);
+                    onResendInvitation={async (_invitationId: string) => {
+                      // Mock resend logic - TODO: implement actual resend
                     }}
                     onCancelInvitation={async (invitationId: string) => {
                       setTeamInvitations(prev => prev.filter(i => i.id !== invitationId));

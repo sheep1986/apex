@@ -112,7 +112,6 @@ export const CallMonitor: React.FC<CallMonitorProps> = ({
       const ws = new WebSocket(`${websocketUrl}?token=${token}&campaignId=${campaignId}`);
       
       ws.onopen = () => {
-        console.log('Connected to AI CRM WebSocket');
         setConnected(true);
         
         // Subscribe to campaign updates
@@ -131,7 +130,6 @@ export const CallMonitor: React.FC<CallMonitorProps> = ({
       };
 
       ws.onclose = () => {
-        console.log('Disconnected from AI CRM WebSocket');
         setConnected(false);
         
         // Reconnect after 3 seconds
@@ -247,7 +245,6 @@ export const CallMonitor: React.FC<CallMonitorProps> = ({
 
   const handleLeadQualified = (data: any) => {
     // Show notification or update UI for qualified lead
-    console.log('Lead qualified:', data);
   };
 
   const startDurationTimer = () => {

@@ -7,8 +7,6 @@ export default function ForceLogout() {
 
   useEffect(() => {
     const forceLogout = async () => {
-      console.log('🚪 Force logging out...');
-      
       // Clear all storage
       localStorage.clear();
       sessionStorage.clear();

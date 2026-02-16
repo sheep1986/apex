@@ -59,15 +59,12 @@ export const ContactsProvider: React.FC<{ children: ReactNode }> = ({ children }
       setError(null);
       
       if (!isSignedIn || !user || !user.organization_id) {
-        console.log('⚠️ No user logged in or no organization, skipping contacts fetch');
         setContacts([]);
         return;
       }
 
       const organizationId = user.organization_id;
-      console.log(`🔍 Fetching contacts for organization: ${organizationId}`);
-      console.log(`🔍 User: ${user.email} (${user.role})`);
-      
+
       // Fetch from leads table instead of contacts
       // Simplified query - removed complex joins that were causing 400 errors
       const { data, error: fetchError } = await supabaseService.client
@@ -76,9 +73,6 @@ export const ContactsProvider: React.FC<{ children: ReactNode }> = ({ children }
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
       
-      console.log('📊 Raw contacts data:', data);
-      console.log('❌ Fetch error:', fetchError);
-
       if (fetchError) {
         throw fetchError;
       }
@@ -112,7 +106,6 @@ export const ContactsProvider: React.FC<{ children: ReactNode }> = ({ children }
       }));
 
       setContacts(transformedContacts);
-      console.log(`✅ Loaded ${transformedContacts.length} contacts from database`);
     } catch (err) {
       console.error('❌ Error fetching contacts:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch contacts');

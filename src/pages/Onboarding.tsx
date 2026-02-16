@@ -225,8 +225,6 @@ function Onboarding() {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Here you would actually test the API connection
-      console.log(`Testing ${service} connection...`);
-
       setTestingConnection(null);
       setLoading(false);
       return true;
@@ -267,8 +265,6 @@ function Onboarding() {
         integrationKeys,
         assistantConfig,
       };
-
-      console.log('Completing onboarding with data:', onboardingData);
 
       // Here you would save to your backend
       await new Promise((resolve) => setTimeout(resolve, 2000));

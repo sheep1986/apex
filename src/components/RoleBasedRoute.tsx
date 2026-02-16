@@ -30,14 +30,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   const userRole = userContext.role?.toLowerCase();
   const hasAccess = allowedRoles.some((role) => role.toLowerCase() === userRole);
 
-  console.log('🛡️ RoleBasedRoute: Checking access', {
-    userRole,
-    allowedRoles,
-    hasAccess,
-  });
-
   if (!hasAccess) {
-    console.log('🚫 Access denied, redirecting to:', redirectTo);
     return <Navigate to={redirectTo} replace />;
   }
 

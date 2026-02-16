@@ -16,6 +16,7 @@ import {
   Calendar,
   TrendingUp,
   DollarSign,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -104,15 +105,11 @@ export default function UserManagement() {
       // Import supabase service
       const { supabaseService } = await import('../services/supabase-service');
       
-      console.log('🔍 Fetching users from Supabase...');
-      
       // Fetch all users from Supabase - try without joins first
       const { data: users, error } = await supabaseService.client
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
-
-      console.log('📊 Supabase response:', { users, error });
 
       if (error) {
         console.error('❌ Supabase error details:', {
@@ -140,7 +137,6 @@ export default function UserManagement() {
         avatar_url: user.avatar_url || '',
       }));
 
-      console.log('✅ Transformed users:', transformedUsers.length);
       setUsers(transformedUsers);
 
       // Fetch organizations separately
@@ -149,8 +145,6 @@ export default function UserManagement() {
           .from('organizations')
           .select('*')
           .order('name');
-
-        console.log('📊 Organizations response:', { orgs, orgError });
 
         if (!orgError && orgs) {
           setOrganizations(orgs);
@@ -317,7 +311,8 @@ export default function UserManagement() {
           <h1 className="text-3xl font-bold text-white">User Management</h1>
         </div>
         <div className="flex h-64 items-center justify-center">
-          <div className="text-zinc-400">Loading users...</div>
+          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+          <span className="ml-3 text-gray-400">Loading users...</span>
         </div>
       </div>
     );

@@ -41,13 +41,6 @@ class ApiConfigurationService {
     const token = localStorage.getItem('auth_token') || localStorage.getItem('supabase_token');
     const url = `${API_BASE_URL}${endpoint}`;
     
-    console.log('🌐 API Request:', { 
-      method: options.method || 'GET', 
-      url, 
-      hasToken: !!token,
-      token: token ? `${token.substring(0, 10)}...` : 'none'
-    });
-    
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -57,8 +50,6 @@ class ApiConfigurationService {
       ...options,
     });
 
-    console.log('📡 API Response:', { status: response.status, statusText: response.statusText });
-
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
       console.error('❌ API Error:', error);
@@ -66,7 +57,6 @@ class ApiConfigurationService {
     }
 
     const data = await response.json();
-    console.log('✅ API Success:', data);
     return data;
   }
 
@@ -92,14 +82,11 @@ class ApiConfigurationService {
     configuration: ServiceConfigs[T]
   ): Promise<string> {
     try {
-      console.log('🚀 Saving API configuration:', { serviceName, configuration });
-      
       const data = await this.makeRequest(`/api/api-configurations/${serviceName}`, {
         method: 'POST',
         body: JSON.stringify({ configuration }),
       });
 
-      console.log('✅ API configuration saved successfully:', data);
       return data.id;
     } catch (error) {
       console.error('❌ Error in saveApiConfiguration:', error);

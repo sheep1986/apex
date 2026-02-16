@@ -3,8 +3,6 @@ import { supabase } from './supabase-client';
 // Direct Supabase service that bypasses the API
 export class DirectSupabaseService {
   async getCampaigns() {
-    console.log('🔄 DirectSupabaseService: Fetching campaigns directly from Supabase...');
-    
     // Hardcoded organization_id for now
     const organizationId = '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
     
@@ -18,8 +16,6 @@ export class DirectSupabaseService {
       console.error('❌ Supabase error:', error);
       return [];
     }
-    
-    console.log(`✅ Found ${campaigns?.length || 0} campaigns in Supabase`);
     
     // Fetch lead and call counts for each campaign
     const campaignsWithCounts = await Promise.all(
@@ -50,23 +46,6 @@ export class DirectSupabaseService {
           .eq('campaign_id', campaign.id);
         
         const totalCallCost = callsWithCost?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
-        
-        console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
-    console.log('📊 Returning data with:', {
-      totalLeads: leadCount || 0,
-      callsCompleted: completedCallCount || 0,
-      id: campaign.id
-    });
-        
-        // Log if this is the test mm campaign
-        if (campaign.name === 'test mm') {
-          console.log('🎯 Found test mm campaign with data!', {
-            leadCount,
-            callCount,
-            completedCallCount,
-            campaignId: campaign.id
-          });
-        }
         
         return {
           id: campaign.id,
@@ -107,8 +86,6 @@ export class DirectSupabaseService {
   }
   
   async getRecentCalls(limit: number = 20) {
-    console.log('🔄 DirectSupabaseService: Fetching recent calls from Supabase...');
-    
     const organizationId = '2566d8c5-2245-4a3c-b539-4cea21a07d9b';
     
     const { data: calls, error } = await supabase
@@ -123,13 +100,10 @@ export class DirectSupabaseService {
       return [];
     }
     
-    console.log(`✅ Found ${calls?.length || 0} recent calls`);
     return calls || [];
   }
   
   async getCampaignLeads(campaignId: string) {
-    console.log('🔄 DirectSupabaseService: Fetching leads for campaign:', campaignId);
-    
     const { data: leads, error } = await supabase
       .from('leads')
       .select('*')
@@ -141,13 +115,10 @@ export class DirectSupabaseService {
       return [];
     }
     
-    console.log(`✅ Found ${leads?.length || 0} leads for campaign`);
     return leads || [];
   }
   
   async getCampaignCalls(campaignId: string) {
-    console.log('🔄 DirectSupabaseService: Fetching calls for campaign:', campaignId);
-    
     const { data: calls, error } = await supabase
       .from('calls')
       .select('*')
@@ -158,8 +129,6 @@ export class DirectSupabaseService {
       console.error('❌ Supabase error fetching calls:', error);
       return [];
     }
-    
-    console.log(`✅ Found ${calls?.length || 0} calls for campaign`);
     
     // Include all calls with proper formatting
     return (calls || []).map(call => ({
@@ -178,8 +147,6 @@ export class DirectSupabaseService {
   }
   
   async getCampaignById(campaignId: string) {
-    console.log('🔄 DirectSupabaseService: Fetching campaign by ID:', campaignId);
-    
     if (!campaignId) {
       console.error('❌ No campaign ID provided');
       return null;
@@ -201,8 +168,6 @@ export class DirectSupabaseService {
       console.error('❌ No campaign found with ID:', campaignId);
       return null;
     }
-    
-    console.log('✅ Found campaign:', campaign.name)
     
     // Get lead count
     const { count: leadCount } = await supabase
@@ -230,13 +195,6 @@ export class DirectSupabaseService {
       .eq('campaign_id', campaignId);
     
     const totalCallCost = callsWithCost?.reduce((sum, call) => sum + (call.cost || 0), 0) || 0;
-    
-    console.log(`📊 Campaign ${campaign.name}: ${leadCount} leads, ${callCount} calls, ${completedCallCount} completed`);
-    console.log('📊 Returning data with:', {
-      totalLeads: leadCount || 0,
-      callsCompleted: completedCallCount || 0,
-      id: campaign.id
-    });
     
     // Parse settings if it's a JSON string
     let parsedSettings = campaign.settings;

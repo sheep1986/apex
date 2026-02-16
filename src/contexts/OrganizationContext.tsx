@@ -65,7 +65,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const getOrganizationId = () => {
     // First check if user has organization_id
     if (user?.organization_id) {
-      console.log('📍 Using organization_id from user:', user.organization_id);
       return user.organization_id;
     }
     
@@ -81,13 +80,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchOrganization = async () => {
-    console.log('🔄 fetchOrganization called', {
-      user: user?.email,
-      userId: user?.id,
-      orgId: user?.organization_id,
-      retryCount
-    });
-    
     // Prevent excessive retries
     if (retryCount >= 3) {
       console.warn('⚠️ Max retry attempts reached for fetching organization');
@@ -100,7 +92,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       const orgId = getOrganizationId();
-      console.log('🔍 Organization ID resolved to:', orgId);
       
       if (!orgId) {
         console.error('❌ No organization ID found for user:', user?.email);
@@ -108,17 +99,13 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       }
 
       // Fetch organization from Supabase
-      console.log('📡 Starting Supabase fetch for org:', orgId);
       const orgData = await supabaseService.getOrganization(orgId);
-      console.log('📦 Organization data received from service:', orgData);
       
       if (!orgData) {
         throw new Error('Organization not found');
       }
 
       // Set organization data - include ALL fields from database
-      console.log('📊 Organization data received:', orgData);
-      
       // Use the data as-is from Supabase, it should have all fields
       setOrganization(orgData);
 
@@ -177,10 +164,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       const updatedOrg = await supabaseService.updateOrganization(organization.id, updates);
       
       // Use the updated data as-is from Supabase
-      console.log('📊 Updated organization data:', updatedOrg);
       setOrganization(updatedOrg);
-      
-      console.log('Organization updated successfully:', updates);
     } catch (err) {
       console.error('Error updating organization:', err);
       // Revert the optimistic update
@@ -190,17 +174,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    console.log('🔄 OrganizationContext useEffect triggered', {
-      user: user,
-      isLoading: isLoading,
-      organization: organization,
-      hasFetched: hasFetched,
-      condition: user && !isLoading && !organization && !hasFetched
-    });
-    
     // Fetch if we have a user and haven't fetched yet OR if we have no organization data
     if (user && !isLoading && (!hasFetched || !organization)) {
-      console.log('🚀 Triggering fetchOrganization from useEffect');
       setHasFetched(true);
       fetchOrganization();
     }

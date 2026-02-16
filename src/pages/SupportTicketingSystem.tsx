@@ -4,6 +4,7 @@ import {
     Building2,
     CreditCard,
     Hash,
+    Loader2,
     Mail,
     MessageSquare,
     MoreVertical,
@@ -18,7 +19,7 @@ import {
     Users,
     Zap
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -32,6 +33,8 @@ import {
     SelectValue,
 } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/services/supabase-client';
 
 interface Department {
   id: string;
@@ -70,12 +73,15 @@ interface TicketMessage {
 }
 
 export default function SupportTicketingSystem() {
+  const { toast } = useToast();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [newMessage, setNewMessage] = useState('');
   const [showNewTicketDialog, setShowNewTicketDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const departments: Department[] = [
@@ -86,101 +92,74 @@ export default function SupportTicketingSystem() {
     { id: 'emergency', name: 'Emergency', color: 'text-red-400', icon: AlertTriangle },
   ];
 
-  // Mock data
-  const [tickets, setTickets] = useState<SupportTicket[]>([
-    {
-      id: 'TKT-001',
-      organizationName: 'TechFlow Solutions',
-      organizationId: 'ORG-001',
-      clientEmail: 'sarah@techflow.com',
-      clientPhone: '+1 (555) 123-4567',
-      title: 'Voice Integration Not Working - Urgent Campaign Launch',
-      description:
-        'Cannot connect to Voice API, getting 401 errors consistently. This is blocking our campaign launch.',
-      priority: 'high',
-      status: 'in-progress',
-      category: 'technical',
-      department: 'technical',
-      assignedTo: 'Mike Torres',
-      createdAt: '2024-01-20T10:30:00Z',
-      updatedAt: '2024-01-20T14:15:00Z',
-      starred: true,
-      messages: [
-        {
-          id: 'msg-1',
-          author: 'Sarah Johnson',
-          authorType: 'client',
-          message:
-            "Hi, we're having trouble with our Voice integration. Getting consistent 401 errors when trying to make calls. This is urgent as we have a campaign launching tomorrow.",
-          timestamp: '2024-01-20T10:30:00Z',
-        },
-        {
-          id: 'msg-2',
-          author: 'Trinity Support Bot',
-          authorType: 'ai-bot',
-          message:
-            "I've detected this might be an API key issue. Let me run some diagnostics on your account... 🔍\n\nI found that your Voice Provider API key appears to be expired. I'm escalating this to our technical team for immediate assistance.",
-          timestamp: '2024-01-20T10:31:00Z',
-        },
-        {
-          id: 'msg-3',
-          author: 'Mike Torres',
-          authorType: 'support',
-          message:
-            "Hi Sarah! I've taken over this ticket. I can see the API key issue. I'm generating a new Voice Provider key for your account right now. You should have this resolved within the next 30 minutes.",
-          timestamp: '2024-01-20T14:15:00Z',
-        },
-      ],
-    },
-    {
-      id: 'TKT-002',
-      organizationName: 'Digital Dynamics',
-      organizationId: 'ORG-002',
-      clientEmail: 'mike@digitaldynamics.com',
-      title: 'Billing Inquiry - Duplicate Charge',
-      description: 'We were charged twice for our monthly subscription this month',
-      priority: 'medium',
-      status: 'open',
-      category: 'billing',
-      department: 'billing',
-      createdAt: '2024-01-20T09:15:00Z',
-      updatedAt: '2024-01-20T09:15:00Z',
-      messages: [
-        {
-          id: 'msg-5',
-          author: 'Mike Chen',
-          authorType: 'client',
-          message:
-            'Hi, I notice we were charged $1299 twice this month on January 15th. Can you please look into this and process a refund for the duplicate charge?',
-          timestamp: '2024-01-20T09:15:00Z',
-        },
-      ],
-    },
-    {
-      id: 'TKT-003',
-      organizationName: 'Growth Partners',
-      organizationId: 'ORG-003',
-      clientEmail: 'emma@growthpartners.com',
-      title: 'New User Onboarding - Need Help Setting Up',
-      description: 'Just signed up for trial, need help with initial setup',
-      priority: 'medium',
-      status: 'open',
-      category: 'account',
-      department: 'onboarding',
-      createdAt: '2024-01-20T08:00:00Z',
-      updatedAt: '2024-01-20T08:00:00Z',
-      messages: [
-        {
-          id: 'msg-7',
-          author: 'Emma Rodriguez',
-          authorType: 'client',
-          message:
-            'Hi team, we just signed up for the trial. Could someone help us with the initial setup? We want to import our leads and set up our first campaign.',
-          timestamp: '2024-01-20T08:00:00Z',
-        },
-      ],
-    },
-  ]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: ticketRows, error } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+
+      // Fetch messages for all tickets
+      const ticketIds = (ticketRows || []).map((t: any) => t.id);
+      let messagesMap: Record<string, TicketMessage[]> = {};
+
+      if (ticketIds.length > 0) {
+        const { data: msgs } = await supabase
+          .from('support_ticket_messages')
+          .select('*')
+          .in('ticket_id', ticketIds)
+          .order('created_at', { ascending: true });
+
+        (msgs || []).forEach((m: any) => {
+          if (!messagesMap[m.ticket_id]) messagesMap[m.ticket_id] = [];
+          messagesMap[m.ticket_id].push({
+            id: m.id,
+            author: m.author,
+            authorType: m.author_type?.replace('_', '-') as any,
+            message: m.message,
+            timestamp: m.created_at,
+            isInternal: m.is_internal,
+          });
+        });
+      }
+
+      const mapped: SupportTicket[] = (ticketRows || []).map((t: any) => ({
+        id: t.ticket_number || t.id,
+        organizationName: t.organization_name || 'Unknown',
+        organizationId: t.organization_id || '',
+        clientEmail: t.client_email || '',
+        clientPhone: t.client_phone,
+        title: t.title,
+        description: t.description || '',
+        priority: t.priority || 'medium',
+        status: t.status?.replace('_', '-') || 'open',
+        category: t.category?.replace('_', '-') || 'technical',
+        department: t.department || 'technical',
+        assignedTo: t.assigned_to,
+        createdAt: t.created_at,
+        updatedAt: t.updated_at,
+        starred: t.starred || false,
+        messages: messagesMap[t.id] || [],
+        _dbId: t.id, // Keep real DB id for mutations
+      }));
+
+      setTickets(mapped);
+    } catch (err: any) {
+      console.error('Failed to load tickets:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
 
   const stats = {
     total: tickets.length,
@@ -197,36 +176,65 @@ export default function SupportTicketingSystem() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedTicket) return;
+    setSending(true);
 
-    const message: TicketMessage = {
-      id: `msg-${Date.now()}`,
-      author: 'Sean Wentz',
-      authorType: 'support',
-      message: newMessage,
-      timestamp: new Date().toISOString(),
-    };
+    const dbId = (selectedTicket as any)._dbId || selectedTicket.id;
 
-    setTickets((prev) =>
-      prev.map((ticket) =>
-        ticket.id === selectedTicket.id
-          ? {
-              ...ticket,
-              messages: [...ticket.messages, message],
-              updatedAt: new Date().toISOString(),
-            }
-          : ticket
-      )
-    );
+    try {
+      const { error } = await supabase.from('support_ticket_messages').insert({
+        ticket_id: dbId,
+        author: 'Support Agent',
+        author_type: 'support',
+        message: newMessage.trim(),
+      });
 
-    setNewMessage('');
+      if (error) throw error;
+
+      // Update ticket updated_at
+      await supabase
+        .from('support_tickets')
+        .update({ updated_at: new Date().toISOString(), status: 'in_progress' })
+        .eq('id', dbId);
+
+      // Optimistic update
+      const message: TicketMessage = {
+        id: `msg-${Date.now()}`,
+        author: 'Support Agent',
+        authorType: 'support',
+        message: newMessage.trim(),
+        timestamp: new Date().toISOString(),
+      };
+
+      setTickets((prev) =>
+        prev.map((ticket) =>
+          ticket.id === selectedTicket.id
+            ? { ...ticket, messages: [...ticket.messages, message], updatedAt: new Date().toISOString(), status: 'in-progress' }
+            : ticket
+        )
+      );
+
+      setSelectedTicket((prev) =>
+        prev ? { ...prev, messages: [...prev.messages, message], status: 'in-progress' } : prev
+      );
+
+      setNewMessage('');
+    } catch (err: any) {
+      toast({ title: 'Error', description: 'Failed to send message.', variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
   };
 
-  const toggleStar = (ticketId: string) => {
-    setTickets((prev) =>
-      prev.map((ticket) =>
-        ticket.id === ticketId ? { ...ticket, starred: !ticket.starred } : ticket
-      )
-    );
+  const toggleStar = async (ticketId: string) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+    const dbId = (ticket as any)._dbId || ticket.id;
+    const newStarred = !ticket.starred;
+
+    // Optimistic
+    setTickets((prev) => prev.map((t) => t.id === ticketId ? { ...t, starred: newStarred } : t));
+
+    await supabase.from('support_tickets').update({ starred: newStarred }).eq('id', dbId);
   };
 
   const getPriorityColor = (priority: string) => {

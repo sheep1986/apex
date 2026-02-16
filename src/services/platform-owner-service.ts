@@ -283,7 +283,6 @@ class PlatformOwnerService {
 
   // Stripe Integration Methods (Mock)
   async processRefund(transactionId: string, amount?: number): Promise<boolean> {
-    console.log(`Processing refund for transaction ${transactionId}`, amount);
     return true;
   }
 
@@ -309,8 +308,6 @@ class PlatformOwnerService {
     };
 
     // Send invitation email (mock)
-    console.log(`Invitation sent to ${email}`);
-
     return newMember;
   }
 

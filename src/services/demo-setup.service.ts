@@ -6,18 +6,14 @@ export class DemoSetupService {
    * Initialize demo data for the platform
    */
   static async initializeDemoData(): Promise<void> {
-    console.log('🚀 Initializing demo data...');
     // Demo setup - simplified for Zero-Trace
     await this.setupDemoVoiceAccounts();
-    console.log('🔔 Demo data initialized');
   }
 
   /**
    * Set up demo Apex accounts
    */
   private static async setupDemoVoiceAccounts(): Promise<void> {
-    console.log('📞 Setting up demo Trinity accounts...');
-
     // Mock successful sync
     setTimeout(() => {
       // Use generic voice notification
@@ -33,7 +29,6 @@ export class DemoSetupService {
     const { clearNotifications } = useNotificationStore.getState();
     clearNotifications();
     localStorage.removeItem('apex-voice-accounts');
-    console.log('✅ Demo data cleared');
   }
 
   static getDemoStats() {

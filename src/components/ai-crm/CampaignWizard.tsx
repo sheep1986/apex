@@ -191,22 +191,14 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
 
   const fetchVapiResources = async () => {
     try {
-      console.log('🔄 CampaignWizard: Fetching VAPI resources...');
-      
       const [assistantsResponse, phoneNumbersResponse] = await Promise.all([
         authenticatedApiClient.get('/api/campaign/assistants'),
         authenticatedApiClient.get('/api/campaign/phone-numbers')
       ]);
 
-      console.log('✅ CampaignWizard: Assistants response:', assistantsResponse.data);
-      console.log('✅ CampaignWizard: Phone numbers response:', phoneNumbersResponse.data);
-
       // Handle the nested response structure from the API
       setAssistants(assistantsResponse.data.assistants || []);
       setPhoneNumbers(phoneNumbersResponse.data.phoneNumbers || []);
-      
-      console.log('✅ CampaignWizard: Set assistants:', assistantsResponse.data.assistants?.length || 0);
-      console.log('✅ CampaignWizard: Set phone numbers:', phoneNumbersResponse.data.phoneNumbers?.length || 0);
     } catch (error) {
       console.error('❌ CampaignWizard: Error fetching VAPI resources:', error);
       
@@ -261,7 +253,6 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
         }
       ];
       
-      console.log('📝 CampaignWizard: Using mock data for development');
       setAssistants(mockAssistants);
       setPhoneNumbers(mockPhoneNumbers);
     }
@@ -272,11 +263,8 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
 
     setLoading(true);
     setErrors({ upload: '' }); // Clear previous errors
-    console.log('🔄 CampaignWizard: Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
     try {
-      console.log('📤 Making authenticated request to /api/leads/upload-preview');
-      
       // Use the authenticated API client instead of plain fetch
       const formData = new FormData();
       formData.append('file', file);
@@ -287,7 +275,6 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
         },
       });
 
-      console.log('✅ CampaignWizard: Upload response:', response.data);
       const data = response.data;
       
       // Ensure data has expected structure
@@ -301,11 +288,7 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
         uploadedAt: new Date()
       };
       
-      console.log('✅ Setting lead data:', leadData);
       setLeadData(leadData);
-      
-      // Force a re-render to make sure the UI updates
-      console.log('🔄 Lead data set, forcing validation re-check');
       setErrors(prev => ({ ...prev, leads: '' })); // Clear any previous lead errors
 
     } catch (error: any) {
@@ -332,12 +315,8 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
         if (!campaign.phoneNumberIds?.length) newErrors.phoneNumbers = 'Please select at least one phone number';
         break;
       case 3:
-        console.log('🔍 Step 3 validation - leadData:', leadData);
         if (!leadData || leadData.validLeads === 0) {
           newErrors.leads = 'Please upload valid leads';
-          console.log('❌ Step 3 validation failed - no valid leads');
-        } else {
-          console.log('✅ Step 3 validation passed - valid leads found');
         }
         break;
       case 4:
@@ -489,8 +468,6 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
       );
       
       if (confirmed) {
-        // Here you would make the actual API call to VAPI
-        console.log('🚀 Test call initiated:', testCallData);
         alert(
           '✅ Test call initiated!\n\n' +
           'The call should start within 30 seconds.\n' +
@@ -1012,9 +989,7 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
                       type="file"
                       accept=".csv"
                       onChange={(e) => {
-                        console.log('📁 File input changed:', e.target.files);
                         if (e.target.files?.[0]) {
-                          console.log('📁 Selected file:', e.target.files[0].name, e.target.files[0].type);
                           handleFileUpload(e.target.files[0]);
                         }
                       }}
@@ -1032,10 +1007,8 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
                       <div className="flex gap-2">
                         <Button 
                           onClick={async () => {
-                            console.log('🧪 Testing API connection...');
                             try {
-                              const response = await authenticatedApiClient.get('/api/health');
-                              console.log('✅ API connection test successful:', response.data);
+                              await authenticatedApiClient.get('/api/health');
                               alert('API connection working!');
                             } catch (error) {
                               console.error('❌ API connection test failed:', error);
@@ -1050,15 +1023,11 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
                         
                         <Button
                           onClick={async () => {
-                            console.log('🧪 Testing mock upload...');
-                            alert('Test Upload button clicked!');
                             try {
                               // Create a mock CSV file (fix escaped newlines)
                               const csvContent = 'First Name,Last Name,Phone,Email,Company\nJohn,Doe,+1234567890,john@test.com,Test Corp';
                               const blob = new Blob([csvContent], { type: 'text/csv' });
                               const mockFile = new File([blob], 'test.csv', { type: 'text/csv' });
-                              
-                              console.log('📁 Mock file created:', mockFile);
                               await handleFileUpload(mockFile);
                             } catch (error) {
                               console.error('❌ Mock upload failed:', error);

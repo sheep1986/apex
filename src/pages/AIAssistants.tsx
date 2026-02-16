@@ -23,6 +23,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import WebCallWidget from '@/components/WebCallWidget';
 import { useUserContext } from '@/services/MinimalUserProvider';
 import { voiceService, type VoiceAssistant } from '@/services/voice-service';
 import {
@@ -37,6 +38,7 @@ import {
   MessageSquare,
   Mic,
   Phone,
+  PhoneCall,
   Plus,
   RefreshCw,
   Search,
@@ -294,7 +296,7 @@ function getProviderLabel(provider: string): string {
     'openai': 'OpenAI',
     'anthropic': 'Anthropic',
     '11labs': 'ElevenLabs',
-    'deepgram': 'Deepgram',
+    'deepgram': 'Trinity STT',
     'together-ai': 'Together AI',
     'groq': 'Groq',
     'google': 'Google',
@@ -332,6 +334,9 @@ export default function AIAssistants() {
   const [deletingAssistant, setDeletingAssistant] = useState<VoiceAssistant | null>(null);
   const [formState, setFormState] = useState<AssistantFormState>(defaultForm);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Web call state
+  const [testCallAssistant, setTestCallAssistant] = useState<VoiceAssistant | null>(null);
 
   // ── Initialize Voice Service ──────────────────────────────────────────────
   useEffect(() => {
@@ -910,6 +915,15 @@ export default function AIAssistants() {
                     >
                       <Edit className="mr-1 h-4 w-4" />
                       Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-700 bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/40"
+                      onClick={() => setTestCallAssistant(assistant)}
+                      title="Test Call"
+                    >
+                      <PhoneCall className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -1721,7 +1735,7 @@ export default function AIAssistants() {
                     </SelectTrigger>
                     <SelectContent className="bg-gray-950 border-gray-700">
                       <SelectItem value="twilio">Twilio</SelectItem>
-                      <SelectItem value="vapi">Vapi</SelectItem>
+                      <SelectItem value="vapi">Trinity (Default)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1776,7 +1790,7 @@ export default function AIAssistants() {
                   <Shield className="h-4 w-4 text-blue-400" />
                   <div>
                     <Label>HIPAA Compliance</Label>
-                    <p className="text-xs text-gray-500 mt-0.5">Enable HIPAA-compliant mode. Requires a HIPAA-enabled Vapi account.</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Enable HIPAA-compliant mode. Requires an Enterprise plan with HIPAA enabled.</p>
                   </div>
                 </div>
                 <Switch
@@ -1868,6 +1882,15 @@ export default function AIAssistants() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Web Call Test Widget ──────────────────────────────────────────── */}
+      {testCallAssistant && (
+        <WebCallWidget
+          assistantId={testCallAssistant.id}
+          assistantName={testCallAssistant.name}
+          onClose={() => setTestCallAssistant(null)}
+        />
+      )}
     </div>
   );
 }

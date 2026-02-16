@@ -76,7 +76,6 @@ interface VoiceCall {
 }
 
 const VoiceDashboard: React.FC = () => {
-  console.log('🚀 VoiceDashboard component is rendering!');
   const [isLoading, setIsLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<OutboundCampaign[]>([]);
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
@@ -96,8 +95,6 @@ const VoiceDashboard: React.FC = () => {
   const authenticatedApiClient = useApiClient();
 
   useEffect(() => {
-    console.log('🔄 VoiceDashboard: Component mounted, starting data load...');
-
     // Add error boundary protection
     const safeLoadData = async () => {
       try {
@@ -126,24 +123,17 @@ const VoiceDashboard: React.FC = () => {
   }, [dataLoaded]);
 
   const loadDashboardData = async (showLoader = true) => {
-    console.log('📊 VoiceDashboard: Starting data load, showLoader:', showLoader);
-
     if (showLoader) {
       setIsLoading(true);
     }
 
     try {
-      console.log('📞 VoiceDashboard: Loading real campaigns data...');
-
       // Always use direct Supabase since Railway API is not working
-      console.log('🔄 Using direct Supabase service...');
       const campaignsData = await directSupabaseService.getCampaigns();
-      console.log('✅ VoiceDashboard: Campaigns loaded from Supabase:', campaignsData);
 
       // Set campaigns from API data
       if (campaignsData && Array.isArray(campaignsData)) {
         setCampaigns(campaignsData as OutboundCampaign[]);
-        console.log('✅ Set', campaignsData.length, 'real campaigns');
       } else {
         console.warn('Campaigns data is not an array:', campaignsData);
         setCampaigns([]);
@@ -151,7 +141,6 @@ const VoiceDashboard: React.FC = () => {
 
       // Use direct Supabase service for recent calls
       const recentCallsData = await directSupabaseService.getRecentCalls(10);
-      console.log('✅ VoiceDashboard: Recent calls loaded from Supabase:', recentCallsData);
       setRecentCalls(recentCallsData || []);
 
       // Calculate analytics data from campaigns

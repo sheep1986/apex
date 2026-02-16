@@ -70,7 +70,6 @@ export default function CampaignProcessor() {
     setLoading(true);
     try {
       const result = await campaignProcessor.processCampaign(selectedCampaign);
-      console.log('Campaign started:', result);
       await loadStatus();
     } catch (error) {
       console.error('Failed to start campaign:', error);

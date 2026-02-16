@@ -20,8 +20,19 @@ interface CallLogDetailsModalProps {
       sentiment: number;
       keywords: string[];
       summary: string;
+      structuredData?: Record<string, any>;
+      successEvaluation?: string; // 'pass' | 'fail' or free-text
     };
     cost?: number;
+    costBreakdown?: {
+      stt?: number;
+      llm?: number;
+      tts?: number;
+      transport?: number;
+      vapi?: number;
+      total?: number;
+    };
+    endedReason?: string;
     messages?: Array<{
       type: string;
       content: string;
@@ -57,27 +68,6 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
   const transcriptItemsRef = useRef<(HTMLDivElement | null)[]>([]);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
-  // DEBUG: Log the callData prop when component mounts or callData changes
-  useEffect(() => {
-    console.log('🎯 CallLogDetailsModal received callData:', {
-      hasData: !!callData,
-      callDataKeys: callData ? Object.keys(callData) : [],
-      hasTranscript: !!callData?.transcript,
-      transcriptType: callData?.transcript ? typeof callData.transcript : 'no transcript',
-      transcriptIsArray: Array.isArray(callData?.transcript),
-      transcriptLength: Array.isArray(callData?.transcript) ? callData.transcript.length : 
-                       typeof callData?.transcript === 'string' ? callData.transcript.length : 0,
-      transcriptSample: callData?.transcript ? 
-        (Array.isArray(callData.transcript) && callData.transcript.length > 0 ? 
-          JSON.stringify(callData.transcript[0]) : 
-          typeof callData.transcript === 'string' ? 
-            callData.transcript.substring(0, 100) + '...' : 
-            'Unknown format') : 
-        'No transcript',
-      fullData: callData
-    });
-  }, [callData]);
-  
   // Generate stable waveform data
   const waveformData = useRef<number[]>([]);
   if (waveformData.current.length === 0) {
@@ -270,31 +260,6 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
   // Use audio duration if available, otherwise use callData duration
   const effectiveDuration = audioDuration || callData?.duration || 0;
 
-  // Effect to log data when modal opens
-  useEffect(() => {
-    if (isOpen && callData) {
-      console.log('CallLogDetailsModal opened with callData:');
-      console.log('  id:', callData.id);
-      console.log('  customerName:', callData.customerName);
-      console.log('  duration:', callData.duration);
-      console.log('  hasTranscript:', !!callData.transcript);
-      console.log('  transcriptType:', typeof callData.transcript);
-      console.log('  All callData keys:', Object.keys(callData));
-      // Try to log the actual transcript
-      if (callData.transcript) {
-        console.log('  Transcript exists! Type:', typeof callData.transcript);
-        if (typeof callData.transcript === 'string') {
-          console.log('  Transcript (string) length:', callData.transcript.length);
-          console.log('  Transcript preview:', callData.transcript.substring(0, 100));
-        } else if (Array.isArray(callData.transcript)) {
-          console.log('  Transcript (array) length:', callData.transcript.length);
-          console.log('  First item:', callData.transcript[0]);
-        }
-      } else {
-        console.log('  ❌ NO TRANSCRIPT IN DATA!');
-      }
-    }
-  }, [isOpen, callData]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -381,7 +346,6 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
 
   const handleProgressSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!effectiveDuration || effectiveDuration === 0 || !progressBarRef.current) {
-      console.log('Cannot seek: Duration is 0 or not available');
       return;
     }
     
@@ -389,8 +353,6 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
     const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const percentage = x / rect.width;
     const newTime = percentage * effectiveDuration;
-    
-    console.log(`Seeking to: ${newTime.toFixed(2)}s of ${effectiveDuration}s (${(percentage * 100).toFixed(1)}%)`);
     
     setCurrentTime(Math.floor(newTime));
     
@@ -409,7 +371,6 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      console.log('Stopped dragging');
     }
   };
 
@@ -497,14 +458,12 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
           const backTime = Math.max(0, audioRef.current!.currentTime - 5);
           audioRef.current!.currentTime = backTime;
           setCurrentTime(Math.floor(backTime));
-          console.log('Skipped back 5 seconds');
           break;
         case 'ArrowRight':
           e.preventDefault();
           const forwardTime = Math.min(effectiveDuration, audioRef.current!.currentTime + 5);
           audioRef.current!.currentTime = forwardTime;
           setCurrentTime(Math.floor(forwardTime));
-          console.log('Skipped forward 5 seconds');
           break;
       }
     };
@@ -515,26 +474,6 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
 
   // Return null if no callData or modal is closed
   if (!isOpen || !callData) return null;
-
-  // DEBUG: Log what callData the modal received
-  console.log('📊 DEBUG: CallLogDetailsModal received callData:', {
-    id: callData.id,
-    duration: callData.duration,
-    cost: callData.cost,
-    recording: callData.recording,
-    customerName: callData.customerName,
-    effectiveDuration: effectiveDuration,
-    audioDuration: audioDuration,
-    hasTranscript: !!callData.transcript,
-    transcriptType: typeof callData.transcript,
-    transcriptIsArray: Array.isArray(callData.transcript),
-    transcriptLength: typeof callData.transcript === 'string' ? callData.transcript.length :
-                     Array.isArray(callData.transcript) ? callData.transcript.length : 0,
-    transcriptPreview: typeof callData.transcript === 'string' ? 
-                      callData.transcript.substring(0, 100) + '...' :
-                      Array.isArray(callData.transcript) && callData.transcript.length > 0 ?
-                      JSON.stringify(callData.transcript[0]) : 'No transcript'
-  });
 
   return (
     <div
@@ -731,17 +670,15 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                           e.stopPropagation();
                           
                           if (!effectiveDuration || effectiveDuration === 0) {
-                            console.log('Cannot seek: Duration is 0 or not available');
                             return;
                           }
-                          
+
                           const rect = e.currentTarget.getBoundingClientRect();
                           const x = e.clientX - rect.left;
                           const percentage = Math.max(0, Math.min(1, x / rect.width));
                           const newTime = percentage * effectiveDuration;
-                          
+
                           if (audioRef.current && callData.recording) {
-                            console.log(`Waveform seek to: ${newTime.toFixed(2)}s of ${effectiveDuration}s (${(percentage * 100).toFixed(1)}%)`);
                             audioRef.current.currentTime = newTime;
                             setCurrentTime(Math.floor(newTime));
                           }
@@ -839,13 +776,11 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                           e.stopPropagation();
                           
                           if (!effectiveDuration || effectiveDuration === 0) {
-                            console.log('Cannot seek: Duration is 0 or not available');
                             return;
                           }
-                          
+
                           setIsDragging(true);
                           handleProgressSeek(e);
-                          console.log('Started dragging');
                         }}
                         onClick={(e) => {
                           e.preventDefault();
@@ -907,25 +842,19 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                   }}
                   onLoadedMetadata={(e) => {
                     const audio = e.currentTarget;
-                    console.log('Audio metadata loaded:', {
-                      duration: audio.duration,
-                      src: audio.src
-                    });
                     // Update duration from audio metadata
                     if (audio.duration && !isNaN(audio.duration)) {
                       setAudioDuration(audio.duration);
-                      console.log('Set audio duration to:', audio.duration);
                     }
                   }}
                   onDurationChange={(e) => {
                     const audio = e.currentTarget;
                     if (audio.duration && !isNaN(audio.duration)) {
                       setAudioDuration(audio.duration);
-                      console.log('Duration changed to:', audio.duration);
                     }
                   }}
                   onCanPlay={() => {
-                    console.log('Audio ready to play');
+                    // Audio ready to play
                   }}
                 />
               )}
@@ -1301,8 +1230,45 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                 className="mt-2 flex h-full flex-1 flex-col"
                 data-testid="analysis-tab-content"
               >
-                <div className="space-y-4">
+                <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
                   <h4 className="font-medium text-white">Call Analysis</h4>
+
+                  {/* Success Evaluation */}
+                  {callData.analysis?.successEvaluation && (
+                    <div className={`rounded-lg p-4 ${
+                      callData.analysis.successEvaluation.toLowerCase() === 'pass' || callData.analysis.successEvaluation.toLowerCase() === 'true'
+                        ? 'bg-emerald-500/10 border border-emerald-500/20'
+                        : callData.analysis.successEvaluation.toLowerCase() === 'fail' || callData.analysis.successEvaluation.toLowerCase() === 'false'
+                          ? 'bg-red-500/10 border border-red-500/20'
+                          : 'bg-gray-700/50'
+                    }`}>
+                      <h5 className="mb-2 font-medium text-white flex items-center gap-2">
+                        {callData.analysis.successEvaluation.toLowerCase() === 'pass' || callData.analysis.successEvaluation.toLowerCase() === 'true' ? (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs">&#10003;</span>
+                        ) : callData.analysis.successEvaluation.toLowerCase() === 'fail' || callData.analysis.successEvaluation.toLowerCase() === 'false' ? (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20 text-red-400 text-xs">&#10007;</span>
+                        ) : null}
+                        Success Evaluation
+                      </h5>
+                      <p className={`text-sm font-medium ${
+                        callData.analysis.successEvaluation.toLowerCase() === 'pass' || callData.analysis.successEvaluation.toLowerCase() === 'true'
+                          ? 'text-emerald-400'
+                          : callData.analysis.successEvaluation.toLowerCase() === 'fail' || callData.analysis.successEvaluation.toLowerCase() === 'false'
+                            ? 'text-red-400'
+                            : 'text-gray-300'
+                      }`}>
+                        {callData.analysis.successEvaluation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Ended Reason */}
+                  {callData.endedReason && (
+                    <div className="rounded-lg bg-gray-700/50 p-4">
+                      <h5 className="mb-2 font-medium text-white">Ended Reason</h5>
+                      <p className="text-sm text-gray-300">{callData.endedReason.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</p>
+                    </div>
+                  )}
 
                   <div className="rounded-lg bg-gray-700/50 p-4">
                     <h5 className="mb-3 font-medium text-white">Sentiment Analysis</h5>
@@ -1310,11 +1276,13 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                       <div className="flex justify-between">
                         <span className="text-gray-400">Overall Sentiment:</span>
                         <span
-                          className={`${callData.analysis?.sentiment && callData.analysis.sentiment > 0.6 ? 'text-green-400' : 'text-yellow-400'}`}
+                          className={`${callData.analysis?.sentiment && callData.analysis.sentiment > 0.6 ? 'text-green-400' : callData.analysis?.sentiment && callData.analysis.sentiment < -0.3 ? 'text-red-400' : 'text-yellow-400'}`}
                         >
                           {callData.analysis?.sentiment && callData.analysis.sentiment > 0.6
                             ? 'Positive'
-                            : 'Neutral'}
+                            : callData.analysis?.sentiment && callData.analysis.sentiment < -0.3
+                              ? 'Negative'
+                              : 'Neutral'}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -1323,27 +1291,71 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
                           {((callData.analysis?.sentiment || 0) * 100).toFixed(0)}%
                         </span>
                       </div>
+                      {/* Sentiment bar */}
+                      <div className="mt-2">
+                        <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              (callData.analysis?.sentiment || 0) > 0.6
+                                ? 'bg-emerald-500'
+                                : (callData.analysis?.sentiment || 0) < -0.3
+                                  ? 'bg-red-500'
+                                  : 'bg-yellow-500'
+                            }`}
+                            style={{ width: `${Math.max(5, ((callData.analysis?.sentiment || 0) + 1) / 2 * 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   <div className="rounded-lg bg-gray-700/50 p-4">
                     <h5 className="mb-3 font-medium text-white">Call Summary</h5>
-                    <div className="text-sm text-gray-300">{callData.analysis?.summary}</div>
+                    <div className="text-sm text-gray-300">{callData.analysis?.summary || 'No summary available'}</div>
                   </div>
 
-                  <div className="rounded-lg bg-gray-700/50 p-4">
-                    <h5 className="mb-3 font-medium text-white">Keywords</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {callData.analysis?.keywords.map((keyword, index) => (
-                        <span
-                          key={index}
-                          className="rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs text-gray-300"
-                        >
-                          {keyword}
-                        </span>
-                      ))}
+                  {callData.analysis?.keywords && callData.analysis.keywords.length > 0 && (
+                    <div className="rounded-lg bg-gray-700/50 p-4">
+                      <h5 className="mb-3 font-medium text-white">Keywords</h5>
+                      <div className="flex flex-wrap gap-2">
+                        {callData.analysis.keywords.map((keyword, index) => (
+                          <span
+                            key={index}
+                            className="rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs text-gray-300"
+                          >
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Structured Data */}
+                  {callData.analysis?.structuredData && Object.keys(callData.analysis.structuredData).length > 0 && (
+                    <div className="rounded-lg bg-gray-700/50 p-4">
+                      <h5 className="mb-3 font-medium text-white">Extracted Data</h5>
+                      <div className="space-y-2">
+                        {Object.entries(callData.analysis.structuredData).map(([key, value]) => (
+                          <div key={key} className="flex items-start justify-between gap-4 text-sm">
+                            <span className="text-gray-400 capitalize shrink-0">{key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}:</span>
+                            <span className="text-white text-right">
+                              {typeof value === 'object' ? (
+                                <code className="text-xs bg-gray-800 px-2 py-0.5 rounded font-mono text-gray-300 block text-left">
+                                  {JSON.stringify(value, null, 2)}
+                                </code>
+                              ) : typeof value === 'boolean' ? (
+                                <span className={value ? 'text-emerald-400' : 'text-gray-500'}>
+                                  {value ? 'Yes' : 'No'}
+                                </span>
+                              ) : (
+                                String(value)
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
@@ -1367,43 +1379,110 @@ export const CallLogDetailsModal: React.FC<CallLogDetailsModalProps> = ({
               >
                 <div className="space-y-4">
                   <h4 className="font-medium text-white">Call Cost Breakdown</h4>
-                  
-                  {/* Duration Display */}
-                  <div className="rounded-lg bg-gray-800/30 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-400">Call Duration</span>
-                      <span className="text-2xl font-mono text-white font-medium">
-                        {formatDuration(effectiveDuration)}
-                      </span>
-                    </div>
-                    {effectiveDuration > 0 && (
-                      <div className="text-xs text-gray-500">
-                        {Math.floor(effectiveDuration / 60)} minutes {Math.floor(effectiveDuration % 60)} seconds
+
+                  {/* Total Cost Hero */}
+                  <div className="rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-400">Total Cost</p>
+                        <p className="text-3xl font-mono font-bold text-emerald-400">
+                          ${callData.cost ? callData.cost.toFixed(4) : '0.0000'}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                  
-                  {/* Cost Details */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Rate per Minute:</span>
-                      <span className="text-white">$0.037</span>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-400">Duration</p>
+                        <p className="text-xl font-mono text-white">
+                          {formatDuration(effectiveDuration)}
+                        </p>
+                      </div>
                     </div>
-                    {effectiveDuration > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Calculated Cost:</span>
-                        <span className="text-white">
-                          ${((effectiveDuration / 60) * 0.037).toFixed(3)}
+                  </div>
+
+                  {/* Detailed Breakdown */}
+                  {callData.costBreakdown && (
+                    <div className="rounded-lg bg-gray-800/30 p-4 space-y-3">
+                      <h5 className="text-sm font-medium text-gray-300 mb-3">Service Breakdown</h5>
+
+                      {/* Visual bar breakdown */}
+                      {(() => {
+                        const breakdown = callData.costBreakdown!;
+                        const totalCost = breakdown.total || callData.cost || 0;
+                        const items = [
+                          { label: 'Speech-to-Text', value: breakdown.stt || 0, color: 'bg-blue-500' },
+                          { label: 'Language Model', value: breakdown.llm || 0, color: 'bg-purple-500' },
+                          { label: 'Text-to-Speech', value: breakdown.tts || 0, color: 'bg-emerald-500' },
+                          { label: 'Transport', value: breakdown.transport || 0, color: 'bg-yellow-500' },
+                          { label: 'Platform Fee', value: breakdown.vapi || 0, color: 'bg-gray-500' },
+                        ].filter(i => i.value > 0);
+
+                        return (
+                          <>
+                            {/* Stacked bar */}
+                            {totalCost > 0 && (
+                              <div className="flex h-3 rounded-full overflow-hidden bg-gray-900">
+                                {items.map((item, i) => (
+                                  <div
+                                    key={i}
+                                    className={`${item.color} transition-all`}
+                                    style={{ width: `${(item.value / totalCost) * 100}%` }}
+                                    title={`${item.label}: $${item.value.toFixed(4)}`}
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Line items */}
+                            <div className="space-y-2 mt-3">
+                              {items.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
+                                    <span className="text-gray-400">{item.label}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-gray-500 text-xs">
+                                      {totalCost > 0 ? `${((item.value / totalCost) * 100).toFixed(0)}%` : '—'}
+                                    </span>
+                                    <span className="text-white font-mono text-xs w-16 text-right">
+                                      ${item.value.toFixed(4)}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Total line */}
+                            <div className="flex justify-between border-t border-gray-700 pt-3 mt-2">
+                              <span className="font-medium text-gray-300">Total</span>
+                              <span className="font-medium font-mono text-emerald-400">
+                                ${totalCost.toFixed(4)}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Fallback: simple cost display when no breakdown */}
+                  {!callData.costBreakdown && (
+                    <div className="rounded-lg bg-gray-800/30 p-4 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Effective Rate:</span>
+                        <span className="text-white font-mono">
+                          {effectiveDuration > 0 && callData.cost
+                            ? `$${((callData.cost / effectiveDuration) * 60).toFixed(4)}/min`
+                            : '—'}
                         </span>
                       </div>
-                    )}
-                    <div className="flex justify-between border-t border-gray-700 pt-3">
-                      <span className="font-medium text-gray-400">Total Cost:</span>
-                      <span className="font-medium text-emerald-400">
-                        ${callData.cost ? callData.cost.toFixed(2) : '0.00'}
-                      </span>
+                      <div className="flex justify-between text-sm border-t border-gray-700 pt-3">
+                        <span className="font-medium text-gray-300">Total Cost:</span>
+                        <span className="font-medium text-emerald-400 font-mono">
+                          ${callData.cost ? callData.cost.toFixed(4) : '0.0000'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </TabsContent>
             </div>

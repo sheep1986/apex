@@ -57,6 +57,7 @@ import {
   Sparkles,
   Crown,
   ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -79,73 +80,20 @@ import { useUser } from '../hooks/auth';
 import { supabase } from '../services/supabase-client';
 
 
-const conversionData = [
-  { stage: 'Lead Generation', value: 100 },
-  { stage: 'Qualified Leads', value: 75 },
-  { stage: 'Demo Scheduled', value: 50 },
-  { stage: 'Demo Completed', value: 25 },
-  { stage: 'Closed Won', value: 10 },
-];
-
-// Campaign data now comes from database via state
+// All data comes from Supabase — no hardcoded values
 
 export default function Dashboard() {
-  console.log('Dashboard component rendering...');
-
-  
-  // Chart data that depends on translations
-  const recentCallsData = [
-    { name: 'Monday', calls: 24, successful: 18, inbound: 8, outbound: 16 },
-    { name: 'Tuesday', calls: 32, successful: 28, inbound: 10, outbound: 22 },
-    { name: 'Wednesday', calls: 28, successful: 22, inbound: 12, outbound: 16 },
-    { name: 'Thursday', calls: 45, successful: 38, inbound: 15, outbound: 30 },
-    { name: 'Friday', calls: 38, successful: 31, inbound: 14, outbound: 24 },
-    { name: 'Saturday', calls: 22, successful: 19, inbound: 7, outbound: 15 },
-    { name: 'Sunday', calls: 15, successful: 12, inbound: 5, outbound: 10 },
-  ];
-
-  const callOutcomesData = [
-    { name: 'Connected', value: 68, color: '#10b981' },
-    { name: 'Voicemail', value: 22, color: '#f59e0b' },
-    { name: 'Busy', value: 7, color: '#6b7280' },
-    { name: 'Failed', value: 3, color: '#ef4444' },
-  ];
-
-  // Call volume data is now declared as state in line 210
   const navigate = useNavigate();
   const { userContext } = useUserContext();
   const { user } = useUser();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const [selectedVoiceAgent, setSelectedVoiceAgent] = useState('all');
-  const [selectedCampaign, setSelectedCampaign] = useState('all');
-  const [activeAssistants] = useState(8);
-  const [totalCalls, setTotalCalls] = useState(12543);
-  const [successRate, setSuccessRate] = useState(72.5);
-  const [totalCost, setTotalCost] = useState(1502.34);
-  const [leadsGenerated, setLeadsGenerated] = useState(437);
-  const [conversionRate, setConversionRate] = useState(12.8);
-
   useEffect(() => {
-    console.log('Dashboard useEffect running...');
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, 60000); // Update clock every minute (not every second)
     return () => clearInterval(timer);
-  }, []);
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTotalCalls((prev) => prev + Math.floor(Math.random() * 3));
-      setSuccessRate((prev) => Math.max(70, Math.min(80, prev + (Math.random() - 0.5) * 2)));
-      setTotalCost((prev) => prev + Math.random() * 0.5);
-      setLeadsGenerated((prev) => prev + (Math.random() > 0.7 ? 1 : 0));
-      setConversionRate((prev) => Math.max(20, Math.min(30, prev + (Math.random() - 0.5) * 1)));
-    }, 30000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const handleQuickAction = (action: string, route: string) => {
@@ -163,114 +111,103 @@ export default function Dashboard() {
     totalCalls: 0,
     activeCampaigns: 0,
     conversionRate: 0,
-    totalCost: 0,
+    creditBalance: 0,
   });
   const [campaignData, setCampaignData] = useState<any[]>([]);
   const [callVolumeData, setCallVolumeData] = useState<any[]>([]);
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const orgId = userContext?.organization_id;
+
   useEffect(() => {
-    fetchRealData();
-  }, []);
+    if (orgId) fetchRealData();
+  }, [orgId]);
 
   const fetchRealData = async () => {
     try {
-      // Fetch campaigns
+      // Fetch campaigns for this org
       const { data: campaigns } = await supabase
         .from('campaigns')
-        .select('*');
-      
-      // Fetch all calls for stats
+        .select('id, name, status, total_calls, successful_calls')
+        .eq('organization_id', orgId);
+
+      // Fetch voice calls for this org (last 90 days for performance)
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
       const { data: allCalls } = await supabase
-        .from('calls')
-        .select('*');
-      
-      // Fetch recent calls with lead info for display
+        .from('voice_calls')
+        .select('id, status, cost, created_at, customer_number, assistant_id, duration')
+        .eq('organization_id', orgId)
+        .gte('created_at', ninetyDaysAgo.toISOString());
+
+      // Fetch org credit balance
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('credit_balance')
+        .eq('id', orgId)
+        .single();
+
+      // Fetch recent calls for display
       const { data: recentCallsData } = await supabase
-        .from('calls')
-        .select(`
-          *,
-          leads:lead_id(name, phone_number),
-          campaigns:campaign_id(name)
-        `)
+        .from('voice_calls')
+        .select('id, status, cost, created_at, customer_number, duration')
+        .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
         .limit(5);
-      
-      // Calculate real stats - ensure arrays
+
+      // Calculate real stats
       const campaignsArray = Array.isArray(campaigns) ? campaigns : [];
       const allCallsArray = Array.isArray(allCalls) ? allCalls : [];
-      
+
       const activeCampaigns = campaignsArray.filter(c => c.status === 'active').length;
-      const totalCalls = allCallsArray.length;
-      const successfulCalls = allCallsArray.filter(c => c.status === 'completed').length;
-      const conversionRate = totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0;
-      const totalCost = allCallsArray.reduce((sum, call) => sum + (call.cost || 0), 0);
-      
+      const totalCallCount = allCallsArray.length;
+      const completedCalls = allCallsArray.filter(c => c.status === 'ended' || c.status === 'completed').length;
+      const successRate = totalCallCount > 0 ? (completedCalls / totalCallCount) * 100 : 0;
+
       setRealStats({
-        totalCalls,
+        totalCalls: totalCallCount,
         activeCampaigns,
-        conversionRate,
-        totalCost,
+        conversionRate: successRate,
+        creditBalance: org?.credit_balance || 0,
       });
-      
-      // Set campaign data for chart
+
+      // Campaign performance for chart
       const campaignPerf = campaignsArray.map(c => ({
-        name: c.name,
-        successRate: c.total_calls > 0 ? (c.successful_calls / c.total_calls) * 100 : 0,
-        value: c.successful_calls || 0,
+        name: c.name?.length > 15 ? c.name.substring(0, 15) + '...' : c.name,
+        success: c.total_calls > 0 ? Math.round((c.successful_calls / c.total_calls) * 100) : 0,
       }));
-      
       setCampaignData(campaignPerf);
-      
-      // Generate call volume data from real calls
+
+      // Call volume per day (last 7 days) from real data
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - i));
-        const dayStart = new Date(date);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(date);
-        dayEnd.setHours(23, 59, 59, 999);
-        
-        // Count calls for this specific day
-        const callsForDay = allCallsArray.filter(call => {
-          const callDate = new Date(call.created_at);
-          return callDate >= dayStart && callDate <= dayEnd;
-        }).length;
-        
+        const dayStr = date.toISOString().split('T')[0];
+        const callsForDay = allCallsArray.filter(call =>
+          call.created_at?.startsWith(dayStr)
+        ).length;
         return {
           date: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          calls: callsForDay
+          calls: callsForDay,
         };
       });
-      
       setCallVolumeData(last7Days);
-      
-      // Format recent calls for display - ensure array
+
+      // Format recent calls
       const recentCallsArray = Array.isArray(recentCallsData) ? recentCallsData : [];
       const formattedCalls = recentCallsArray.map((call, index) => ({
         id: call.id || index + 1,
-        contact: call.leads?.name || call.phone_number || 'Unknown',
-        campaign: call.campaigns?.name || 'Direct Call',
+        contact: call.customer_number || 'Unknown',
+        campaign: 'Voice Call',
         duration: formatDuration(call.duration || 0),
-        status: call.status || 'unknown'
+        status: call.status || 'unknown',
       }));
-      
-      // If no real calls, show a message
-      if (formattedCalls.length === 0) {
-        setRecentCalls([{
-          id: 1,
-          contact: 'No calls yet',
-          campaign: 'Import leads to start',
-          duration: '0:00',
-          status: 'pending'
-        }]);
-      } else {
-        setRecentCalls(formattedCalls);
-      }
+
+      setRecentCalls(formattedCalls);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Dashboard: Error fetching data:', error);
       setLoading(false);
     }
   };
@@ -304,9 +241,9 @@ export default function Dashboard() {
       color: 'pink',
     },
     {
-      title: 'Total Cost',
-      value: `£${realStats.totalCost.toFixed(2)}`,
-      change: 'GBP',
+      title: 'Credit Balance',
+      value: `$${realStats.creditBalance.toFixed(2)}`,
+      change: realStats.creditBalance > 10 ? 'Healthy' : 'Low balance',
       icon: DollarSign,
       color: 'blue',
     },
@@ -319,10 +256,21 @@ export default function Dashboard() {
     return 'Good evening';
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full bg-black">
+        <div className="flex h-96 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+          <span className="ml-3 text-gray-400">Loading dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-black">
       <div className="w-full mt-8 space-y-6 px-4 sm:px-6 lg:px-8">
-      
+
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
@@ -367,7 +315,7 @@ export default function Dashboard() {
                     >
                       {stat.change}
                     </span>
-                    <span className="text-xs text-gray-500">Weekly growth</span>
+                    <span className="text-xs text-gray-500">Last 90 days</span>
                   </div>
                 </div>
                 <div className={`rounded-lg border p-3 ${ 

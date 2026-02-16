@@ -203,7 +203,6 @@ class OrganizationService {
   async updateOrganization(organizationId: string, updates: any): Promise<void> {
     try {
       // TODO: Implement actual update when DB connection is fixed
-      console.log('Updating organization:', organizationId, updates);
     } catch (error) {
       console.error('Error updating organization:', error);
       throw error;
@@ -213,7 +212,6 @@ class OrganizationService {
   async updateUserRole(userId: string, newRole: string): Promise<void> {
     try {
       // TODO: Implement actual update when DB connection is fixed
-      console.log('Updating user role:', userId, newRole);
     } catch (error) {
       console.error('Error updating user role:', error);
       throw error;
@@ -223,7 +221,6 @@ class OrganizationService {
   async deactivateUser(userId: string): Promise<void> {
     try {
       // TODO: Implement actual deactivation when DB connection is fixed
-      console.log('Deactivating user:', userId);
     } catch (error) {
       console.error('Error deactivating user:', error);
       throw error;
@@ -233,7 +230,6 @@ class OrganizationService {
   async activateUser(userId: string): Promise<void> {
     try {
       // TODO: Implement actual activation when DB connection is fixed
-      console.log('Activating user:', userId);
     } catch (error) {
       console.error('Error activating user:', error);
       throw error;
@@ -243,7 +239,6 @@ class OrganizationService {
   async inviteUser(organizationId: string, email: string, role: string): Promise<void> {
     try {
       // TODO: Implement actual invitation when DB connection is fixed
-      console.log('Inviting user:', email, 'to organization:', organizationId, 'with role:', role);
     } catch (error) {
       console.error('Error inviting user:', error);
       throw error;

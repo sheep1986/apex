@@ -546,8 +546,6 @@ Need help? Our support team can assist with Airtable setup and optimization.
         responses: [],
       };
 
-      console.log('Support ticket submitted:', newTicket);
-
       // In production, this would save to your backend
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -602,12 +600,8 @@ Need help? Our support team can assist with Airtable setup and optimization.
   // Rate help content
   async rateHelpful(contentId: string, type: 'article' | 'faq', helpful: boolean): Promise<void> {
     try {
-      console.log(`Rating ${type} ${contentId} as ${helpful ? 'helpful' : 'not helpful'}`);
-
       // In production, this would update the rating in your backend
       await new Promise((resolve) => setTimeout(resolve, 500));
-
-      console.log('Rating submitted successfully');
     } catch (error) {
       console.error('Error submitting rating:', error);
       throw error;

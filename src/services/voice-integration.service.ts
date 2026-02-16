@@ -424,7 +424,7 @@ class VoiceIntegrationService {
           break;
 
         default:
-          console.log("Unknown webhook type:", type);
+          break;
       }
 
       notificationService.notifyWebhookReceived({

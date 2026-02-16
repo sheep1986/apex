@@ -57,16 +57,12 @@ export const OrganizationSwitcher: React.FC<OrganizationSwitcherProps> = ({
     
     try {
       const token = await getToken();
-      console.log('🔍 Fetching organizations with token:', token ? 'Present' : 'Missing');
-      
       const response = await fetch('/api/organizations', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-
-      console.log('📡 Organizations API response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -75,7 +71,6 @@ export const OrganizationSwitcher: React.FC<OrganizationSwitcherProps> = ({
       }
 
       const data = await response.json();
-      console.log('✅ Organizations data received:', data);
       setOrganizations(data.organizations || []);
     } catch (err) {
       console.error('❌ Error fetching organizations:', err);
@@ -107,8 +102,7 @@ export const OrganizationSwitcher: React.FC<OrganizationSwitcherProps> = ({
       }
 
       const data = await response.json();
-      console.log('✅ Organization switched:', data.message);
-      
+
       setSelectedOrgId(orgId);
       
       // Find the organization and notify parent

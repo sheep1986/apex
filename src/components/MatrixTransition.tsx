@@ -156,8 +156,8 @@ export const MatrixTransition: React.FC<MatrixTransitionProps> = ({
     // Play sound with user interaction check
     try {
       playMatrixSound();
-    } catch (error) {
-      console.log('Audio context creation failed:', error);
+    } catch {
+      // Audio context creation failed silently
     }
 
     const canvas = canvasRef.current;

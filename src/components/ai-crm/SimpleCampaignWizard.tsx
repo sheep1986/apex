@@ -134,21 +134,6 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
     }
   }, [currentStep]);
 
-  // Monitor assistants state updates
-  useEffect(() => {
-    console.log('🔄 Assistants state updated:', assistants.length, 'items');
-    if (assistants.length > 0) {
-      console.log('📋 First assistant:', assistants[0]);
-    }
-  }, [assistants]);
-
-  // Monitor phone numbers state updates
-  useEffect(() => {
-    console.log('🔄 Phone numbers state updated:', phoneNumbers.length, 'items');
-    if (phoneNumbers.length > 0) {
-      console.log('📋 First phone number:', phoneNumbers[0]);
-    }
-  }, [phoneNumbers]);
 
   // Add a ref to track if we've already loaded data
   const hasLoadedData = useRef(false);
@@ -163,7 +148,6 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
     // Store organization ID for Apex service to use
     if (userContext?.organization_id) {
       localStorage.setItem('organization_id', userContext.organization_id);
-      console.log('📝 Stored organization ID:', userContext.organization_id);
     }
     
     loadOrganizationDefaults();
@@ -184,9 +168,6 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
         campaignOutboundService.getAssistants(),
         campaignOutboundService.getPhoneNumbers()
       ]);
-      
-      console.log(`✅ Loaded ${assistantsData.length} assistants`);
-      console.log(`✅ Loaded ${phoneNumbersData.length} phone numbers`);
       
       // Set the data
       setAssistants(assistantsData as any[]);
@@ -242,7 +223,6 @@ export const SimpleCampaignWizard: React.FC<SimpleCampaignWizardProps> = ({
         }
       }
       
-      console.log('✅ Organization defaults loaded successfully');
     } catch (error) {
       console.warn('⚠️ Could not load organization defaults, using built-in defaults:', error);
       // Continue with built-in defaults - this is not a critical error
@@ -1349,15 +1329,6 @@ The review section provides detailed estimates for your campaign including durat
   };
 
   const handleCreateCampaign = async () => {
-    console.log('🚀 Starting campaign creation...');
-    console.log('Campaign data:', {
-      name: campaignName,
-      phoneNumber: phoneNumber,
-      assistant: assistant,
-      csvFile: csvFile?.name,
-      whenToSend: whenToSend
-    });
-    
     setIsLoading(true);
     try {
       // Try to get organization defaults, but use fallbacks if not available
@@ -1369,7 +1340,6 @@ The review section provides detailed estimates for your campaign including durat
       
       try {
         orgDefaults = await organizationSettingsService.getCampaignDefaults();
-        console.log('✅ Got organization defaults:', orgDefaults);
       } catch (error) {
         console.warn('⚠️ Could not get organization defaults, using fallbacks:', error);
         // Continue with default values
@@ -1454,8 +1424,6 @@ The review section provides detailed estimates for your campaign including durat
         }
       };
 
-      console.log('📡 Creating campaign in Supabase...');
-      
       // Create campaign directly in Supabase
       const { data: campaign, error } = await supabase
         .from('campaigns')
@@ -1524,8 +1492,6 @@ The review section provides detailed estimates for your campaign including durat
         throw new Error(error.message);
       }
       
-      console.log('✅ Campaign created:', campaign);
-
       // If "Send Now", update status to active
       if (whenToSend === 'now') {
         const { error: updateError } = await supabase
@@ -2114,7 +2080,6 @@ The review section provides detailed estimates for your campaign including durat
                     <RadioGroup
                       value={retryStrategy}
                       onValueChange={(value) => {
-                        console.log('🔄 Retry strategy changed to:', value);
                         setRetryStrategy(value);
                         // Update retry attempts based on strategy
                         if (value === 'basic') {
@@ -2653,9 +2618,8 @@ The review section provides detailed estimates for your campaign including durat
                           : m
                       ));
                     }}
-                    onResendInvitation={async (invitationId: string) => {
-                      // Mock resend logic
-                      console.log('Resending invitation:', invitationId);
+                    onResendInvitation={async (_invitationId: string) => {
+                      // Mock resend logic - no-op for now
                     }}
                     onCancelInvitation={async (invitationId: string) => {
                       setTeamInvitations(prev => prev.filter(i => i.id !== invitationId));

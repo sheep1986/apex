@@ -313,14 +313,14 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
 
   const handleScheduleCall = () => {
     if (scheduleDateTime) {
-      console.log('Scheduling call for:', scheduleDateTime);
+      // TODO: Wire to scheduling backend
       setScheduleDateTime('');
     }
   };
 
   const addNote = () => {
     if (newNote.trim()) {
-      console.log('Adding note:', newNote);
+      // TODO: Wire to notes backend
       setNewNote('');
     }
   };

@@ -34,14 +34,6 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (isLoaded && user && currentUserId !== lastUserId) {
       setLastUserId(currentUserId);
       
-      console.log('🔍 MinimalUserProvider: User data received:', {
-        email: user.email,
-        role: user.role,
-        firstName: user.firstName || user.first_name,
-        lastName: user.lastName || user.last_name,
-        organization_id: user.organization_id
-      });
-      
       // Use data from the auth system (dev or supabase via useUser hook)
       const email = user.primaryEmailAddress?.emailAddress || 
                    user.emailAddresses?.[0]?.emailAddress || 
@@ -58,17 +50,12 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
         role: user.role || 'client_user', // Use role from Supabase database
       };
       
-      console.log('🎯 MinimalUserProvider: Setting user context:', userInfo);
-
       // Initialize Voice Service
       if (userInfo.organization_id) {
-          console.log('🎙️ Initializing Voice Service for Organization:', userInfo.organization_id);
           import('./voice-service').then(({ voiceService }) => {
               voiceService.initializeWithOrganization(userInfo.organization_id!)
                   .then((success) => {
-                      if (success) {
-                          console.log('✅ Voice Service Initialized Successfully');
-                      } else {
+                      if (!success) {
                           console.warn('⚠️ Voice Service Initialization Failed (Likely no API Key)');
                       }
                   })

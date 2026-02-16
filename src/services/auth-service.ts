@@ -103,8 +103,6 @@ class AuthService {
 
       // Listen for auth state changes
       supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email);
-
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           await this.handleAuthStateChange(session);
         } else if (event === "SIGNED_OUT") {

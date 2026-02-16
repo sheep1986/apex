@@ -179,6 +179,7 @@ BEGIN
         'included_minutes', v_included_minutes,
         'overage_minutes', v_overage_after,
         'overage_this_call', v_overage_this_call,
+        'overage_rate', COALESCE(v_org.overage_rate_per_minute, 0.15),
         'calls_count', v_usage.calls_count,
         'plan', v_org.plan
     );

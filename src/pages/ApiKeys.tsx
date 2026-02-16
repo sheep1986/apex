@@ -89,7 +89,7 @@ export default function ApiKeys() {
   const fetchApiKeys = async () => {
     try {
       const token = await getToken();
-      const response = await fetch('/api/user/api-keys', {
+      const response = await fetch('/.netlify/functions/api-keys', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -123,7 +123,7 @@ export default function ApiKeys() {
     setIsCreating(true);
     try {
       const token = await getToken();
-      const response = await fetch('/api/user/api-keys', {
+      const response = await fetch('/.netlify/functions/api-keys', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +163,7 @@ export default function ApiKeys() {
   const revokeApiKey = async (keyId: string) => {
     try {
       const token = await getToken();
-      const response = await fetch(`/api/user/api-keys/${keyId}`, {
+      const response = await fetch(`/.netlify/functions/api-keys/${keyId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

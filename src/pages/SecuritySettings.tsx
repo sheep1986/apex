@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { supabase } from '@/services/supabase-client';
 import {
   Select,
   SelectContent,
@@ -19,28 +19,17 @@ import {
   Shield,
   Key,
   Lock,
-  Eye,
-  EyeOff,
-  Smartphone,
   Globe,
   AlertTriangle,
   CheckCircle,
-  Clock,
-  UserX,
   Activity,
   Save,
   Loader2,
-  Copy,
-  RefreshCw,
-  Settings,
   Monitor,
   Database,
-  Network,
-  Wifi,
 } from 'lucide-react';
-import simpleApiClient from '@/lib/simple-api-client';
 
-interface SecuritySettings {
+interface SecuritySettingsData {
   twoFactorEnabled: boolean;
   sessionTimeout: number;
   passwordExpiry: number;
@@ -51,8 +40,6 @@ interface SecuritySettings {
   ipWhitelist: string[];
   maxLoginAttempts: number;
   lockoutDuration: number;
-  ssoEnabled: boolean;
-  ssoProvider: string;
   auditLogging: boolean;
   emailAlerts: boolean;
   suspiciousActivityDetection: boolean;
@@ -66,138 +53,93 @@ interface SecuritySettings {
   anonymizeData: boolean;
 }
 
-interface LoginSession {
-  id: string;
-  device: string;
-  location: string;
-  ipAddress: string;
-  lastActive: string;
-  current: boolean;
-}
-
-interface AuditLogEntry {
-  id: string;
-  action: string;
-  user: string;
-  timestamp: string;
-  ipAddress: string;
-  success: boolean;
-  details: string;
-}
+const DEFAULT_SETTINGS: SecuritySettingsData = {
+  twoFactorEnabled: false,
+  sessionTimeout: 30,
+  passwordExpiry: 90,
+  passwordMinLength: 8,
+  passwordRequireSpecialChars: true,
+  passwordRequireNumbers: true,
+  passwordRequireUppercase: true,
+  ipWhitelist: [],
+  maxLoginAttempts: 5,
+  lockoutDuration: 15,
+  auditLogging: true,
+  emailAlerts: true,
+  suspiciousActivityDetection: true,
+  deviceTracking: true,
+  encryptionAtRest: true,
+  encryptionInTransit: true,
+  backupEncryption: true,
+  dataRetentionDays: 365,
+  gdprCompliance: true,
+  cookieConsent: true,
+  anonymizeData: false,
+};
 
 export default function SecuritySettings() {
   const { toast } = useToast();
+  const { organization } = useSupabaseAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showNewWhitelistIP, setShowNewWhitelistIP] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'sessions' | 'audit' | 'privacy'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'privacy'>('general');
+  const [settings, setSettings] = useState<SecuritySettingsData>(DEFAULT_SETTINGS);
 
-  const [settings, setSettings] = useState<SecuritySettings>({
-    twoFactorEnabled: false,
-    sessionTimeout: 30,
-    passwordExpiry: 90,
-    passwordMinLength: 8,
-    passwordRequireSpecialChars: true,
-    passwordRequireNumbers: true,
-    passwordRequireUppercase: true,
-    ipWhitelist: [],
-    maxLoginAttempts: 5,
-    lockoutDuration: 15,
-    ssoEnabled: false,
-    ssoProvider: 'none',
-    auditLogging: true,
-    emailAlerts: true,
-    suspiciousActivityDetection: true,
-    deviceTracking: true,
-    encryptionAtRest: true,
-    encryptionInTransit: true,
-    backupEncryption: true,
-    dataRetentionDays: 365,
-    gdprCompliance: true,
-    cookieConsent: true,
-    anonymizeData: false,
-  });
-
-  const [loginSessions, setLoginSessions] = useState<LoginSession[]>([
-    {
-      id: '1',
-      device: 'Chrome on MacOS',
-      location: 'San Francisco, CA',
-      ipAddress: '192.168.1.100',
-      lastActive: '2024-01-15T10:30:00Z',
-      current: true,
-    },
-    {
-      id: '2',
-      device: 'Safari on iPhone',
-      location: 'San Francisco, CA',
-      ipAddress: '192.168.1.101',
-      lastActive: '2024-01-14T15:20:00Z',
-      current: false,
-    },
-  ]);
-
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([
-    {
-      id: '1',
-      action: 'Login',
-      user: 'john.doe@example.com',
-      timestamp: '2024-01-15T10:30:00Z',
-      ipAddress: '192.168.1.100',
-      success: true,
-      details: 'Successful login from Chrome',
-    },
-    {
-      id: '2',
-      action: 'Settings Changed',
-      user: 'john.doe@example.com',
-      timestamp: '2024-01-15T10:25:00Z',
-      ipAddress: '192.168.1.100',
-      success: true,
-      details: 'Updated security settings',
-    },
-    {
-      id: '3',
-      action: 'Failed Login',
-      user: 'attacker@example.com',
-      timestamp: '2024-01-15T09:15:00Z',
-      ipAddress: '192.168.1.200',
-      success: false,
-      details: 'Invalid credentials',
-    },
-  ]);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
+    if (!organization?.id) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await simpleApiClient.get('/settings/security');
-      if (response.data) {
-        setSettings({ ...settings, ...response.data });
+      // Try to load from organizations.settings JSONB column
+      const { data: org, error } = await supabase
+        .from('organizations')
+        .select('settings')
+        .eq('id', organization.id)
+        .single();
+
+      if (error) throw error;
+      if (org?.settings?.security) {
+        setSettings({ ...DEFAULT_SETTINGS, ...org.settings.security });
       }
-    } catch (error) {
-      console.error('Error loading security settings:', error);
+    } catch (err: any) {
+      // Settings column may not have security key yet — use defaults
     } finally {
       setLoading(false);
     }
-  };
+  }, [organization?.id]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const saveSettings = async () => {
+    if (!organization?.id) return;
+    setSaving(true);
     try {
-      setSaving(true);
-      await simpleApiClient.put('/settings/security', settings);
+      // Use the security-settings backend endpoint for audit-logged persistence
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const response = await fetch('/.netlify/functions/security-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ security: settings }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to save');
+
       toast({
         title: 'Settings saved',
-        description: 'Your security settings have been updated successfully.',
+        description: result.changedFields?.length
+          ? `Updated: ${result.changedFields.join(', ')}`
+          : 'Your security settings have been updated.',
       });
-    } catch (error) {
-      console.error('Error saving security settings:', error);
+    } catch (err: any) {
       toast({
         title: 'Error saving settings',
-        description: 'There was an error saving your settings. Please try again.',
+        description: err.message || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -206,36 +148,15 @@ export default function SecuritySettings() {
   };
 
   const addIPToWhitelist = () => {
-    if (showNewWhitelistIP && !settings.ipWhitelist.includes(showNewWhitelistIP)) {
-      setSettings({
-        ...settings,
-        ipWhitelist: [...settings.ipWhitelist, showNewWhitelistIP],
-      });
+    const ip = showNewWhitelistIP.trim();
+    if (ip && !settings.ipWhitelist.includes(ip)) {
+      setSettings({ ...settings, ipWhitelist: [...settings.ipWhitelist, ip] });
       setShowNewWhitelistIP('');
     }
   };
 
   const removeIPFromWhitelist = (ip: string) => {
-    setSettings({
-      ...settings,
-      ipWhitelist: settings.ipWhitelist.filter(item => item !== ip),
-    });
-  };
-
-  const revokeSession = (sessionId: string) => {
-    setLoginSessions(sessions => sessions.filter(s => s.id !== sessionId));
-    toast({
-      title: 'Session revoked',
-      description: 'The selected session has been terminated.',
-    });
-  };
-
-  const enable2FA = async () => {
-    // This would typically open a modal with QR code
-    toast({
-      title: '2FA Setup',
-      description: 'Two-factor authentication setup would be initiated here.',
-    });
+    setSettings({ ...settings, ipWhitelist: settings.ipWhitelist.filter(item => item !== ip) });
   };
 
   if (loading) {
@@ -290,8 +211,6 @@ export default function SecuritySettings() {
         <div className="flex space-x-1 rounded-lg bg-gray-900 p-1">
           {[
             { id: 'general', label: 'General Security', icon: Shield },
-            { id: 'sessions', label: 'Active Sessions', icon: Monitor },
-            { id: 'audit', label: 'Audit Logs', icon: Activity },
             { id: 'privacy', label: 'Privacy & Data', icon: Database },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -330,27 +249,12 @@ export default function SecuritySettings() {
                 <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
                   <div>
                     <span className="font-medium text-white">Two-Factor Authentication</span>
-                    <p className="text-sm text-gray-400">
-                      Add an extra layer of security to your account
-                    </p>
+                    <p className="text-sm text-gray-400">Add an extra layer of security</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={settings.twoFactorEnabled}
-                      onCheckedChange={(checked) => {
-                        if (checked && !settings.twoFactorEnabled) {
-                          enable2FA();
-                        } else {
-                          setSettings({ ...settings, twoFactorEnabled: checked });
-                        }
-                      }}
-                    />
-                    {!settings.twoFactorEnabled && (
-                      <Button variant="outline" size="sm" onClick={enable2FA}>
-                        Setup
-                      </Button>
-                    )}
-                  </div>
+                  <Switch
+                    checked={settings.twoFactorEnabled}
+                    onCheckedChange={(checked) => setSettings({ ...settings, twoFactorEnabled: checked })}
+                  />
                 </div>
 
                 <div>
@@ -474,8 +378,9 @@ export default function SecuritySettings() {
                     value={showNewWhitelistIP}
                     onChange={(e) => setShowNewWhitelistIP(e.target.value)}
                     className="border-gray-700 bg-gray-800 text-white"
+                    onKeyDown={(e) => { if (e.key === 'Enter') addIPToWhitelist(); }}
                   />
-                  <Button onClick={addIPToWhitelist} disabled={!showNewWhitelistIP}>
+                  <Button onClick={addIPToWhitelist} disabled={!showNewWhitelistIP.trim()}>
                     Add IP
                   </Button>
                 </div>
@@ -491,6 +396,7 @@ export default function SecuritySettings() {
                           variant="outline"
                           size="sm"
                           onClick={() => removeIPFromWhitelist(ip)}
+                          className="border-gray-700 text-gray-300"
                         >
                           Remove
                         </Button>
@@ -559,104 +465,6 @@ export default function SecuritySettings() {
               </CardContent>
             </Card>
           </div>
-        )}
-
-        {/* Active Sessions Tab */}
-        {activeTab === 'sessions' && (
-          <Card className="border-gray-800 bg-gray-900">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Monitor className="h-5 w-5 text-emerald-400" />
-                Active Sessions
-              </CardTitle>
-              <CardDescription className="text-gray-400">
-                Manage your active login sessions across devices
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {loginSessions.map((session) => (
-                <div key={session.id} className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600">
-                      <Monitor className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">{session.device}</span>
-                        {session.current && (
-                          <Badge variant="outline" className="text-xs text-emerald-400">
-                            Current Session
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-400">
-                        {session.location} • {session.ipAddress}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Last active: {new Date(session.lastActive).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  {!session.current && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => revokeSession(session.id)}
-                    >
-                      <UserX className="mr-2 h-4 w-4" />
-                      Revoke
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Audit Logs Tab */}
-        {activeTab === 'audit' && (
-          <Card className="border-gray-800 bg-gray-900">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Activity className="h-5 w-5 text-emerald-400" />
-                Audit Logs
-              </CardTitle>
-              <CardDescription className="text-gray-400">
-                Review security events and system activities
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                      log.success ? 'bg-emerald-600' : 'bg-red-600'
-                    }`}>
-                      {log.success ? (
-                        <CheckCircle className="h-5 w-5 text-white" />
-                      ) : (
-                        <AlertTriangle className="h-5 w-5 text-white" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">{log.action}</span>
-                        <Badge variant={log.success ? 'default' : 'destructive'}>
-                          {log.success ? 'Success' : 'Failed'}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-400">
-                        {log.user} • {log.ipAddress}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(log.timestamp).toLocaleString()} • {log.details}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
         )}
 
         {/* Privacy & Data Tab */}

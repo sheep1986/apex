@@ -29,19 +29,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.email || 'No user');
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         loadDbUser(session.user);
       }
       setLoading(false);
-      console.log('Auth loading set to false');
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state changed:', event, session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -59,19 +56,14 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
   const loadDbUser = async (authUser: User) => {
     try {
-      console.log('🔍 Loading DB user for:', authUser.email, 'ID:', authUser.id);
       // First try to get user by email (more reliable for existing users)
       let dbUser = await supabaseService.getUserByEmail(authUser.email!);
-      console.log('📊 getUserByEmail result:', dbUser);
-      
+
       // Fallback to auth ID if not found by email
       if (!dbUser) {
-        console.log('User not found by email, trying ID...');
         dbUser = await supabaseService.getUserById(authUser.id);
-        console.log('📊 getUserById result:', dbUser);
       }
-      
-      console.log('📊 Final DB user:', dbUser?.email, 'Role:', dbUser?.role);
+
       setDbUser(dbUser);
     } catch (error) {
       console.error('❌ Error loading database user:', error);

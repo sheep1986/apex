@@ -908,11 +908,9 @@ export default function LeadPage() {
           
           if (!aptError && appointmentsData) {
             setAppointments(appointmentsData);
-          } else if (aptError) {
-            console.log('Appointments table not available:', aptError.message);
           }
         } catch (err) {
-          console.log('Could not fetch appointments');
+          // Could not fetch appointments
         }
         
         // Fetch tasks (with error handling for missing table)
@@ -926,11 +924,9 @@ export default function LeadPage() {
           
           if (!taskError && tasksData) {
             setTasks(tasksData);
-          } else if (taskError) {
-            console.log('Tasks table not available:', taskError.message);
           }
         } catch (err) {
-          console.log('Could not fetch tasks');
+          // Could not fetch tasks
         }
         
         // Extract appointments and tasks from custom_fields if available
@@ -1062,8 +1058,6 @@ export default function LeadPage() {
 
       if (error) {
         // If tasks table doesn't exist, save to custom_fields
-        console.log('Tasks table not available, saving to custom_fields');
-        
         const updatedTasks = [...tasks, taskData];
         
         // Update lead's custom_fields with new task
@@ -3058,8 +3052,8 @@ export default function LeadPage() {
           <CalendarView 
             appointments={appointments}
             tasks={tasks}
-            onAppointmentClick={(apt) => console.log('Appointment clicked:', apt)}
-            onTaskClick={(task) => console.log('Task clicked:', task)}
+            onAppointmentClick={() => {}}
+            onTaskClick={() => {}}
           />
         </div>
 

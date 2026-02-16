@@ -2,20 +2,28 @@
  * Trinity Platform — Plan Tier Configuration
  * Single source of truth for pricing, limits, and features.
  *
+ * Pricing model: "AI Employees" — each tier provides a number of AI employees,
+ * backed by a credit-based billing engine underneath.
+ *
  * Stripe Price IDs are loaded from environment variables at runtime
  * in Netlify Functions. Frontend uses this for display only.
  */
 
 export interface PlanTier {
-  id: 'starter' | 'growth' | 'business' | 'enterprise';
+  id: 'employee_1' | 'employee_3' | 'employee_5' | 'enterprise';
   name: string;
-  monthlyPrice: number;
-  includedMinutes: number;
+  displayName: string;
+  aiEmployees: number;
+  monthlyPriceGBP: number;
+  includedCredits: number;
+  // Backward compat + display helpers
+  equivalentBudgetMinutes: number;
+  equivalentStandardMinutes: number;
   includedPhoneNumbers: number;
-  maxAssistants: number; // -1 = unlimited
+  maxAssistants: number;
   maxConcurrentCalls: number;
-  maxUsers: number; // -1 = unlimited
-  overagePerMinute: number;
+  maxUsers: number;
+  overageCreditPrice: number; // £ per credit for overage
   features: string[];
   popular?: boolean;
   contactSales?: boolean;
@@ -23,93 +31,97 @@ export interface PlanTier {
 
 export const PLAN_TIERS: PlanTier[] = [
   {
-    id: 'starter',
+    id: 'employee_1',
     name: 'Starter',
-    monthlyPrice: 199,
-    includedMinutes: 1_000,
-    includedPhoneNumbers: 1,
-    maxAssistants: 3,
-    maxConcurrentCalls: 2,
-    maxUsers: 3,
-    overagePerMinute: 0.15,
+    displayName: '1 AI Employee',
+    aiEmployees: 1,
+    monthlyPriceGBP: 2_500,
+    includedCredits: 200_000,
+    equivalentBudgetMinutes: 11_111,
+    equivalentStandardMinutes: 6_667,
+    includedPhoneNumbers: 3,
+    maxAssistants: 5,
+    maxConcurrentCalls: 5,
+    maxUsers: 5,
+    overageCreditPrice: 0.012,
     features: [
-      '1,000 AI call minutes',
-      '1 dedicated phone number',
-      '3 AI assistants',
-      'Call recording & transcripts',
-      'Live call monitoring',
-      'Basic analytics',
-      'Email support',
+      'CRM + Pipeline',
+      'Campaigns + Sequences',
+      'SMS + Email Follow-up',
+      'Call Recording + Transcription',
+      'Analytics Dashboard',
+      'Up to 500 calls/day',
+      '24/7 availability',
     ],
   },
   {
-    id: 'growth',
+    id: 'employee_3',
     name: 'Growth',
-    monthlyPrice: 599,
-    includedMinutes: 5_000,
-    includedPhoneNumbers: 5,
-    maxAssistants: 10,
-    maxConcurrentCalls: 5,
-    maxUsers: 10,
-    overagePerMinute: 0.12,
+    displayName: '3 AI Employees',
+    aiEmployees: 3,
+    monthlyPriceGBP: 6_500,
+    includedCredits: 650_000,
+    equivalentBudgetMinutes: 36_111,
+    equivalentStandardMinutes: 21_667,
+    includedPhoneNumbers: 8,
+    maxAssistants: 15,
+    maxConcurrentCalls: 15,
+    maxUsers: 15,
+    overageCreditPrice: 0.011,
     popular: true,
     features: [
-      '5,000 AI call minutes',
-      '5 dedicated phone numbers',
-      '10 AI assistants',
-      'Call transfer to human agents',
-      'Lead distribution & CRM',
-      'SMS & email sequences',
-      'Campaign management',
-      'Advanced analytics & reporting',
-      'Priority support',
+      'Everything in Starter',
+      'Webhooks + API',
+      'Advanced Analytics',
+      'Priority Support',
+      'Up to 1,500 calls/day',
     ],
   },
   {
-    id: 'business',
+    id: 'employee_5',
     name: 'Business',
-    monthlyPrice: 1_499,
-    includedMinutes: 15_000,
+    displayName: '5 AI Employees',
+    aiEmployees: 5,
+    monthlyPriceGBP: 10_000,
+    includedCredits: 1_100_000,
+    equivalentBudgetMinutes: 61_111,
+    equivalentStandardMinutes: 36_667,
     includedPhoneNumbers: 15,
-    maxAssistants: 25,
-    maxConcurrentCalls: 20,
+    maxAssistants: 30,
+    maxConcurrentCalls: 25,
     maxUsers: 50,
-    overagePerMinute: 0.10,
+    overageCreditPrice: 0.010,
     features: [
-      '15,000 AI call minutes',
-      '15 dedicated phone numbers',
-      '25 AI assistants',
       'Everything in Growth',
-      'Multi-agent squads',
-      'Custom tool integrations',
-      'Data cleansing & enrichment',
-      'Manager dashboards & daily reports',
-      'Dedicated account manager',
-      'SLA guarantee',
+      'White-label Branding',
+      'Dedicated Account Manager',
+      'Premium AI Training',
+      'Custom Integrations',
+      'Up to 2,500 calls/day',
     ],
   },
   {
     id: 'enterprise',
     name: 'Enterprise',
-    monthlyPrice: 0, // custom pricing
-    includedMinutes: -1, // negotiated
-    includedPhoneNumbers: -1,
+    displayName: '10+ AI Employees',
+    aiEmployees: 10,
+    monthlyPriceGBP: 0,
+    includedCredits: 0,
+    equivalentBudgetMinutes: 0,
+    equivalentStandardMinutes: 0,
+    includedPhoneNumbers: 0,
     maxAssistants: -1,
     maxConcurrentCalls: -1,
     maxUsers: -1,
-    overagePerMinute: 0,
+    overageCreditPrice: 0,
     contactSales: true,
     features: [
-      'Unlimited AI call minutes',
-      'Unlimited phone numbers',
-      'Unlimited AI assistants',
       'Everything in Business',
-      'White-label branding',
-      'Multi-lingual support',
-      'Custom integrations & API access',
-      'On-premise deployment option',
-      'Dedicated infrastructure',
-      '24/7 premium support',
+      'Bespoke AI Training',
+      'Custom SLA',
+      'Volume Pricing',
+      'Dedicated Infrastructure',
+      '24/7 Premium Support',
     ],
   },
 ];
@@ -121,19 +133,41 @@ export function getPlanById(planId: string): PlanTier | undefined {
 }
 
 export function getDefaultPlan(): PlanTier {
-  return PLAN_TIERS[0]; // starter
+  return PLAN_TIERS[0];
 }
 
 export function getPlanLimits(planId: string) {
   const plan = getPlanById(planId) || getDefaultPlan();
   return {
-    includedMinutes: plan.includedMinutes,
+    includedCredits: plan.includedCredits,
+    aiEmployees: plan.aiEmployees,
     maxPhoneNumbers: plan.includedPhoneNumbers,
     maxAssistants: plan.maxAssistants,
     maxConcurrentCalls: plan.maxConcurrentCalls,
     maxUsers: plan.maxUsers,
-    overagePerMinute: plan.overagePerMinute,
+    overageCreditPrice: plan.overageCreditPrice,
+    // Legacy compat
+    includedMinutes: plan.equivalentStandardMinutes,
+    overagePerMinute: plan.overageCreditPrice * 30, // approx for display
   };
+}
+
+/**
+ * Format credit amount as a human-readable capacity percentage.
+ * e.g., 150,000 of 200,000 = "75% capacity"
+ */
+export function formatCapacity(creditsUsed: number, creditsIncluded: number): string {
+  if (creditsIncluded <= 0) return '0%';
+  const pct = Math.round((creditsUsed / creditsIncluded) * 100);
+  return `${Math.min(pct, 100)}%`;
+}
+
+/**
+ * Convert credits to approximate minutes for a given voice tier.
+ */
+export function creditsToMinutes(credits: number, creditsPerMinute: number = 30): number {
+  if (creditsPerMinute <= 0) return 0;
+  return Math.round(credits / creditsPerMinute);
 }
 
 /**
@@ -142,12 +176,8 @@ export function getPlanLimits(planId: string) {
  */
 export function getStripePriceIds() {
   return {
-    starter: process.env.STRIPE_PRICE_STARTER || '',
-    growth: process.env.STRIPE_PRICE_GROWTH || '',
-    business: process.env.STRIPE_PRICE_BUSINESS || '',
-    // Metered prices for overage billing
-    overage_starter: process.env.STRIPE_OVERAGE_STARTER || '',
-    overage_growth: process.env.STRIPE_OVERAGE_GROWTH || '',
-    overage_business: process.env.STRIPE_OVERAGE_BUSINESS || '',
+    employee_1: process.env.STRIPE_PRICE_EMPLOYEE_1 || '',
+    employee_3: process.env.STRIPE_PRICE_EMPLOYEE_3 || '',
+    employee_5: process.env.STRIPE_PRICE_EMPLOYEE_5 || '',
   };
 }

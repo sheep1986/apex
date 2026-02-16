@@ -140,16 +140,8 @@ export default function CallDetailsPage() {
     try {
       setLeadCreationLoading(true);
       
-      console.log('🔍 Checking/creating lead for call:', {
-        callId: callData.id,
-        customerPhone: callData.customerPhone,
-        customerName: callData.customerName,
-        summary: callData.summary
-      });
-
       // Check if lead already exists for this call
       const existingLeads = await crmService.searchLeads(callData.customerPhone);
-      console.log('🔍 Found existing leads:', existingLeads.length);
       
       const existingLead = existingLeads.find(
         (lead) =>
@@ -159,22 +151,17 @@ export default function CallDetailsPage() {
 
       if (existingLead) {
         setCreatedLead(existingLead);
-        console.log('✅ Lead already exists for this call:', existingLead);
         return;
       }
 
-      console.log('📝 Creating new lead from call...');
       // Create new lead
       const newLead = await callsService.createLeadFromCall(callData);
       if (newLead) {
         setCreatedLead(newLead);
-        console.log('✅ Lead created successfully:', newLead);
         toast({
           title: 'Lead Created',
           description: `New lead "${newLead.firstName} ${newLead.lastName}" added to CRM`,
         });
-      } else {
-        console.log('⚠️ Lead creation returned null');
       }
     } catch (error) {
       console.error('❌ Error checking/creating lead:', error);

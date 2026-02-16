@@ -39,6 +39,8 @@ const TOOL_TYPES = [
   { value: 'transferCall', label: 'Transfer Call', icon: PhoneForwarded, description: 'Transfer the call to another number or assistant' },
   { value: 'dtmf', label: 'DTMF', icon: Zap, description: 'Send DTMF tones during a call' },
   { value: 'output', label: 'Output', icon: Server, description: 'Return structured data from the conversation' },
+  { value: 'ghl', label: 'GoHighLevel', icon: Wrench, description: 'Integration with GoHighLevel CRM' },
+  { value: 'make', label: 'Make.com', icon: Wrench, description: 'Integration with Make.com workflows' },
 ] as const;
 
 type ToolType = typeof TOOL_TYPES[number]['value'];
@@ -52,6 +54,9 @@ interface ToolFormState {
   serverSecret: string;
   asyncExecution: boolean;
   requestStartMessage: string;
+  requestCompleteMessage: string;
+  requestFailedMessage: string;
+  requestDelayedMessage: string;
 }
 
 const defaultForm: ToolFormState = {
@@ -63,6 +68,9 @@ const defaultForm: ToolFormState = {
   serverSecret: '',
   asyncExecution: false,
   requestStartMessage: '',
+  requestCompleteMessage: '',
+  requestFailedMessage: '',
+  requestDelayedMessage: '',
 };
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -147,12 +155,12 @@ export default function Tools() {
         };
       }
 
-      if (formState.requestStartMessage) {
-        payload.messages = [{
-          type: 'request-start' as const,
-          content: formState.requestStartMessage,
-        }];
-      }
+      const messages: any[] = [];
+      if (formState.requestStartMessage) messages.push({ type: 'request-start', content: formState.requestStartMessage });
+      if (formState.requestCompleteMessage) messages.push({ type: 'request-complete', content: formState.requestCompleteMessage });
+      if (formState.requestFailedMessage) messages.push({ type: 'request-failed', content: formState.requestFailedMessage });
+      if (formState.requestDelayedMessage) messages.push({ type: 'request-response-delayed', content: formState.requestDelayedMessage });
+      if (messages.length > 0) payload.messages = messages;
 
       if (formState.asyncExecution) {
         payload.async = true;
@@ -222,6 +230,9 @@ export default function Tools() {
       serverSecret: tool.server?.secret || '',
       asyncExecution: tool.async || false,
       requestStartMessage: tool.messages?.find(m => m.type === 'request-start')?.content || '',
+      requestCompleteMessage: tool.messages?.find(m => m.type === 'request-complete')?.content || '',
+      requestFailedMessage: tool.messages?.find(m => m.type === 'request-failed')?.content || '',
+      requestDelayedMessage: tool.messages?.find(m => m.type === 'request-response-delayed')?.content || '',
     });
     setShowCreateDialog(true);
   };
@@ -465,15 +476,65 @@ export default function Tools() {
                 </div>
               )}
 
-              {/* Request start message */}
-              <div>
-                <Label className="text-gray-400">Loading Message (spoken while tool executes)</Label>
-                <Input
-                  value={formState.requestStartMessage}
-                  onChange={(e) => setFormState(s => ({ ...s, requestStartMessage: e.target.value }))}
-                  placeholder='e.g. "Let me look that up for you..."'
-                  className="mt-1 border-gray-700 bg-gray-900 text-white"
-                />
+              {/* Async execution toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-gray-400">Async Execution</Label>
+                  <p className="text-xs text-gray-500 mt-0.5">Tool runs in background without blocking the conversation</p>
+                </div>
+                <button
+                  onClick={() => setFormState(s => ({ ...s, asyncExecution: !s.asyncExecution }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formState.asyncExecution ? 'bg-emerald-600' : 'bg-gray-700'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    formState.asyncExecution ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Tool Messages */}
+              <div className="space-y-3">
+                <Label className="text-gray-400">Spoken Messages</Label>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">While executing</p>
+                    <Input
+                      value={formState.requestStartMessage}
+                      onChange={(e) => setFormState(s => ({ ...s, requestStartMessage: e.target.value }))}
+                      placeholder='"Let me look that up for you..."'
+                      className="border-gray-700 bg-gray-900 text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">On success</p>
+                    <Input
+                      value={formState.requestCompleteMessage}
+                      onChange={(e) => setFormState(s => ({ ...s, requestCompleteMessage: e.target.value }))}
+                      placeholder='"I found that information..."'
+                      className="border-gray-700 bg-gray-900 text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">On failure</p>
+                    <Input
+                      value={formState.requestFailedMessage}
+                      onChange={(e) => setFormState(s => ({ ...s, requestFailedMessage: e.target.value }))}
+                      placeholder='"Sorry, I wasn&apos;t able to complete that..."'
+                      className="border-gray-700 bg-gray-900 text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">If delayed</p>
+                    <Input
+                      value={formState.requestDelayedMessage}
+                      onChange={(e) => setFormState(s => ({ ...s, requestDelayedMessage: e.target.value }))}
+                      placeholder='"Still working on that, one moment..."'
+                      className="border-gray-700 bg-gray-900 text-white text-sm"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

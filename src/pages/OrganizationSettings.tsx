@@ -11,7 +11,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -19,293 +21,209 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useApiClient } from '@/lib/api-client';
-import { useUserContext } from '@/services/MinimalUserProvider';
-import { supabaseService } from '@/services/supabase-service';
+import { supabase } from '@/services/supabase-client';
 import {
+    Building2,
+    Clock,
     Globe,
+    Loader2,
+    Mail,
+    Phone,
     Plus,
-    RefreshCw,
+    Save,
     Settings,
     Shield,
     UserCheck,
     UserX,
     Users,
-    Wallet
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
-interface OrganizationSettings {
-  voice_engine_api_key?: string;  // Public key
-  voice_engine_private_key?: string;  // Private key
-  voice_engine_webhook_secret?: string;
-  voice_engine_phone_numbers?: string[];
-  voice_engine_assistants?: Array<{
-    id: string;
-    name: string;
-    model: string;
-  }>;
-  default_user_role?: string;
-  billing_email?: string;
-  organization_name?: string;
-  max_concurrent_calls?: number;
-  webhook_url?: string;
-  compliance_settings?: {
+interface OrgSettings {
+  name: string;
+  billing_email: string;
+  webhook_url: string;
+  max_concurrent_calls: number;
+  default_user_role: string;
+  timezone: string;
+  compliance_settings: {
     tcpa_enabled: boolean;
     do_not_call_enabled: boolean;
     recording_consent: boolean;
   };
 }
 
-interface OrganizationUser {
+interface OrgMember {
   id: string;
+  user_id: string;
+  role: string;
+  created_at: string;
   email: string;
   first_name?: string;
   last_name?: string;
-  role: string;
-  status: 'active' | 'pending' | 'suspended';
-  last_login?: string;
-  created_at: string;
 }
 
-const OrganizationSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('users');
-  const [settings, setSettings] = useState<OrganizationSettings>({});
-  const [users, setUsers] = useState<OrganizationUser[]>([]);
+const TIMEZONES = (() => {
+  try {
+    return Intl.supportedValuesOf('timeZone');
+  } catch {
+    return [
+      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+      'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu', 'Europe/London',
+      'Europe/Paris', 'Europe/Berlin', 'Asia/Tokyo', 'Asia/Shanghai',
+      'Australia/Sydney', 'Pacific/Auckland',
+    ];
+  }
+})();
+
+const OrganizationSettingsPage: React.FC = () => {
+  const { organization, dbUser } = useSupabaseAuth();
+  const { toast } = useToast();
+
+  const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
-  
-  const { toast } = useToast();
-  const { userContext } = useUserContext();
-  const apiClient = useApiClient();
+  const [members, setMembers] = useState<OrgMember[]>([]);
+  const [settings, setSettings] = useState<OrgSettings>({
+    name: '',
+    billing_email: '',
+    webhook_url: '',
+    max_concurrent_calls: 10,
+    default_user_role: 'client_user',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    compliance_settings: {
+      tcpa_enabled: false,
+      do_not_call_enabled: false,
+      recording_consent: false,
+    },
+  });
 
-  // Check if user is admin
-  const isAdmin = userContext?.role === 'client_admin' || userContext?.role === 'platform_owner';
+  const isAdmin = dbUser?.role === 'client_admin' || dbUser?.role === 'platform_owner';
 
-  useEffect(() => {
-    if (isAdmin) {
-      loadOrganizationSettings();
-      loadOrganizationUsers();
-    }
-  }, [isAdmin]);
-
-  const loadOrganizationSettings = async () => {
+  const loadSettings = useCallback(async () => {
+    if (!organization?.id) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await apiClient.get('/organization-settings');
-      setSettings(response.data.settings || {});
-    } catch (error) {
-      console.error('Error loading organization settings from API, trying Supabase:', error);
-      
-      // Fallback to direct Supabase query
-      try {
-        if (!userContext?.organization_id) {
-          throw new Error('No organization ID available');
-        }
-        
-        // Fetch organization data directly from Supabase
-        const orgData = await supabaseService.getOrganization(userContext.organization_id);
-        
-        if (!orgData) throw new Error('Organization not found');
-        
-        // Transform Supabase data to match expected format
-        const transformedSettings: OrganizationSettings = {
-          voice_engine_api_key: orgData.vapi_api_key || '',
-          voice_engine_private_key: orgData.vapi_private_key || '',
-          voice_engine_webhook_secret: orgData.vapi_webhook_secret || '',
-          organization_name: orgData.name || '',
-          webhook_url: orgData.webhook_url || `https://api.trinity-labs.ai/voice/webhook`,
-          billing_email: orgData.billing_email || '',
-          max_concurrent_calls: orgData.max_concurrent_calls || 10,
-          default_user_role: orgData.default_user_role || 'client_user',
-          compliance_settings: orgData.compliance_settings || {
+      const { data: org, error } = await supabase
+        .from('organizations')
+        .select('name, billing_email, webhook_url, max_concurrent_calls, default_user_role, settings, compliance_settings')
+        .eq('id', organization.id)
+        .single();
+
+      if (error) throw error;
+      if (org) {
+        setSettings({
+          name: org.name || '',
+          billing_email: org.billing_email || '',
+          webhook_url: org.webhook_url || '',
+          max_concurrent_calls: org.max_concurrent_calls || 10,
+          default_user_role: org.default_user_role || 'client_user',
+          timezone: org.settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          compliance_settings: org.compliance_settings || {
             tcpa_enabled: false,
             do_not_call_enabled: false,
-            recording_consent: false
-          }
-        };
-        
-        // Fetch phone numbers
-        const phoneNumbers = await supabaseService.getPhoneNumbers(userContext.organization_id);
-        
-        if (phoneNumbers && phoneNumbers.length > 0) {
-          transformedSettings.voice_engine_phone_numbers = phoneNumbers.map(p => p.number);
-        }
-        
-        // Fetch Voice Engine assistants (if stored in database)
-        // This would typically come from a separate table or the VAPI API
-        // For now, we'll leave it empty or mock it if needed
-        const { data: assistants } = await supabaseService.client
-          .from('communications_metadata')
-          .select('id, name')
-          .eq('type', 'voice_assistant') // Assuming we might store them this way
-          .eq('organization_id', orgData.id);
-
-        if (assistants && assistants.length > 0) {
-          transformedSettings.voice_engine_assistants = assistants.map(a => ({
-            id: a.id,
-            name: a.name,
-            model: a.model || 'gpt-4'
-          }));
-        }
-        
-        setSettings(transformedSettings);
-        console.log('✅ Loaded organization settings from Supabase fallback');
-      } catch (supabaseError) {
-        console.error('Error loading from Supabase:', supabaseError);
-        toast({
-          title: 'Error',
-          description: 'Failed to load organization settings. Please try again.',
-          variant: 'destructive',
+            recording_consent: false,
+          },
         });
       }
+    } catch (err: any) {
+      toast({ title: 'Error', description: 'Failed to load organization settings.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [organization?.id, toast]);
 
-  const loadOrganizationUsers = async () => {
+  const loadMembers = useCallback(async () => {
+    if (!organization?.id) return;
     try {
-      const response = await apiClient.get('/organizations/users');
-      setUsers(response.data.users || []);
-    } catch (error) {
-      console.error('Error loading organization users from API, trying Supabase:', error);
-      
-      // Fallback to direct Supabase query
-      try {
-        if (!userContext?.organization_id) {
-          throw new Error('No organization ID available');
-        }
-        
-        const users = await supabaseService.getOrganizationUsers(userContext.organization_id);
-        
-        // Transform to match expected format
-        const transformedUsers: OrganizationUser[] = (users || []).map(user => ({
-          id: user.id,
-          email: user.email,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          role: user.role,
-          status: user.status || 'active',
-          last_login: user.last_login,
-          created_at: user.created_at
-        }));
-        
-        setUsers(transformedUsers);
-        console.log('✅ Loaded organization users from Supabase fallback');
-      } catch (supabaseError) {
-        console.error('Error loading users from Supabase:', supabaseError);
-      }
-    }
-  };
+      const { data: memberRows, error } = await supabase
+        .from('organization_members')
+        .select('id, user_id, role, created_at, profiles:user_id(email, first_name, last_name)')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: true });
 
-  const saveSetting = async (key: string, value: any, encrypted = false) => {
-    try {
-      setSaving(true);
-      await apiClient.post(`/organization-settings/${key}`, {
-        value,
-        encrypted
-      });
-      
-      toast({
-        title: 'Success',
-        description: 'Settings saved successfully!',
-      });
-      
-      // Update local state
-      setSettings(prev => ({ ...prev, [key]: value }));
-    } catch (error) {
-      console.error('Error saving setting:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save settings. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
+      if (error) throw error;
+      const mapped: OrgMember[] = (memberRows || []).map((m: any) => ({
+        id: m.id,
+        user_id: m.user_id,
+        role: m.role,
+        created_at: m.created_at,
+        email: m.profiles?.email || 'Unknown',
+        first_name: m.profiles?.first_name,
+        last_name: m.profiles?.last_name,
+      }));
+      setMembers(mapped);
+    } catch (err: any) {
+      console.error('Failed to load members:', err);
     }
-  };
+  }, [organization?.id]);
 
-  const updateUserRole = async (userId: string, newRole: string) => {
-    try {
-      await apiClient.put(`/organizations/users/${userId}/role`, { role: newRole });
-      toast({
-        title: 'Success',
-        description: 'User role updated successfully.',
-      });
-      loadOrganizationUsers();
-    } catch (error) {
-      console.error('Error updating user role:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update user role. Please try again.',
-        variant: 'destructive',
-      });
+  useEffect(() => {
+    if (isAdmin) {
+      loadSettings();
+      loadMembers();
+    } else {
+      setLoading(false);
     }
-  };
+  }, [isAdmin, loadSettings, loadMembers]);
 
-  const suspendUser = async (userId: string) => {
-    try {
-      await apiClient.put(`/organizations/users/${userId}/suspend`);
-      toast({
-        title: 'Success',
-        description: 'User has been suspended successfully.',
-      });
-      loadOrganizationUsers();
-    } catch (error) {
-      console.error('Error suspending user:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to suspend user. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const testVoiceEngineConnection = async () => {
-    if (!settings.voice_engine_private_key) {
-      toast({
-        title: 'Voice Engine Connection',
-        description: 'Provide your private key to test the voice engine connection.',
-      });
-      return;
-    }
-
+  const saveSettings = async () => {
+    if (!organization?.id) return;
     setSaving(true);
-    toast({
-      title: 'Testing Connection',
-      description: 'Verifying voice engine credentials...',
-    });
-
     try {
-      const response = await apiClient.post('/voice-engine/test-connection');
-      
-      if (response.data.success) {
-        toast({
-          title: 'Connection Successful',
-          description: 'Voice Engine connection verified!',
-          variant: 'default',
-        });
-      } else {
-        toast({
-          title: 'Connection Failed',
-          description: 'Voice Engine connection test failed. Please check your API key.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Error testing Voice Engine connection:', error);
-      toast({
-        title: 'Connection Error',
-        description: 'Error testing Voice Engine connection. Please try again.',
-        variant: 'destructive',
-      });
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          name: settings.name.trim(),
+          billing_email: settings.billing_email.trim() || null,
+          webhook_url: settings.webhook_url.trim() || null,
+          max_concurrent_calls: settings.max_concurrent_calls,
+          default_user_role: settings.default_user_role,
+          settings: { timezone: settings.timezone },
+          compliance_settings: settings.compliance_settings,
+        })
+        .eq('id', organization.id);
+
+      if (error) throw error;
+      toast({ title: 'Saved', description: 'Organization settings updated successfully.' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to save settings.', variant: 'destructive' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const updateMemberRole = async (memberId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from('organization_members')
+        .update({ role: newRole })
+        .eq('id', memberId);
+
+      if (error) throw error;
+      toast({ title: 'Updated', description: 'Member role updated.' });
+      loadMembers();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to update role.', variant: 'destructive' });
+    }
+  };
+
+  const removeMember = async (memberId: string) => {
+    try {
+      const { error } = await supabase
+        .from('organization_members')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) throw error;
+      toast({ title: 'Removed', description: 'Member has been removed from the organization.' });
+      loadMembers();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to remove member.', variant: 'destructive' });
     }
   };
 
@@ -331,7 +249,7 @@ const OrganizationSettings: React.FC = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="flex flex-col items-center space-y-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
           <p className="text-sm text-gray-400">Loading organization settings...</p>
         </div>
       </div>
@@ -339,43 +257,147 @@ const OrganizationSettings: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black p-6">
-      <div className="mx-auto max-w-6xl">
+    <div className="min-h-screen bg-black">
+      <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="mb-8">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Settings className="h-8 w-8 text-emerald-500" />
+            <div className="p-3 bg-emerald-500/20 rounded-lg">
+              <Settings className="h-8 w-8 text-emerald-400" />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Organization Settings</h1>
-              <p className="text-gray-400">
-                Manage your organization's configuration and team members
-              </p>
+              <h1 className="text-2xl font-bold text-white">Organization Settings</h1>
+              <p className="text-gray-400">Manage your organization's configuration and team</p>
             </div>
           </div>
+          <Button
+            onClick={saveSettings}
+            disabled={saving}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Settings
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-900">
-            <TabsTrigger value="users" className="flex items-center space-x-2">
-              <Users className="h-4 w-4" />
-              <span>Team Members</span>
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="flex items-center space-x-2">
-              <Shield className="h-4 w-4" />
-              <span>Permissions</span>
-            </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center space-x-2">
-              <Wallet className="h-4 w-4" />
-              <span>Billing</span>
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-900">
             <TabsTrigger value="general" className="flex items-center space-x-2">
-              <Globe className="h-4 w-4" />
+              <Building2 className="h-4 w-4" />
               <span>General</span>
+            </TabsTrigger>
+            <TabsTrigger value="team" className="flex items-center space-x-2">
+              <Users className="h-4 w-4" />
+              <span>Team ({members.length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="compliance" className="flex items-center space-x-2">
+              <Shield className="h-4 w-4" />
+              <span>Compliance</span>
             </TabsTrigger>
           </TabsList>
 
-          {/* User Management Tab */}
-          <TabsContent value="users" className="space-y-6">
+          {/* General Tab */}
+          <TabsContent value="general" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="border-gray-800 bg-gray-900">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-white">
+                    <Building2 className="h-5 w-5 text-emerald-400" />
+                    Organization Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-white">Organization Name</Label>
+                    <Input
+                      value={settings.name}
+                      onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                      className="mt-1 border-gray-700 bg-gray-800 text-white"
+                      placeholder="My Organization"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-white flex items-center gap-1"><Mail className="h-3 w-3" /> Billing Email</Label>
+                    <Input
+                      value={settings.billing_email}
+                      onChange={(e) => setSettings({ ...settings, billing_email: e.target.value })}
+                      className="mt-1 border-gray-700 bg-gray-800 text-white"
+                      placeholder="billing@company.com"
+                      type="email"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-white flex items-center gap-1"><Globe className="h-3 w-3" /> Webhook URL</Label>
+                    <Input
+                      value={settings.webhook_url}
+                      onChange={(e) => setSettings({ ...settings, webhook_url: e.target.value })}
+                      className="mt-1 border-gray-700 bg-gray-800 text-white"
+                      placeholder="https://your-server.com/webhook"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-gray-800 bg-gray-900">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-white">
+                    <Phone className="h-5 w-5 text-emerald-400" />
+                    Call Settings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-white">Max Concurrent Calls</Label>
+                    <Input
+                      type="number"
+                      value={settings.max_concurrent_calls}
+                      onChange={(e) => setSettings({ ...settings, max_concurrent_calls: parseInt(e.target.value) || 10 })}
+                      className="mt-1 border-gray-700 bg-gray-800 text-white"
+                      min="1"
+                      max="100"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Maximum simultaneous calls allowed</p>
+                  </div>
+                  <div>
+                    <Label className="text-white">Default User Role</Label>
+                    <Select
+                      value={settings.default_user_role}
+                      onValueChange={(v) => setSettings({ ...settings, default_user_role: v })}
+                    >
+                      <SelectTrigger className="mt-1 border-gray-700 bg-gray-800 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700">
+                        <SelectItem value="client_admin">Admin</SelectItem>
+                        <SelectItem value="client_user">User</SelectItem>
+                        <SelectItem value="client_viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-gray-500">Role assigned to new team members</p>
+                  </div>
+                  <div>
+                    <Label className="text-white flex items-center gap-1"><Clock className="h-3 w-3" /> Timezone</Label>
+                    <Select
+                      value={settings.timezone}
+                      onValueChange={(v) => setSettings({ ...settings, timezone: v })}
+                    >
+                      <SelectTrigger className="mt-1 border-gray-700 bg-gray-800 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700 max-h-60">
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz} value={tz}>{tz.replace(/_/g, ' ')}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Team Tab */}
+          <TabsContent value="team" className="space-y-6">
             <Card className="border-gray-800 bg-gray-900">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -383,123 +405,153 @@ const OrganizationSettings: React.FC = () => {
                     <Users className="h-5 w-5 text-emerald-500" />
                     <span>Team Members</span>
                   </CardTitle>
-                  <Button className="bg-emerald-600 hover:bg-emerald-700">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Invite User
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {users.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">
-                            {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email}
-                          </p>
-                          <p className="text-sm text-gray-400">{user.email}</p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {user.role.replace('client_', '').charAt(0).toUpperCase() + user.role.replace('client_', '').slice(1)}
-                            </Badge>
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                user.status === 'active' ? 'border-emerald-500 text-emerald-400' :
-                                user.status === 'pending' ? 'border-yellow-500 text-yellow-400' :
-                                'border-red-500 text-red-400'
-                              }`}
-                            >
-                              {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                            </Badge>
+                {members.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Users className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+                    <p className="text-gray-400">No team members found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {members.map((member) => {
+                      const displayName = member.first_name && member.last_name
+                        ? `${member.first_name} ${member.last_name}`
+                        : member.email;
+                      const isSelf = member.user_id === dbUser?.id;
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                          <div className="flex items-center space-x-4">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center text-sm font-bold text-white">
+                              {displayName[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-white">
+                                {displayName}
+                                {isSelf && <span className="ml-2 text-xs text-gray-500">(you)</span>}
+                              </p>
+                              <p className="text-sm text-gray-400">{member.email}</p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {member.role.replace('client_', '')}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  Joined {new Date(member.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
                           </div>
+                          {!isSelf && (
+                            <div className="flex items-center space-x-2">
+                              <Select
+                                value={member.role}
+                                onValueChange={(newRole) => updateMemberRole(member.id, newRole)}
+                              >
+                                <SelectTrigger className="w-32 bg-gray-800 border-gray-700">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-800 border-gray-700">
+                                  <SelectItem value="client_admin">Admin</SelectItem>
+                                  <SelectItem value="client_user">User</SelectItem>
+                                  <SelectItem value="client_viewer">Viewer</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="border-red-600 text-red-400 hover:bg-red-600/20">
+                                    <UserX className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-gray-900 border-gray-800">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-white">Remove Member</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-gray-400">
+                                      Are you sure you want to remove {member.email} from the organization?
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="border-gray-700 text-gray-300 hover:bg-gray-800">
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => removeMember(member.id)}
+                                      className="bg-red-600 text-white hover:bg-red-700"
+                                    >
+                                      Remove
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Select
-                          value={user.role}
-                          onValueChange={(newRole) => updateUserRole(user.id, newRole)}
-                        >
-                          <SelectTrigger className="w-32 bg-gray-800 border-gray-700">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-800 border-gray-700">
-                            <SelectItem value="client_admin">Admin</SelectItem>
-                            <SelectItem value="client_user">User</SelectItem>
-                            <SelectItem value="client_viewer">Viewer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {user.status === 'active' ? (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="border-red-600 text-red-400 hover:bg-red-600/20">
-                                <UserX className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-gray-900 border-gray-800">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="text-white">Suspend User</AlertDialogTitle>
-                                <AlertDialogDescription className="text-gray-400">
-                                  Are you sure you want to suspend {user.email}? They will lose access to the organization.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel className="border-gray-700 text-gray-300 hover:bg-gray-800">
-                                  Cancel
-                                </AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => suspendUser(user.id)}
-                                  className="bg-red-600 text-white hover:bg-red-700"
-                                >
-                                  Suspend User
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        ) : (
-                          <Button variant="outline" size="sm" className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/20">
-                            <UserCheck className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Compliance Tab */}
+          <TabsContent value="compliance" className="space-y-6">
+            <Card className="border-gray-800 bg-gray-900">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Shield className="h-5 w-5 text-emerald-400" />
+                  Compliance Settings
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Configure regulatory compliance for your voice campaigns
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-4">
+                  <div>
+                    <span className="font-medium text-white">TCPA Compliance</span>
+                    <p className="text-sm text-gray-400">Enforce Telephone Consumer Protection Act rules</p>
+                  </div>
+                  <Switch
+                    checked={settings.compliance_settings.tcpa_enabled}
+                    onCheckedChange={(checked) =>
+                      setSettings({
+                        ...settings,
+                        compliance_settings: { ...settings.compliance_settings, tcpa_enabled: checked },
+                      })
+                    }
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Other tabs would be implemented similarly */}
-          <TabsContent value="permissions">
-            <Card className="border-gray-800 bg-gray-900">
-              <CardContent className="p-12 text-center">
-                <Shield className="mx-auto mb-4 h-16 w-16 text-gray-600" />
-                <h3 className="mb-2 text-lg font-semibold text-white">Permissions</h3>
-                <p className="text-gray-400">Permissions management coming soon...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="billing">
-            <Card className="border-gray-800 bg-gray-900">
-              <CardContent className="p-12 text-center">
-                <Wallet className="mx-auto mb-4 h-16 w-16 text-gray-600" />
-                <h3 className="mb-2 text-lg font-semibold text-white">Billing Settings</h3>
-                <p className="text-gray-400">Billing configuration coming soon...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="general">
-            <Card className="border-gray-800 bg-gray-900">
-              <CardContent className="p-12 text-center">
-                <Globe className="mx-auto mb-4 h-16 w-16 text-gray-600" />
-                <h3 className="mb-2 text-lg font-semibold text-white">General Settings</h3>
-                <p className="text-gray-400">General settings coming soon...</p>
+                <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-4">
+                  <div>
+                    <span className="font-medium text-white">Do Not Call List</span>
+                    <p className="text-sm text-gray-400">Check numbers against DNC registry before dialing</p>
+                  </div>
+                  <Switch
+                    checked={settings.compliance_settings.do_not_call_enabled}
+                    onCheckedChange={(checked) =>
+                      setSettings({
+                        ...settings,
+                        compliance_settings: { ...settings.compliance_settings, do_not_call_enabled: checked },
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-4">
+                  <div>
+                    <span className="font-medium text-white">Recording Consent</span>
+                    <p className="text-sm text-gray-400">Require recording consent announcement at call start</p>
+                  </div>
+                  <Switch
+                    checked={settings.compliance_settings.recording_consent}
+                    onCheckedChange={(checked) =>
+                      setSettings({
+                        ...settings,
+                        compliance_settings: { ...settings.compliance_settings, recording_consent: checked },
+                      })
+                    }
+                  />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -509,4 +561,4 @@ const OrganizationSettings: React.FC = () => {
   );
 };
 
-export default OrganizationSettings;
+export default OrganizationSettingsPage;

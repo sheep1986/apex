@@ -87,11 +87,8 @@ export default function DebugAuth() {
           <h2 className="text-xl font-semibold mb-4">Actions</h2>
           <button
             onClick={async () => {
-              console.log('🚪 Aggressive sign out initiated...');
-              
               // Sign out from Supabase
               const { error } = await supabase.auth.signOut();
-              console.log('Supabase signout:', error || 'Success');
               
               // Clear all storage
               localStorage.clear();

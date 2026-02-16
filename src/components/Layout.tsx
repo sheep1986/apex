@@ -1,6 +1,7 @@
 
 import trinitySidebarIcon from "@/assets/trinity-sidebar-icon.png";
 import { useUser } from "@/hooks/auth";
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 import { useNotificationStore } from "@/lib/notification-store";
 import { useUserContext } from "@/services/MinimalUserProvider";
 import {
@@ -9,8 +10,12 @@ import {
     BookOpen,
     Building,
     DollarSign,
+    FlaskConical,
+    GitBranch,
+    Headset,
     HeadphonesIcon,
     Home,
+    Menu,
     Monitor,
     Phone,
     PhoneCall,
@@ -18,12 +23,21 @@ import {
     Share2,
     Shield,
     Target,
+    TrendingUp,
     UserCheck,
+    Users,
     Wallet,
+    FileBarChart,
+    Mail,
+    Palette,
+    Webhook,
     Wrench,
+    X,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "@/services/supabase-client";
+import CommandPalette from "./CommandPalette";
 import { NotificationBell } from "./NotificationBell";
 import { UserDropdown } from "./UserDropdown";
 
@@ -153,6 +167,42 @@ const agencyMenuItems: MenuItem[] = [
     isActive: (path: string) => path === "/squads",
   },
   {
+    title: "Workflows",
+    titleKey: "workflows",
+    url: "/workflows",
+    icon: GitBranch,
+    isActive: (path: string) => path === "/workflows",
+  },
+  {
+    title: "Test Suites",
+    titleKey: "test_suites",
+    url: "/test-suites",
+    icon: FlaskConical,
+    isActive: (path: string) => path === "/test-suites",
+  },
+  {
+    title: "Contacts",
+    titleKey: "contacts",
+    url: "/contacts",
+    icon: Users,
+    isActive: (path: string) =>
+      path === "/contacts" || path.startsWith("/contacts/"),
+  },
+  {
+    title: "Sales Pipeline",
+    titleKey: "pipeline",
+    url: "/pipeline",
+    icon: TrendingUp,
+    isActive: (path: string) => path === "/pipeline",
+  },
+  {
+    title: "Agent Dashboard",
+    titleKey: "agent_dashboard",
+    url: "/agent-dashboard",
+    icon: Headset,
+    isActive: (path: string) => path === "/agent-dashboard",
+  },
+  {
     title: "Analytics",
     titleKey: "analytics",
     url: "/analytics",
@@ -165,6 +215,35 @@ const agencyMenuItems: MenuItem[] = [
     url: "/billing",
     icon: Wallet,
     isActive: (path: string) => path === "/billing",
+  },
+  {
+    title: "Integrations",
+    titleKey: "integrations",
+    url: "/integrations",
+    icon: Webhook,
+    isActive: (path: string) => path === "/integrations",
+  },
+  {
+    title: "Scheduled Reports",
+    titleKey: "scheduled-reports",
+    url: "/scheduled-reports",
+    icon: FileBarChart,
+    isActive: (path: string) => path === "/scheduled-reports",
+  },
+  {
+    title: "Email Templates",
+    titleKey: "email-templates",
+    url: "/email-templates",
+    icon: Mail,
+    isActive: (path: string) => path === "/email-templates",
+  },
+  {
+    title: "Agency Branding",
+    titleKey: "agency-branding",
+    url: "/agency-branding",
+    icon: Palette,
+    isActive: (path: string) => path === "/agency-branding",
+    adminOnly: true,
   },
   {
     title: "Settings",
@@ -229,6 +308,35 @@ const clientMenuItems: MenuItem[] = [
     isActive: (path: string) => path === "/squads",
   },
   {
+    title: "Workflows",
+    titleKey: "workflows",
+    url: "/workflows",
+    icon: GitBranch,
+    isActive: (path: string) => path === "/workflows",
+  },
+  {
+    title: "Test Suites",
+    titleKey: "test_suites",
+    url: "/test-suites",
+    icon: FlaskConical,
+    isActive: (path: string) => path === "/test-suites",
+  },
+  {
+    title: "Contacts",
+    titleKey: "contacts",
+    url: "/contacts",
+    icon: Users,
+    isActive: (path: string) =>
+      path === "/contacts" || path.startsWith("/contacts/"),
+  },
+  {
+    title: "Sales Pipeline",
+    titleKey: "pipeline",
+    url: "/pipeline",
+    icon: TrendingUp,
+    isActive: (path: string) => path === "/pipeline",
+  },
+  {
     title: "All Calls",
     titleKey: "all_calls",
     url: "/all-calls",
@@ -243,6 +351,13 @@ const clientMenuItems: MenuItem[] = [
     isActive: (path: string) => path === "/live-calls",
   },
   {
+    title: "Agent Dashboard",
+    titleKey: "agent_dashboard",
+    url: "/agent-dashboard",
+    icon: Headset,
+    isActive: (path: string) => path === "/agent-dashboard",
+  },
+  {
     title: "Analytics",
     titleKey: "analytics",
     url: "/analytics",
@@ -255,6 +370,27 @@ const clientMenuItems: MenuItem[] = [
     url: "/billing",
     icon: Wallet,
     isActive: (path: string) => path === "/billing",
+  },
+  {
+    title: "Integrations",
+    titleKey: "integrations",
+    url: "/integrations",
+    icon: Webhook,
+    isActive: (path: string) => path === "/integrations",
+  },
+  {
+    title: "Scheduled Reports",
+    titleKey: "scheduled-reports",
+    url: "/scheduled-reports",
+    icon: FileBarChart,
+    isActive: (path: string) => path === "/scheduled-reports",
+  },
+  {
+    title: "Email Templates",
+    titleKey: "email-templates",
+    url: "/email-templates",
+    icon: Mail,
+    isActive: (path: string) => path === "/email-templates",
   },
   {
     title: "Organization",
@@ -281,6 +417,63 @@ const Layout: React.FC = () => {
   const { addNotification, notifications } = useNotificationStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user } = useUser();
+
+  // Subscribe to realtime hot lead + call completion notifications
+  useRealtimeNotifications(userContext?.organization_id);
+
+  // ─── Session Timeout Enforcement ──────────────────────────────────
+  // Reads the org's security settings and forces logout after inactivity
+  const sessionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSessionTimeout = useCallback(async () => {
+    await supabase.auth.signOut();
+    navigate('/login', { replace: true });
+  }, [navigate]);
+
+  useEffect(() => {
+    const orgId = userContext?.organization_id;
+    if (!orgId) return;
+
+    let timeoutMs = 0;
+    let cancelled = false;
+
+    // Fetch security settings from the org
+    supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', orgId)
+      .single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const sessionTimeout = data?.settings?.security?.sessionTimeout;
+        if (!sessionTimeout || sessionTimeout <= 0) return;
+
+        timeoutMs = sessionTimeout * 60_000; // minutes → ms
+
+        const resetTimer = () => {
+          if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
+          sessionTimeoutRef.current = setTimeout(handleSessionTimeout, timeoutMs);
+        };
+
+        const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+        events.forEach(e => document.addEventListener(e, resetTimer));
+        resetTimer();
+
+        // Store cleanup reference
+        (window as any).__sessionTimeoutCleanup = () => {
+          if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
+          events.forEach(e => document.removeEventListener(e, resetTimer));
+        };
+      });
+
+    return () => {
+      cancelled = true;
+      if ((window as any).__sessionTimeoutCleanup) {
+        (window as any).__sessionTimeoutCleanup();
+        delete (window as any).__sessionTimeoutCleanup;
+      }
+    };
+  }, [userContext?.organization_id, handleSessionTimeout]);
 
   // Initial redirect
   useEffect(() => {
@@ -345,8 +538,8 @@ const Layout: React.FC = () => {
       {/* Sidebar */}
       <div className={`
           group relative transition-all duration-300 ease-in-out z-50 flex-shrink-0
-          ${isMobileMenuOpen 
-            ? "fixed inset-y-0 left-0 w-64 md:relative md:w-16 md:hover:w-64" 
+          ${isMobileMenuOpen
+            ? "fixed inset-y-0 left-0 w-64 md:relative md:w-16 md:hover:w-64"
             : "hidden md:block md:w-16 md:hover:w-64"}
       `}>
         <div className="absolute inset-0 bg-black/95 backdrop-blur-xl border-r border-white/10"></div>
@@ -375,13 +568,15 @@ const Layout: React.FC = () => {
                     to={item.url}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`
-                      nav-item flex items-center px-4 py-3.5 text-sm font-medium transition-all duration-300 
-                      relative mx-2 rounded-lg group
+                      nav-item flex items-center px-4 py-3.5 text-sm font-medium transition-all duration-300
+                      relative mx-2 rounded-lg group/nav
                       ${isActive ? "bg-transparent text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}
                     `}
                   >
-                    <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${isActive ? "text-green-500 scale-110" : "text-white/60 group-hover:text-white"}`} />
-                    <span className="ml-3 tracking-wide whitespace-nowrap overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100 absolute left-12">
+                    <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${isActive ? "text-green-500 scale-110" : "text-white/60 group-hover/nav:text-white"}`} />
+                    <span className={`ml-3 tracking-wide whitespace-nowrap overflow-hidden transition-opacity duration-300 absolute left-12 ${
+                      isMobileMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    }`}>
                       {item.title}
                     </span>
                   </Link>
@@ -393,12 +588,21 @@ const Layout: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-black">
-        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-6">
-            <h2 className="text-xl font-semibold text-white">
-                {menuItems.find(i => i.isActive(location.pathname))?.title || "Dashboard"}
-            </h2>
-            <div className="flex items-center gap-4">
+      <div className="flex-1 flex flex-col bg-black min-w-0">
+        <header className="h-[70px] bg-black/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+              <h2 className="text-lg sm:text-xl font-semibold text-white truncate">
+                  {menuItems.find(i => i.isActive(location.pathname))?.title || "Dashboard"}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-4">
                 <NotificationBell />
                 <UserDropdown />
             </div>
@@ -407,6 +611,9 @@ const Layout: React.FC = () => {
             <Outlet />
         </main>
       </div>
+
+      {/* Global Command Palette (Cmd+K) */}
+      <CommandPalette />
     </div>
   );
 };

@@ -108,12 +108,6 @@ const AddUser: React.FC = () => {
         throw new Error('Authentication required');
       }
 
-      console.log('Submitting user data:', {
-        ...formData,
-        apiUrl: `${API_BASE_URL}/users`,
-        hasToken: !!token,
-      });
-
       // Submit to backend API with new structure
       const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
@@ -135,7 +129,6 @@ const AddUser: React.FC = () => {
       });
 
       const result = await response.json();
-      console.log('API Response:', result);
 
       if (!response.ok) {
         throw new Error(result.error || `Failed to create user (${response.status})`);

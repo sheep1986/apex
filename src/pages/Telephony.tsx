@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useUserContext } from '@/services/MinimalUserProvider';
-import { voiceService, type VoiceAssistant, type VoicePhoneNumber } from '@/services/voice-service';
+import { voiceService, type VoiceAssistant, type VoicePhoneNumber, type VoiceSquad } from '@/services/voice-service';
 import {
   AlertCircle,
   Bot,
@@ -33,8 +33,11 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Server,
   Settings,
+  Shield,
   Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -78,6 +81,7 @@ function getProviderBadge(provider: string) {
 export default function Telephony() {
   const [phoneNumbers, setPhoneNumbers] = useState<VoicePhoneNumber[]>([]);
   const [assistants, setAssistants] = useState<VoiceAssistant[]>([]);
+  const [squads, setSquads] = useState<VoiceSquad[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [initStatus, setInitStatus] = useState<'loading' | 'ready' | 'error' | 'unconfigured'>('loading');
   const [isLoading, setIsLoading] = useState(false);
@@ -88,8 +92,24 @@ export default function Telephony() {
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [selectedNumber, setSelectedNumber] = useState<VoicePhoneNumber | null>(null);
   const [selectedAssistantId, setSelectedAssistantId] = useState<string>('');
+  const [selectedSquadId, setSelectedSquadId] = useState<string>('');
+  const [assignmentType, setAssignmentType] = useState<'assistant' | 'squad'>('assistant');
   const [numberName, setNumberName] = useState('');
+  const [numberServerUrl, setNumberServerUrl] = useState('');
+  const [fallbackType, setFallbackType] = useState<'none' | 'number'>('none');
+  const [fallbackNumber, setFallbackNumber] = useState('');
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiDisabledForwardTo, setAiDisabledForwardTo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // SIP Trunk dialog
+  const [showSipDialog, setShowSipDialog] = useState(false);
+  const [sipUri, setSipUri] = useState('');
+  const [sipName, setSipName] = useState('');
+  const [sipTransport, setSipTransport] = useState<'udp' | 'tcp' | 'tls'>('udp');
+  const [sipAuthUser, setSipAuthUser] = useState('');
+  const [sipAuthPassword, setSipAuthPassword] = useState('');
+  const [isCreatingSip, setIsCreatingSip] = useState(false);
 
   // Delete dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -134,12 +154,14 @@ export default function Telephony() {
     setIsLoading(true);
     setError(null);
     try {
-      const [numbers, assts] = await Promise.all([
+      const [numbers, assts, squadsData] = await Promise.all([
         voiceService.getPhoneNumbers(),
         voiceService.getAssistants(),
+        voiceService.getSquads(),
       ]);
       setPhoneNumbers(numbers || []);
       setAssistants(assts || []);
+      setSquads(squadsData || []);
     } catch (err: any) {
       console.error('Failed to fetch telephony data:', err);
       setError(err.message || 'Failed to load phone numbers');
@@ -165,20 +187,63 @@ export default function Telephony() {
     return asst?.name || 'Unknown Assistant';
   };
 
+  const getSquadName = (squadId?: string) => {
+    if (!squadId) return null;
+    const squad = squads.find(s => s.id === squadId);
+    return squad?.name || 'Unknown Squad';
+  };
+
   // ── Configure Number (assign assistant + rename) ──────────────────────────
   const handleSaveConfig = async () => {
     if (!selectedNumber) return;
     setIsSaving(true);
     setError(null);
     try {
-      await voiceService.updatePhoneNumber(selectedNumber.id, {
-        assistantId: selectedAssistantId === 'none' ? null : selectedAssistantId || null,
+      const updates: any = {
         name: numberName || undefined,
-      });
+      };
+      if (assignmentType === 'assistant') {
+        updates.assistantId = selectedAssistantId === 'none' ? null : selectedAssistantId || null;
+        updates.squadId = null;
+      } else {
+        updates.squadId = selectedSquadId === 'none' ? null : selectedSquadId || null;
+        updates.assistantId = null;
+      }
+      if (numberServerUrl) {
+        updates.serverUrl = numberServerUrl;
+      }
+      if (fallbackType === 'number' && fallbackNumber) {
+        updates.fallbackDestination = { type: 'number', number: fallbackNumber };
+      } else {
+        updates.fallbackDestination = null;
+      }
+      await voiceService.updatePhoneNumber(selectedNumber.id, updates);
+
+      // Save AI toggle to Supabase (custom fields not in Vapi)
+      try {
+        const { supabase } = await import('@/services/supabase-client');
+        await supabase
+          .from('phone_numbers')
+          .update({
+            ai_enabled: aiEnabled,
+            ai_disabled_forward_to: !aiEnabled ? aiDisabledForwardTo || null : null,
+          })
+          .eq('e164', selectedNumber.number);
+      } catch {
+        // AI toggle save is non-critical
+      }
+
       setShowConfigDialog(false);
       setSelectedNumber(null);
       setSelectedAssistantId('');
+      setSelectedSquadId('');
+      setAssignmentType('assistant');
       setNumberName('');
+      setNumberServerUrl('');
+      setFallbackType('none');
+      setFallbackNumber('');
+      setAiEnabled(true);
+      setAiDisabledForwardTo('');
       await fetchData();
     } catch (err: any) {
       console.error('Failed to update phone number:', err);
@@ -262,6 +327,41 @@ export default function Telephony() {
     setSelectedBuyNumber(null);
   };
 
+  // ── Create SIP Trunk ─────────────────────────────────────────────────────
+  const handleCreateSipTrunk = async () => {
+    if (!sipUri.trim()) return;
+    setIsCreatingSip(true);
+    setError(null);
+    try {
+      await voiceService.createPhoneNumber({
+        provider: 'byo-sip-trunk',
+        number: sipUri.trim(),
+        name: sipName.trim() || 'SIP Trunk',
+        sipTrunkConfig: {
+          uri: sipUri.trim(),
+          transport: sipTransport,
+          ...(sipAuthUser ? {
+            authentication: {
+              username: sipAuthUser,
+              password: sipAuthPassword,
+            }
+          } : {}),
+        },
+      } as any);
+      setShowSipDialog(false);
+      setSipUri('');
+      setSipName('');
+      setSipTransport('udp');
+      setSipAuthUser('');
+      setSipAuthPassword('');
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create SIP trunk');
+    } finally {
+      setIsCreatingSip(false);
+    }
+  };
+
   // ── Loading / Error States ────────────────────────────────────────────────
   if (initStatus === 'loading') {
     return (
@@ -304,7 +404,7 @@ export default function Telephony() {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const totalNumbers = phoneNumbers.length;
-  const assignedNumbers = phoneNumbers.filter(n => n.assistantId).length;
+  const assignedNumbers = phoneNumbers.filter(n => n.assistantId || n.squadId).length;
   const unassignedNumbers = totalNumbers - assignedNumbers;
   const providers = new Set(phoneNumbers.map(n => n.provider).filter(Boolean));
 
@@ -323,6 +423,14 @@ export default function Telephony() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowSipDialog(true)}
+              variant="outline"
+              className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
+            >
+              <Server className="mr-2 h-4 w-4" />
+              BYO SIP Trunk
+            </Button>
             <Button
               onClick={() => setShowBuyDialog(true)}
               className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -488,8 +596,20 @@ export default function Telephony() {
                                 {assignedAssistant}
                               </span>
                             )}
-                            {!assignedAssistant && (
+                            {!assignedAssistant && number.squadId && (
+                              <span className="text-sm text-blue-400 flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {getSquadName(number.squadId)}
+                              </span>
+                            )}
+                            {!assignedAssistant && !number.squadId && (
                               <span className="text-sm text-yellow-500">Unassigned</span>
+                            )}
+                            {number.serverUrl && (
+                              <span className="text-sm text-gray-500 flex items-center gap-1">
+                                <Server className="h-3 w-3" />
+                                Custom URL
+                              </span>
                             )}
                           </div>
                         </div>
@@ -503,7 +623,12 @@ export default function Telephony() {
                           onClick={() => {
                             setSelectedNumber(number);
                             setSelectedAssistantId(number.assistantId || '');
+                            setSelectedSquadId(number.squadId || '');
+                            setAssignmentType(number.squadId ? 'squad' : 'assistant');
                             setNumberName(number.name || '');
+                            setNumberServerUrl(number.serverUrl || '');
+                            setFallbackType(number.fallbackDestination?.number ? 'number' : 'none');
+                            setFallbackNumber(number.fallbackDestination?.number || '');
                             setShowConfigDialog(true);
                           }}
                         >
@@ -543,7 +668,7 @@ export default function Telephony() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-1">
             {/* Number Name */}
             <div className="grid gap-2">
               <Label className="text-gray-300">Display Name</Label>
@@ -553,32 +678,158 @@ export default function Telephony() {
                 placeholder="e.g. Sales Line, Support Hotline..."
                 className="border-gray-700 bg-gray-900 text-white placeholder-gray-500"
               />
+            </div>
+
+            {/* AI Enabled Toggle */}
+            <div className="grid gap-2">
+              <Label className="text-gray-300">AI Handling</Label>
+              <div className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-900 p-3">
+                <div>
+                  <p className="text-sm font-medium text-white">AI Enabled</p>
+                  <p className="text-xs text-gray-400">
+                    {aiEnabled ? 'AI assistant will handle calls' : 'Calls will be forwarded directly'}
+                  </p>
+                </div>
+                <button
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    aiEnabled ? 'bg-emerald-500' : 'bg-gray-600'
+                  }`}
+                  onClick={() => setAiEnabled(!aiEnabled)}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      aiEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              {!aiEnabled && (
+                <div className="mt-1">
+                  <Label className="text-gray-400 text-xs">Forward calls to:</Label>
+                  <Input
+                    value={aiDisabledForwardTo}
+                    onChange={(e) => setAiDisabledForwardTo(e.target.value)}
+                    placeholder="+1234567890"
+                    className="border-gray-700 bg-gray-900 text-white placeholder-gray-500 mt-1"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Assignment Type Toggle */}
+            <div className="grid gap-2">
+              <Label className="text-gray-300">Route Calls To</Label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAssignmentType('assistant')}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-lg border p-2.5 text-sm transition-all ${
+                    assignmentType === 'assistant'
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                      : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600'
+                  }`}
+                >
+                  <Bot className="h-4 w-4" /> Assistant
+                </button>
+                <button
+                  onClick={() => setAssignmentType('squad')}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-lg border p-2.5 text-sm transition-all ${
+                    assignmentType === 'squad'
+                      ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                      : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600'
+                  }`}
+                >
+                  <Users className="h-4 w-4" /> Squad
+                </button>
+              </div>
+            </div>
+
+            {/* Assistant Selection */}
+            {assignmentType === 'assistant' && (
+              <div className="grid gap-2">
+                <Label className="text-gray-300">Assigned Assistant</Label>
+                <Select value={selectedAssistantId} onValueChange={setSelectedAssistantId}>
+                  <SelectTrigger className="border-gray-700 bg-gray-900 text-white">
+                    <SelectValue placeholder="Select an assistant..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-950 border-gray-700">
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {assistants.map(asst => (
+                      <SelectItem key={asst.id} value={asst.id}>{asst.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Squad Selection */}
+            {assignmentType === 'squad' && (
+              <div className="grid gap-2">
+                <Label className="text-gray-300">Assigned Squad</Label>
+                <Select value={selectedSquadId} onValueChange={setSelectedSquadId}>
+                  <SelectTrigger className="border-gray-700 bg-gray-900 text-white">
+                    <SelectValue placeholder="Select a squad..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-950 border-gray-700">
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {squads.map(squad => (
+                      <SelectItem key={squad.id} value={squad.id}>
+                        {squad.name} ({squad.members?.length || 0} members)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Server URL Override */}
+            <div className="grid gap-2">
+              <Label className="text-gray-300">Server URL Override</Label>
+              <Input
+                value={numberServerUrl}
+                onChange={(e) => setNumberServerUrl(e.target.value)}
+                placeholder="https://your-server.com/webhook"
+                className="border-gray-700 bg-gray-900 text-white placeholder-gray-500"
+              />
               <p className="text-xs text-gray-500">
-                A friendly name to identify this number in your dashboard.
+                Optional. Override the assistant's default webhook URL for this number.
               </p>
             </div>
 
-            {/* Assigned Assistant */}
+            {/* Fallback Destination */}
             <div className="grid gap-2">
-              <Label className="text-gray-300">Assigned Assistant</Label>
-              <Select
-                value={selectedAssistantId}
-                onValueChange={setSelectedAssistantId}
-              >
-                <SelectTrigger className="border-gray-700 bg-gray-900 text-white">
-                  <SelectValue placeholder="Select an assistant..." />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-950 border-gray-700">
-                  <SelectItem value="none">None (Unassigned)</SelectItem>
-                  {assistants.map(asst => (
-                    <SelectItem key={asst.id} value={asst.id}>
-                      {asst.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-gray-300">Fallback Destination</Label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFallbackType('none')}
+                  className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                    fallbackType === 'none'
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                      : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600'
+                  }`}
+                >
+                  None
+                </button>
+                <button
+                  onClick={() => setFallbackType('number')}
+                  className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                    fallbackType === 'number'
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                      : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600'
+                  }`}
+                >
+                  Phone Number
+                </button>
+              </div>
+              {fallbackType === 'number' && (
+                <Input
+                  value={fallbackNumber}
+                  onChange={(e) => setFallbackNumber(e.target.value)}
+                  placeholder="+1234567890"
+                  className="border-gray-700 bg-gray-900 text-white placeholder-gray-500"
+                />
+              )}
               <p className="text-xs text-gray-500">
-                Inbound calls to this number will be handled by the selected assistant.
+                Where calls route if the primary handler fails or is unavailable.
               </p>
             </div>
 
@@ -612,7 +863,12 @@ export default function Telephony() {
                 setShowConfigDialog(false);
                 setSelectedNumber(null);
                 setSelectedAssistantId('');
+                setSelectedSquadId('');
+                setAssignmentType('assistant');
                 setNumberName('');
+                setNumberServerUrl('');
+                setFallbackType('none');
+                setFallbackNumber('');
               }}
               className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
             >
@@ -842,6 +1098,123 @@ export default function Telephony() {
                 <>
                   <Plus className="mr-2 h-4 w-4" />
                   Purchase Number
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* BYO SIP Trunk Dialog */}
+      <Dialog open={showSipDialog} onOpenChange={setShowSipDialog}>
+        <DialogContent className="max-w-lg border-gray-800 bg-gray-950 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Server className="h-5 w-5 text-purple-400" />
+              Bring Your Own SIP Trunk
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Connect your existing SIP trunk provider for inbound and outbound calling.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label className="text-gray-300">Display Name</Label>
+              <Input
+                value={sipName}
+                onChange={(e) => setSipName(e.target.value)}
+                placeholder="e.g. Office SIP Line"
+                className="border-gray-700 bg-gray-900 text-white placeholder-gray-500"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-gray-300">SIP URI *</Label>
+              <Input
+                value={sipUri}
+                onChange={(e) => setSipUri(e.target.value)}
+                placeholder="sip:+15551234567@trunk.provider.com"
+                className="border-gray-700 bg-gray-900 text-white placeholder-gray-500 font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500">
+                The full SIP URI including protocol, number, and domain
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-gray-300">Transport Protocol</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['udp', 'tcp', 'tls'] as const).map((proto) => (
+                  <button
+                    key={proto}
+                    onClick={() => setSipTransport(proto)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      sipTransport === proto
+                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                        : 'border-gray-700 bg-gray-900 text-gray-500 hover:border-gray-600'
+                    }`}
+                  >
+                    {proto.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-gray-300">Authentication (optional)</Label>
+                <Shield className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="grid gap-2">
+                <Input
+                  value={sipAuthUser}
+                  onChange={(e) => setSipAuthUser(e.target.value)}
+                  placeholder="Username"
+                  className="border-gray-700 bg-gray-900 text-white placeholder-gray-500"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Input
+                  type="password"
+                  value={sipAuthPassword}
+                  onChange={(e) => setSipAuthPassword(e.target.value)}
+                  placeholder="Password"
+                  className="border-gray-700 bg-gray-900 text-white placeholder-gray-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSipDialog(false);
+                setSipUri('');
+                setSipName('');
+                setSipTransport('udp');
+                setSipAuthUser('');
+                setSipAuthPassword('');
+              }}
+              className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateSipTrunk}
+              disabled={!sipUri.trim() || isCreatingSip}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {isCreatingSip ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Server className="mr-2 h-4 w-4" />
+                  Create SIP Trunk
                 </>
               )}
             </Button>

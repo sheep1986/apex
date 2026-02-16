@@ -8,6 +8,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const vapiWebhookSecret = process.env.VAPI_WEBHOOK_SECRET;
 
 const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+const siteUrl = process.env.URL || 'http://localhost:8888';
 
 type ToolCall = {
   id: string;
@@ -79,6 +80,33 @@ async function recordEvent(organizationId: string, payload: any, type: string) {
     type,
     payload
   });
+
+  // Dispatch outbound webhooks for call events
+  if (type === 'end_of_call') {
+    const callStatus = payload?.message?.call?.status || payload?.call?.status;
+    const eventType = callStatus === 'failed' ? 'call.failed' : 'call.completed';
+    try {
+      await fetch(`${siteUrl}/.netlify/functions/webhook-dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId,
+          eventType,
+          payload: {
+            callId,
+            providerCallId,
+            status: callStatus,
+            duration: payload?.message?.call?.duration || payload?.call?.duration,
+            cost: payload?.message?.call?.cost || payload?.call?.cost,
+            endedReason: payload?.message?.endedReason || payload?.endedReason,
+            transcript: payload?.message?.transcript || payload?.transcript,
+          },
+        }),
+      });
+    } catch {
+      // Non-critical — don't fail the webhook response over dispatch
+    }
+  }
 }
 
 async function getToolByName(organizationId: string, name: string) {

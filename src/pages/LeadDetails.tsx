@@ -377,9 +377,8 @@ export default function LeadDetails() {
     setIsPlaying(!isPlaying);
   };
 
-  const handleDownloadTranscript = (url: string) => {
-    // In a real app, this would download the file
-    console.log('Downloading transcript:', url);
+  const handleDownloadTranscript = (_url: string) => {
+    // TODO: Implement file download via Supabase storage
   };
 
   const handleAddNote = () => {

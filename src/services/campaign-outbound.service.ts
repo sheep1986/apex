@@ -166,22 +166,17 @@ class CampaignOutboundService {
   // Campaign Management
   async getCampaigns(): Promise<OutboundCampaign[]> {
     try {
-      console.log('🎯 CampaignOutboundService: Fetching campaigns');
-      
       let response;
       let apiSuccess = false;
       
       try {
         // Use normalized /api/campaigns endpoint
-        console.log('📡 Trying /api/campaigns endpoint...');
         response = await this.apiClient.get('/api/campaigns');
         if (response && response.data) {
-          console.log('✅ Campaigns endpoint succeeded');
           apiSuccess = true;
         }
       } catch (error: any) {
         // Fallback or legacy path if needed
-        console.log('⚠️ /api/campaigns failed with:', error.response?.status || error.message);
         try {
            response = await this.apiClient.get('/campaigns');
            if (response && response.data) {
@@ -194,7 +189,6 @@ class CampaignOutboundService {
       
       // If API endpoints failed, throw error to trigger Supabase fallback
       if (!apiSuccess) {
-        console.log('❌ API endpoints failed, trying Supabase fallback');
         throw new Error('API endpoints unavailable');
       }
       
@@ -243,8 +237,6 @@ class CampaignOutboundService {
       
       // Fallback to direct Supabase query
       try {
-        console.log('🔄 Attempting to fetch campaigns directly from Supabase...');
-        
         let organizationId = null;
 
         const { data: { user } } = await supabase.auth.getUser();
@@ -332,7 +324,6 @@ class CampaignOutboundService {
         callBehavior: undefined,
       };
       
-      console.log('📡 Sending campaign data to backend:', transformedData);
       const response = await this.apiClient.post('/api/campaigns', transformedData);
       return response.data.campaign;
     } catch (error) {
@@ -469,8 +460,6 @@ class CampaignOutboundService {
       
       // Fallback to direct Supabase query
       try {
-        console.log('🔄 Attempting to fetch calls directly from Supabase...');
-        
         const { data: calls, error: supabaseError } = await supabase
           .from('calls')
           .select('*')
@@ -597,7 +586,6 @@ class CampaignOutboundService {
    */
   async startCampaign(campaignId: string): Promise<{ message: string; callsStarted?: number }> {
     try {
-      console.log('🚀 Starting campaign:', campaignId);
       const response = await this.apiClient.post(`/api/campaigns/${campaignId}/start`);
       return response.data || { message: 'Campaign started' };
     } catch (error) {

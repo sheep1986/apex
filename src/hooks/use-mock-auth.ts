@@ -12,7 +12,7 @@ export const useMockAuth = () => {
 
   const mockAuth = {
     getToken: async () => 'mock-dev-token',
-    signOut: async () => console.log('Mock sign out'),
+    signOut: async () => { /* mock sign out */ },
     isSignedIn: true,
     isLoaded: true,
   };

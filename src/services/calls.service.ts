@@ -207,7 +207,6 @@ class CallsService {
     try {
       // Check if outcome is positive
       if (!this.isPositiveOutcome(call.summary || '', call.transcript)) {
-        console.log('Call outcome not positive, skipping lead creation');
         return null;
       }
 
@@ -240,7 +239,6 @@ class CallsService {
         },
       };
 
-      console.log('Creating lead from positive call:', leadData);
       const newLead = await crmService.createLead(leadData);
 
       // Add call record to the lead

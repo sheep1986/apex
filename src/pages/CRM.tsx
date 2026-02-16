@@ -2349,14 +2349,7 @@ export default function CRM() {
       });
 
       if (extensionSheets.length > 0) {
-        console.log(
-          "🔍 Browser extensions detected affecting CSS:",
-          extensionSheets.length
-        );
-        console.log(
-          "Extensions:",
-          extensionSheets.map((s) => s.href)
-        );
+        // Browser extensions detected affecting CSS — silently handle
       }
 
       // Force override any external styles

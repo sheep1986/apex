@@ -70,7 +70,6 @@ class UserConfigService {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(config));
       await this.saveToBackend(config);
-      console.log('User configuration saved successfully');
     } catch (error) {
       console.error('Error saving user configuration:', error);
       throw new Error('Failed to save user configuration');

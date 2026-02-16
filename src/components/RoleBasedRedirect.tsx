@@ -8,31 +8,26 @@ export const RoleBasedRedirect: React.FC = () => {
 
   useEffect(() => {
     if (!userContext?.role) {
-      console.log('🔄 RoleBasedRedirect: No role detected, waiting...');
       return;
     }
 
     const userRole = userContext.role.toLowerCase();
-    console.log('🎯 RoleBasedRedirect: Redirecting based on role:', userRole);
 
     // Role-based redirect logic
     switch (userRole) {
       case 'platform_owner':
-        console.log('→ Redirecting to Platform Owner Dashboard');
         navigate('/platform', { replace: true });
         break;
 
       case 'agency_owner':
       case 'agency_admin':
       case 'agency_user':
-        console.log('→ Redirecting to Agency Dashboard');
         navigate('/agency', { replace: true });
         break;
 
       case 'client_admin':
       case 'client_user':
       default:
-        console.log('→ Redirecting to Client Dashboard');
         navigate('/dashboard', { replace: true });
         break;
     }

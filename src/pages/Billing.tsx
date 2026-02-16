@@ -1,3 +1,4 @@
+import { BillingStatement } from '@/components/BillingStatement';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,8 +45,15 @@ interface LedgerEntry {
 
 interface OrgSubscription {
   plan: string;
+  plan_tier_id: string;
   subscription_status: string;
   credit_balance: number;
+  // Credit-based fields
+  included_credits: number;
+  credits_used_this_period: number;
+  overage_credit_price: number;
+  ai_employees: number;
+  // Legacy fields
   included_minutes: number;
   max_phone_numbers: number;
   max_assistants: number;
@@ -62,6 +70,9 @@ interface UsagePeriod {
   minutes_used: number;
   overage_minutes: number;
   calls_count: number;
+  credits_used: number;
+  credits_included: number;
+  overage_credits_used: number;
   period_start: string;
   period_end: string;
 }
@@ -97,6 +108,16 @@ const Billing: React.FC = () => {
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
   const [cancellingPlan, setCancellingPlan] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [autoRecharge, setAutoRecharge] = useState({
+    enabled: false,
+    threshold: 10,
+    rechargeAmount: 50,
+    maxMonthly: 5,
+    rechargesThisMonth: 0,
+    lastRechargeAt: null as string | null,
+  });
+  const [savingAutoRecharge, setSavingAutoRecharge] = useState(false);
+  const [showStatement, setShowStatement] = useState(false);
 
   const currentPlan = orgSub ? getPlanById(orgSub.plan) : null;
 
@@ -117,13 +138,13 @@ const Billing: React.FC = () => {
         supabase
           .from('organizations')
           .select(
-            'plan, subscription_status, credit_balance, included_minutes, max_phone_numbers, max_assistants, max_concurrent_calls, max_users, overage_rate_per_minute, subscription_period_start, subscription_period_end, stripe_subscription_id, stripe_customer_id'
+            'plan, plan_tier_id, subscription_status, credit_balance, included_credits, credits_used_this_period, overage_credit_price, ai_employees, included_minutes, max_phone_numbers, max_assistants, max_concurrent_calls, max_users, overage_rate_per_minute, subscription_period_start, subscription_period_end, stripe_subscription_id, stripe_customer_id'
           )
           .eq('id', userContext.organization_id)
           .single(),
         supabase
           .from('subscription_usage')
-          .select('minutes_used, overage_minutes, calls_count, period_start, period_end')
+          .select('minutes_used, overage_minutes, calls_count, credits_used, credits_included, overage_credits_used, period_start, period_end')
           .eq('organization_id', userContext.organization_id)
           .order('period_start', { ascending: false })
           .limit(1)
@@ -144,6 +165,30 @@ const Billing: React.FC = () => {
       }
       if (ledgerResult.data) {
         setLedgerEntries(ledgerResult.data);
+      }
+
+      // Fetch auto-recharge config
+      try {
+        const token = await getToken();
+        const arResponse = await fetch(
+          `/.netlify/functions/billing-auto-recharge?organizationId=${userContext!.organization_id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (arResponse.ok) {
+          const arData = await arResponse.json();
+          if (arData.config) {
+            setAutoRecharge({
+              enabled: arData.config.enabled ?? false,
+              threshold: arData.config.threshold_usd ?? 10,
+              rechargeAmount: arData.config.recharge_amount_usd ?? 50,
+              maxMonthly: arData.config.max_monthly_recharges ?? 5,
+              rechargesThisMonth: arData.config.recharges_this_month ?? 0,
+              lastRechargeAt: arData.config.last_recharge_at ?? null,
+            });
+          }
+        }
+      } catch {
+        // Auto-recharge config fetch is non-critical
       }
     } catch (err) {
       console.error('Failed to fetch billing data:', err);
@@ -319,14 +364,66 @@ const Billing: React.FC = () => {
     }
   };
 
+  // ─── Auto-Recharge Handlers ────────────────────────────────
+
+  const saveAutoRechargeConfig = async (updates: Partial<typeof autoRecharge>) => {
+    if (!userContext?.organization_id) return;
+    setSavingAutoRecharge(true);
+    const merged = { ...autoRecharge, ...updates };
+    try {
+      const token = await getToken();
+      const response = await fetch('/.netlify/functions/billing-auto-recharge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          organizationId: userContext.organization_id,
+          enabled: merged.enabled,
+          threshold_usd: merged.threshold,
+          recharge_amount_usd: merged.rechargeAmount,
+          max_monthly_recharges: merged.maxMonthly,
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to save');
+      setAutoRecharge(merged);
+      toast({
+        title: merged.enabled ? 'Auto-Recharge Enabled' : 'Auto-Recharge Disabled',
+        description: merged.enabled
+          ? `Will recharge $${merged.rechargeAmount} when balance drops below $${merged.threshold}`
+          : 'Auto-recharge has been turned off.',
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save auto-recharge settings.', variant: 'destructive' });
+    } finally {
+      setSavingAutoRecharge(false);
+    }
+  };
+
+  const handleAutoRechargeToggle = (enabled: boolean) => {
+    saveAutoRechargeConfig({ enabled });
+  };
+
+  const handleAutoRechargeUpdate = (updates: { threshold?: number; rechargeAmount?: number; maxMonthly?: number }) => {
+    saveAutoRechargeConfig(updates);
+  };
+
   // ─── Computed ────────────────────────────────────────────────
 
+  // Credit-based metrics (primary)
+  const creditsUsed = usage?.credits_used || 0;
+  const creditsIncluded = usage?.credits_included || orgSub?.included_credits || 200_000;
+  const creditUsagePercent = creditsIncluded > 0 ? Math.min(100, (creditsUsed / creditsIncluded) * 100) : 0;
+  const overageCredits = usage?.overage_credits_used || 0;
+  const overageCreditPrice = orgSub?.overage_credit_price || 0.012;
+  const overageCreditCost = overageCredits * overageCreditPrice;
+  const aiEmployees = orgSub?.ai_employees || 1;
+
+  // Legacy minute metrics (for display)
   const minutesUsed = usage?.minutes_used || 0;
   const includedMinutes = orgSub?.included_minutes || 0;
-  const usagePercent = includedMinutes > 0 ? Math.min(100, (minutesUsed / includedMinutes) * 100) : 0;
+  const usagePercent = creditUsagePercent; // Use credit-based percentage
   const overageMinutes = usage?.overage_minutes || 0;
   const overageRate = orgSub?.overage_rate_per_minute || 0;
-  const overageCost = overageMinutes * overageRate;
+  const overageCost = overageCreditCost; // Use credit-based cost
   const creditBalance = orgSub?.credit_balance || 0;
   const daysLeft = orgSub?.subscription_period_end
     ? Math.max(0, Math.ceil((new Date(orgSub.subscription_period_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -391,14 +488,14 @@ const Billing: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <Crown className="h-6 w-6 text-emerald-400" />
-                  <h2 className="text-2xl font-bold text-white">{currentPlan?.name || 'Free'} Plan</h2>
+                  <h2 className="text-2xl font-bold text-white">{currentPlan?.displayName || 'Free'}</h2>
                   <Badge className={statusColor}>
                     {orgSub?.subscription_status || 'inactive'}
                   </Badge>
                 </div>
                 <p className="text-gray-400">
                   {currentPlan
-                    ? `$${currentPlan.monthlyPrice}/month · ${currentPlan.includedMinutes.toLocaleString()} minutes included`
+                    ? `£${currentPlan.monthlyPriceGBP.toLocaleString()}/month · ${currentPlan.includedCredits.toLocaleString()} credits (≈ ${currentPlan.equivalentStandardMinutes.toLocaleString()} min)`
                     : 'No active subscription'}
                 </p>
                 {orgSub?.subscription_period_end && orgSub.subscription_status !== 'canceled' && (
@@ -438,22 +535,24 @@ const Billing: React.FC = () => {
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          {/* Usage */}
+          {/* AI Employee Capacity */}
           <Card className="border-gray-800 bg-gray-900 md:col-span-2">
             <CardContent className="p-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-400">Minutes Used</p>
+                  <p className="text-sm text-gray-400">AI Employee Capacity</p>
                   <p className="text-sm font-medium text-white">
-                    {minutesUsed.toLocaleString()} / {includedMinutes > 0 ? includedMinutes.toLocaleString() : '—'}
+                    {Math.round(creditUsagePercent)}% used
                   </p>
                 </div>
-                <Progress value={usagePercent} className="h-2" />
+                <Progress value={creditUsagePercent} className="h-2" />
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-500">{Math.round(usagePercent)}% used</span>
-                  {overageMinutes > 0 && (
+                  <span className="text-gray-500">
+                    {creditsUsed.toLocaleString()} / {creditsIncluded.toLocaleString()} credits
+                  </span>
+                  {overageCredits > 0 && (
                     <span className="text-amber-400">
-                      +{overageMinutes.toLocaleString()} overage min (${overageCost.toFixed(2)})
+                      +{overageCredits.toLocaleString()} overage credits (£{overageCreditCost.toFixed(2)})
                     </span>
                   )}
                 </div>
@@ -536,9 +635,9 @@ const Billing: React.FC = () => {
               {PLAN_TIERS.filter((p) => !p.contactSales).map((plan) => {
                 const isCurrent = orgSub?.plan === plan.id;
                 const isUpgrade =
-                  currentPlan && plan.monthlyPrice > currentPlan.monthlyPrice;
+                  currentPlan && plan.monthlyPriceGBP > currentPlan.monthlyPriceGBP;
                 const isDowngrade =
-                  currentPlan && plan.monthlyPrice < currentPlan.monthlyPrice;
+                  currentPlan && plan.monthlyPriceGBP < currentPlan.monthlyPriceGBP;
 
                 return (
                   <Card
@@ -562,13 +661,13 @@ const Billing: React.FC = () => {
                       </Badge>
                     )}
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-xl text-white">{plan.name}</CardTitle>
+                      <CardTitle className="text-xl text-white">{plan.displayName}</CardTitle>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-white">${plan.monthlyPrice}</span>
+                        <span className="text-3xl font-bold text-white">£{plan.monthlyPriceGBP.toLocaleString()}</span>
                         <span className="text-gray-400">/month</span>
                       </div>
                       <CardDescription className="text-gray-400">
-                        {plan.includedMinutes.toLocaleString()} minutes · {plan.includedPhoneNumbers} number{plan.includedPhoneNumbers > 1 ? 's' : ''} · ${plan.overagePerMinute}/min overage
+                        {plan.includedCredits.toLocaleString()} credits · ≈ {plan.equivalentStandardMinutes.toLocaleString()} min · {plan.includedPhoneNumbers} number{plan.includedPhoneNumbers > 1 ? 's' : ''}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -616,7 +715,7 @@ const Billing: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-white">Enterprise</h3>
                   <p className="text-sm text-gray-400">
-                    Need unlimited minutes, custom integrations, or white-label branding? Let's talk.
+                    Need 10+ AI Employees, custom integrations, or white-label branding? Let's talk.
                   </p>
                 </div>
                 <Button variant="outline" className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
@@ -716,16 +815,117 @@ const Billing: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Auto-Recharge Card */}
+            <Card className="border-gray-800 bg-gray-900">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <RefreshCw className="h-5 w-5 text-emerald-400" />
+                  Auto-Recharge
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Automatically top up credits when your balance drops below a threshold.
+                  Never have calls interrupted due to low balance.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                  <div>
+                    <p className="font-medium text-white">Enable Auto-Recharge</p>
+                    <p className="text-sm text-gray-400">
+                      {autoRecharge.enabled
+                        ? `Active — recharges $${autoRecharge.rechargeAmount} when balance drops below $${autoRecharge.threshold}`
+                        : 'Off — you will need to top up manually'}
+                    </p>
+                  </div>
+                  <button
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      autoRecharge.enabled ? 'bg-emerald-500' : 'bg-gray-600'
+                    }`}
+                    onClick={() => handleAutoRechargeToggle(!autoRecharge.enabled)}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        autoRecharge.enabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {autoRecharge.enabled && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-sm text-gray-400">Recharge when balance drops below</label>
+                      <select
+                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                        value={autoRecharge.threshold}
+                        onChange={(e) => handleAutoRechargeUpdate({ threshold: parseFloat(e.target.value) })}
+                      >
+                        <option value="5">$5.00</option>
+                        <option value="10">$10.00</option>
+                        <option value="25">$25.00</option>
+                        <option value="50">$50.00</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm text-gray-400">Recharge amount</label>
+                      <select
+                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                        value={autoRecharge.rechargeAmount}
+                        onChange={(e) => handleAutoRechargeUpdate({ rechargeAmount: parseFloat(e.target.value) })}
+                      >
+                        <option value="25">$25.00</option>
+                        <option value="50">$50.00</option>
+                        <option value="100">$100.00</option>
+                        <option value="250">$250.00</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm text-gray-400">Monthly cap</label>
+                      <select
+                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                        value={autoRecharge.maxMonthly}
+                        onChange={(e) => handleAutoRechargeUpdate({ maxMonthly: parseInt(e.target.value) })}
+                      >
+                        <option value="3">3 recharges</option>
+                        <option value="5">5 recharges</option>
+                        <option value="10">10 recharges</option>
+                        <option value="20">20 recharges</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {autoRecharge.lastRechargeAt && (
+                  <p className="text-xs text-gray-500">
+                    Last recharge: {new Date(autoRecharge.lastRechargeAt).toLocaleDateString()} &middot;
+                    {autoRecharge.rechargesThisMonth} of {autoRecharge.maxMonthly} monthly recharges used
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* History Tab */}
           <TabsContent value="history" className="space-y-6">
             <Card className="border-gray-800 bg-gray-900">
-              <CardHeader>
-                <CardTitle className="text-white">Transaction History</CardTitle>
-                <CardDescription className="text-gray-400">
-                  All credit additions, usage charges, and subscription events
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-white">Transaction History</CardTitle>
+                  <CardDescription className="text-gray-400">
+                    All credit additions, usage charges, and subscription events
+                  </CardDescription>
+                </div>
+                {ledgerEntries.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                    onClick={() => setShowStatement(true)}
+                  >
+                    Generate Statement
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {ledgerEntries.length === 0 ? (
@@ -802,6 +1002,20 @@ const Billing: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Billing Statement Modal */}
+      {showStatement && orgSub && (
+        <BillingStatement
+          orgName={userContext?.organization_id || 'Organization'}
+          orgId={userContext?.organization_id || ''}
+          plan={orgSub.plan}
+          periodStart={orgSub.subscription_period_start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}
+          periodEnd={orgSub.subscription_period_end || new Date().toISOString()}
+          entries={ledgerEntries}
+          creditBalance={creditBalance}
+          onClose={() => setShowStatement(false)}
+        />
+      )}
     </div>
   );
 };

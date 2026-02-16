@@ -184,8 +184,6 @@ export default function OrganizationManagement() {
       // Import supabase service
       const { supabaseService } = await import('@/services/supabase-service');
       
-      console.log('🔍 Fetching organization data for ID:', id);
-      
       // Fetch organization from Supabase
       try {
         const orgData = await supabaseService.getOrganization(id!);
@@ -336,15 +334,8 @@ export default function OrganizationManagement() {
 
 
 
-      console.log('📤 Attempting to save organization with data:', {
-        id: id,
-        updateData: updateData,
-        currentStep: currentStep
-      });
-
       // Update organization in Supabase
       const result = await supabaseService.updateOrganization(id!, updateData);
-      console.log('✅ Update result:', result);
 
       toast({
         title: 'Success',
@@ -352,7 +343,6 @@ export default function OrganizationManagement() {
       });
 
       // Skip the refresh for now to avoid errors
-      console.log('✅ Save completed successfully - skipping refresh to avoid errors');
     } catch (error) {
       console.error('❌ Error saving changes:', error);
       console.error('Error details:', {

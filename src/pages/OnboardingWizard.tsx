@@ -95,7 +95,7 @@ export default function OnboardingWizard() {
   const [useCase, setUseCase] = useState('both');
 
   // Step 2: Plan selection
-  const [selectedPlan, setSelectedPlan] = useState<string>('growth');
+  const [selectedPlan, setSelectedPlan] = useState<string>('employee_3');
 
   // Step 3: Assistant creation
   const [assistantName, setAssistantName] = useState('');
@@ -394,8 +394,8 @@ export default function OnboardingWizard() {
   const renderPlanStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="mb-2 text-2xl font-bold text-white">Choose Your Plan</h2>
-        <p className="text-gray-400">Select the plan that fits your needs. You can upgrade anytime.</p>
+        <h2 className="mb-2 text-2xl font-bold text-white">Choose Your AI Workforce</h2>
+        <p className="text-gray-400">Each AI Employee works 24/7, costs less than minimum wage. Upgrade anytime.</p>
       </div>
 
       <div className="grid gap-4">
@@ -418,15 +418,15 @@ export default function OnboardingWizard() {
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                  <span className="text-2xl font-bold text-emerald-400">${plan.monthlyPrice}<span className="text-sm font-normal text-gray-400">/mo</span></span>
+                  <h3 className="text-lg font-bold text-white">{plan.displayName}</h3>
+                  <span className="text-2xl font-bold text-emerald-400">£{plan.monthlyPriceGBP.toLocaleString()}<span className="text-sm font-normal text-gray-400">/mo</span></span>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-400">
-                  <span>{plan.includedMinutes.toLocaleString()} minutes</span>
-                  <span>{plan.includedPhoneNumbers} phone number{plan.includedPhoneNumbers !== 1 ? 's' : ''}</span>
+                  <span>{plan.includedCredits.toLocaleString()} credits</span>
+                  <span>≈ {plan.equivalentStandardMinutes.toLocaleString()} min</span>
+                  <span>{plan.includedPhoneNumbers} number{plan.includedPhoneNumbers !== 1 ? 's' : ''}</span>
                   <span>{plan.maxAssistants === -1 ? 'Unlimited' : plan.maxAssistants} assistant{plan.maxAssistants !== 1 ? 's' : ''}</span>
-                  <span>${plan.overagePerMinute}/min overage</span>
                 </div>
               </div>
 
@@ -455,7 +455,7 @@ export default function OnboardingWizard() {
         {/* Enterprise callout */}
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
           <p className="text-sm text-gray-400">
-            Need more? <span className="font-medium text-white">Enterprise</span> plans with custom pricing available.{' '}
+            Need 10+ AI Employees? <span className="font-medium text-white">Enterprise</span> with custom pricing.{' '}
             <button className="text-emerald-400 underline hover:text-emerald-300">Contact Sales</button>
           </p>
         </div>
@@ -553,7 +553,7 @@ export default function OnboardingWizard() {
           We'll provision a dedicated phone number for your AI assistant.
           {selectedPlanData && (
             <span className="block mt-1 text-emerald-400">
-              Your {selectedPlanData.name} plan includes {selectedPlanData.includedPhoneNumbers} number{selectedPlanData.includedPhoneNumbers !== 1 ? 's' : ''}.
+              Your {selectedPlanData.displayName} plan includes {selectedPlanData.includedPhoneNumbers} number{selectedPlanData.includedPhoneNumbers !== 1 ? 's' : ''}.
             </span>
           )}
         </p>
@@ -619,15 +619,19 @@ export default function OnboardingWizard() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-400">Plan</span>
-            <span className="font-medium text-white">{selectedPlanData?.name || 'Starter'}</span>
+            <span className="font-medium text-white">{selectedPlanData?.displayName || '1 AI Employee'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">Monthly price</span>
-            <span className="font-medium text-emerald-400">${selectedPlanData?.monthlyPrice}/mo</span>
+            <span className="font-medium text-emerald-400">£{selectedPlanData?.monthlyPriceGBP.toLocaleString()}/mo</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-400">Included minutes</span>
-            <span className="text-white">{selectedPlanData?.includedMinutes.toLocaleString()}</span>
+            <span className="text-gray-400">Included credits</span>
+            <span className="text-white">{selectedPlanData?.includedCredits.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">≈ Standard minutes</span>
+            <span className="text-white">{selectedPlanData?.equivalentStandardMinutes.toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">Phone numbers</span>
@@ -637,16 +641,12 @@ export default function OnboardingWizard() {
             <span className="text-gray-400">AI assistants</span>
             <span className="text-white">{selectedPlanData?.maxAssistants === -1 ? 'Unlimited' : selectedPlanData?.maxAssistants}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Overage rate</span>
-            <span className="text-white">${selectedPlanData?.overagePerMinute}/min</span>
-          </div>
         </div>
 
         <div className="border-t border-white/10 pt-3">
           <div className="flex justify-between text-lg font-bold">
             <span className="text-white">Total</span>
-            <span className="text-emerald-400">${selectedPlanData?.monthlyPrice}/month</span>
+            <span className="text-emerald-400">£{selectedPlanData?.monthlyPriceGBP.toLocaleString()}/month</span>
           </div>
         </div>
       </div>
@@ -679,7 +679,7 @@ export default function OnboardingWizard() {
         {loading ? (
           <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Redirecting to checkout...</>
         ) : (
-          <><CreditCard className="mr-2 h-5 w-5" /> Subscribe — ${selectedPlanData?.monthlyPrice}/mo</>
+          <><CreditCard className="mr-2 h-5 w-5" /> Subscribe — £{selectedPlanData?.monthlyPriceGBP.toLocaleString()}/mo</>
         )}
       </Button>
 
@@ -711,8 +711,8 @@ export default function OnboardingWizard() {
         <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-4">
           <CheckCircle className="h-5 w-5 flex-shrink-0 text-emerald-400" />
           <div>
-            <p className="font-medium text-white">{selectedPlanData?.name} Plan — ${selectedPlanData?.monthlyPrice}/mo</p>
-            <p className="text-sm text-gray-400">{selectedPlanData?.includedMinutes.toLocaleString()} minutes included</p>
+            <p className="font-medium text-white">{selectedPlanData?.displayName} — £{selectedPlanData?.monthlyPriceGBP.toLocaleString()}/mo</p>
+            <p className="text-sm text-gray-400">{selectedPlanData?.includedCredits.toLocaleString()} credits (≈ {selectedPlanData?.equivalentStandardMinutes.toLocaleString()} min)</p>
           </div>
         </div>
 

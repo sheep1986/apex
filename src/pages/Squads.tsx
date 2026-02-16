@@ -44,7 +44,13 @@ export default function Squads() {
   const [editingSquad, setEditingSquad] = useState<VoiceSquad | null>(null);
   const [deletingSquad, setDeletingSquad] = useState<VoiceSquad | null>(null);
   const [squadName, setSquadName] = useState('');
-  const [members, setMembers] = useState<Array<{ assistantId: string; transferTo: string[] }>>([]);
+  const [members, setMembers] = useState<Array<{
+    assistantId: string;
+    transferTo: string[];
+    transferMessage: string;
+    transferMode: 'blind-transfer' | 'blind-transfer-add-summary-to-sip-header' | 'warm-transfer-say-message' | 'warm-transfer-say-summary';
+    assistantOverrides: string; // JSON string for per-member overrides
+  }>>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // ─── Voice service readiness ─────────────────────────────────────
@@ -88,14 +94,14 @@ export default function Squads() {
   };
 
   const addMember = () => {
-    setMembers(prev => [...prev, { assistantId: '', transferTo: [] }]);
+    setMembers(prev => [...prev, { assistantId: '', transferTo: [], transferMessage: '', transferMode: 'blind-transfer', assistantOverrides: '' }]);
   };
 
   const removeMember = (index: number) => {
     setMembers(prev => prev.filter((_, i) => i !== index));
   };
 
-  const updateMember = (index: number, field: 'assistantId', value: string) => {
+  const updateMember = (index: number, field: string, value: string) => {
     setMembers(prev => prev.map((m, i) => i === index ? { ...m, [field]: value } : m));
   };
 
@@ -106,19 +112,26 @@ export default function Squads() {
     setError(null);
 
     try {
-      const squadMembers: VoiceSquadMember[] = members
-        .filter(m => m.assistantId)
-        .map((m, _idx, arr) => ({
+      const validMembers = members.filter(m => m.assistantId);
+      const squadMembers: VoiceSquadMember[] = validMembers.map((m) => {
+        let overrides: Record<string, any> | undefined;
+        if (m.assistantOverrides?.trim()) {
+          try { overrides = JSON.parse(m.assistantOverrides); } catch { /* skip invalid JSON */ }
+        }
+        return {
           assistantId: m.assistantId,
-          assistantDestinations: arr
-            .filter(other => other.assistantId !== m.assistantId && other.assistantId)
+          ...(overrides ? { assistantOverrides: overrides } : {}),
+          assistantDestinations: validMembers
+            .filter(other => other.assistantId !== m.assistantId)
             .map(other => ({
               type: 'assistant' as const,
               assistantName: getAssistantName(other.assistantId),
-              message: `Transferring you now...`,
+              message: m.transferMessage || `Transferring you now...`,
+              transferMode: m.transferMode || 'blind-transfer',
               description: `Transfer to ${getAssistantName(other.assistantId)}`,
             })),
-        }));
+        };
+      });
 
       if (editingSquad) {
         await voiceService.updateSquad(editingSquad.id, {
@@ -168,6 +181,9 @@ export default function Squads() {
       squad.members.map(m => ({
         assistantId: m.assistantId || '',
         transferTo: m.assistantDestinations?.map(d => d.assistantName || '') || [],
+        transferMessage: m.assistantDestinations?.[0]?.message || '',
+        transferMode: (m.assistantDestinations?.[0] as any)?.transferMode || 'blind-transfer',
+        assistantOverrides: (m as any).assistantOverrides ? JSON.stringify((m as any).assistantOverrides, null, 2) : '',
       }))
     );
     setShowCreateDialog(true);
@@ -176,7 +192,10 @@ export default function Squads() {
   const openCreate = () => {
     setEditingSquad(null);
     setSquadName('');
-    setMembers([{ assistantId: '', transferTo: [] }, { assistantId: '', transferTo: [] }]);
+    setMembers([
+      { assistantId: '', transferTo: [], transferMessage: '', transferMode: 'blind-transfer', assistantOverrides: '' },
+      { assistantId: '', transferTo: [], transferMessage: '', transferMode: 'blind-transfer', assistantOverrides: '' },
+    ]);
     setShowCreateDialog(true);
   };
 
@@ -348,32 +367,76 @@ export default function Squads() {
 
               <div>
                 <Label className="text-gray-400">Members (min 2)</Label>
-                <div className="mt-2 space-y-3">
+                <div className="mt-2 space-y-4">
                   {members.map((member, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Badge className="w-6 h-6 flex items-center justify-center border-gray-700 bg-gray-800 text-gray-400 text-xs">
-                        {idx + 1}
-                      </Badge>
-                      <select
-                        value={member.assistantId}
-                        onChange={(e) => updateMember(idx, 'assistantId', e.target.value)}
-                        className="flex-1 rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white"
-                      >
-                        <option value="">Select an assistant...</option>
-                        {assistants.map(a => (
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
-                      </select>
-                      {members.length > 2 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-gray-500 hover:text-red-400"
-                          onClick={() => removeMember(idx)}
+                    <div key={idx} className="rounded-lg border border-gray-800 bg-gray-900/50 p-3 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className="w-6 h-6 flex items-center justify-center border-gray-700 bg-gray-800 text-gray-400 text-xs shrink-0">
+                          {idx + 1}
+                        </Badge>
+                        <select
+                          value={member.assistantId}
+                          onChange={(e) => updateMember(idx, 'assistantId', e.target.value)}
+                          className="flex-1 rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white"
                         >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
+                          <option value="">Select an assistant...</option>
+                          {assistants.map(a => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                        {members.length > 2 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-gray-500 hover:text-red-400 shrink-0"
+                            onClick={() => removeMember(idx)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      {/* Transfer Mode */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {([
+                          { value: 'blind-transfer', label: 'Blind', desc: 'Instant transfer' },
+                          { value: 'blind-transfer-add-summary-to-sip-header', label: 'Blind + SIP Header', desc: 'Summary in SIP header' },
+                          { value: 'warm-transfer-say-message', label: 'Warm (Message)', desc: 'Speaks custom message' },
+                          { value: 'warm-transfer-say-summary', label: 'Warm (Summary)', desc: 'Speaks conversation summary' },
+                        ] as const).map(mode => (
+                          <button
+                            key={mode.value}
+                            onClick={() => updateMember(idx, 'transferMode', mode.value)}
+                            className={`rounded border px-2 py-1.5 text-left transition-all ${
+                              member.transferMode === mode.value
+                                ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                                : 'border-gray-700 bg-gray-900 text-gray-500 hover:border-gray-600'
+                            }`}
+                          >
+                            <div className="text-xs font-medium">{mode.label}</div>
+                            <div className="text-[10px] opacity-60">{mode.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                      {/* Transfer Message */}
+                      <Input
+                        value={member.transferMessage}
+                        onChange={(e) => updateMember(idx, 'transferMessage', e.target.value)}
+                        placeholder="Transfer message (e.g. 'Connecting you to billing...')"
+                        className="border-gray-700 bg-gray-900 text-white placeholder-gray-600 text-sm"
+                      />
+                      {/* Assistant Overrides (collapsible) */}
+                      <details className="group">
+                        <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-400 transition-colors">
+                          Assistant Overrides (JSON) — optional
+                        </summary>
+                        <textarea
+                          value={member.assistantOverrides}
+                          onChange={(e) => updateMember(idx, 'assistantOverrides', e.target.value)}
+                          placeholder='{"firstMessage": "Hi, you reached billing!"}'
+                          rows={3}
+                          className="mt-2 w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 font-mono text-xs text-white placeholder-gray-600 focus:border-emerald-500 focus:outline-none"
+                        />
+                      </details>
                     </div>
                   ))}
                 </div>
@@ -388,12 +451,15 @@ export default function Squads() {
               </div>
 
               <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-                <p className="text-sm font-medium text-gray-300 mb-2">How Squads Work</p>
+                <p className="text-sm font-medium text-gray-300 mb-2">Transfer Modes</p>
                 <ul className="space-y-1 text-xs text-gray-500">
-                  <li>• The first member starts the conversation</li>
+                  <li><strong className="text-gray-400">Blind:</strong> Instant transfer with no announcement</li>
+                  <li><strong className="text-gray-400">Blind + SIP Header:</strong> Instant transfer with conversation summary embedded in SIP header</li>
+                  <li><strong className="text-gray-400">Warm (Message):</strong> Speaks the transfer message before handoff</li>
+                  <li><strong className="text-gray-400">Warm (Summary):</strong> Summarizes the conversation so far to the next member</li>
+                  <li className="pt-1">• The first member starts the conversation</li>
                   <li>• Each member can transfer to any other member</li>
-                  <li>• Transfer messages are spoken during handoff</li>
-                  <li>• Assign squads to phone numbers instead of single assistants</li>
+                  <li>• Use Assistant Overrides to customize behavior per member (e.g. different first message)</li>
                 </ul>
               </div>
             </div>

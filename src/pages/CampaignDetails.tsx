@@ -1,4 +1,5 @@
 import { CallLogDetailsModal } from '@/components/CallLogDetailsModal';
+import SequenceBuilder from '@/components/SequenceBuilder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -163,45 +164,12 @@ export default function CampaignDetails() {
   const [selectedCall, setSelectedCall] = useState<any>(null);
 
   const handleOpenCallModal = async (call: any) => {
-    console.log('Opening call modal with call:', call);
-    console.log('🔍 Call from list has transcript?', {
-      hasTranscript: !!call.transcript,
-      transcriptLength: call.transcript?.length,
-      transcriptPreview: call.transcript?.substring(0, 50)
-    });
-    
     // If we have a call ID, fetch the full details
     if (call.id) {
       try {
         // Skip API call and use the data we already have from the calls list
         const fullCallData = call; // We already have all the data from directSupabaseService
-        console.log('Full call data from API:', fullCallData);
-        console.log('🔍 DEBUG - Transcript check:', {
-          hasTranscript: !!fullCallData.transcript,
-          transcriptType: typeof fullCallData.transcript,
-          transcriptLength: fullCallData.transcript?.length,
-          transcriptPreview: fullCallData.transcript?.substring(0, 100)
-        });
-        
-        // CRITICAL DEBUG - Show alert to see if transcript exists
-        if (fullCallData.transcript) {
-          console.log('✅ TRANSCRIPT EXISTS! Length:', fullCallData.transcript.length);
-        } else {
-          console.log('❌ NO TRANSCRIPT IN API RESPONSE!');
-        }
-        
-        // DEBUG: Log specific fields we're interested in
-        console.log('📊 DEBUG: Raw fullCallData fields:', {
-          id: fullCallData.id,
-          duration: fullCallData.duration,
-          cost: fullCallData.cost,
-          recording_url: fullCallData.recording_url,
-          recordingUrl: fullCallData.recordingUrl,
-          recording: fullCallData.recording,
-          customerName: fullCallData.customerName,
-          customer_name: fullCallData.customer_name
-        });
-        
+
         // Transform the call data to match the modal's expected format
         const transformedCallData = {
           id: fullCallData.id || fullCallData.callId,
@@ -283,34 +251,6 @@ export default function CampaignDetails() {
             },
           ],
         };
-        
-        // DEBUG: Log what we're passing to the modal
-        console.log('📊 DEBUG: transformedCallData being passed to modal:', {
-          id: transformedCallData.id,
-          duration: transformedCallData.duration,
-          cost: transformedCallData.cost,
-          recording: transformedCallData.recording,
-          customerName: transformedCallData.customerName,
-          hasTranscript: !!transformedCallData.transcript,
-          transcriptType: typeof transformedCallData.transcript,
-          transcriptIsArray: Array.isArray(transformedCallData.transcript),
-          transcriptLength: transformedCallData.transcript?.length,
-          transcriptSample: Array.isArray(transformedCallData.transcript) && transformedCallData.transcript.length > 0 ? 
-            JSON.stringify(transformedCallData.transcript[0]) : 'Not an array or empty',
-          // Add the full transformed data to see everything
-          fullData: transformedCallData
-        });
-        
-        // Final check - what are we actually setting?
-        console.log('🚨 FINAL CHECK - Setting selectedCall with:', {
-          hasTranscript: !!transformedCallData.transcript,
-          transcriptType: typeof transformedCallData.transcript,
-          transcriptIsArray: Array.isArray(transformedCallData.transcript),
-          transcriptLength: Array.isArray(transformedCallData.transcript) ? 
-            transformedCallData.transcript.length : 'not an array',
-          // Log the actual keys
-          allKeys: Object.keys(transformedCallData)
-        });
         
         setSelectedCall(transformedCallData);
         setIsCallModalOpen(true);
@@ -394,8 +334,6 @@ export default function CampaignDetails() {
       
       let campaignData;
       
-      // Always use direct Supabase service since Railway doesn't have the endpoint
-      console.log('📊 Fetching campaign details for ID:', id);
       campaignData = await directSupabaseService.getCampaignById(id);
       
       if (!campaignData) {
@@ -418,11 +356,8 @@ export default function CampaignDetails() {
         };
       }
       
-      console.log('📊 Campaign data from backend:', campaignData);
-      
       // Add null safety - if campaignData is undefined, use empty object
       if (!campaignData) {
-        console.error('❌ Campaign data is undefined!');
         campaignData = {
           id: id,
           name: 'Loading...',
@@ -432,23 +367,7 @@ export default function CampaignDetails() {
           settings: {}
         };
       }
-      
-      console.log('📊 Metrics:', {
-        totalLeads: campaignData?.totalLeads,
-        callsCompleted: campaignData?.callsCompleted,
-        metrics: campaignData?.metrics
-      });
-      
-      // Log the data we're about to set
-      console.log('📊 Setting campaign state with:', {
-        totalLeads: campaignData.totalLeads,
-        callsCompleted: campaignData.callsCompleted,
-        leadsCalled: campaignData.totalLeads,
-        answered: campaignData.callsCompleted,
-        name: campaignData.name,
-        fullData: campaignData
-      });
-      
+
       setCampaign({
         ...defaultCampaign, // Keep default structure as base
         // Override with real data
@@ -492,10 +411,32 @@ export default function CampaignDetails() {
         callbacks: campaignData.totalCost || 0,
         calledBack: campaignData.callbacks || 0,
         totalCost: campaignData.totalCost || 0,
-        progress: campaignData.totalLeads > 0 
-          ? Math.round((campaignData.callsCompleted / campaignData.totalLeads) * 100) 
+        progress: campaignData.totalLeads > 0
+          ? Math.round((campaignData.callsCompleted / campaignData.totalLeads) * 100)
           : 0,
       });
+
+      // Revenue attribution: fetch deals linked to this campaign's leads
+      try {
+        const { data: deals } = await supabase
+          .from('crm_deals')
+          .select('value, stage')
+          .eq('organization_id', campaignData.organization_id || campaignData.organizationId)
+          .in('stage', ['closed_won', 'negotiation', 'proposal', 'pipeline']);
+
+        if (deals && deals.length > 0) {
+          const wonRevenue = deals
+            .filter((d: any) => d.stage === 'closed_won')
+            .reduce((sum: number, d: any) => sum + (d.value || 0), 0);
+          setCampaign((prev: any) => ({
+            ...prev,
+            revenue: wonRevenue,
+            deals_count: deals.filter((d: any) => d.stage === 'closed_won').length,
+          }));
+        }
+      } catch {
+        // Revenue data is supplementary — don't fail the page
+      }
     } catch (error) {
       console.error('Error fetching campaign details:', error);
       toast({
@@ -513,13 +454,9 @@ export default function CampaignDetails() {
     
     try {
       setIsLoadingCalls(true);
-      console.log('🔍 Fetching calls for campaign:', id);
-      
+
       // Always use direct Supabase service since Railway API is not working
       const callsData = await directSupabaseService.getCampaignCalls(id);
-      console.log('✅ Fetched calls from direct Supabase:', callsData);
-      
-      console.log('📊 Extracted calls data:', callsData);
       
       const transformedCalls = callsData.map((call: any) => ({
         id: call.id, // Use actual call ID, not provider_call_id
@@ -540,15 +477,12 @@ export default function CampaignDetails() {
         sentimentScore: call.sentiment === 'positive' ? 0.85 : call.sentiment === 'negative' ? 0.15 : 0.5,
         leadQuality: call.sentiment === 'positive' ? 'hot' : call.sentiment === 'negative' ? 'cold' : 'warm',
       }));
-      console.log('✅ Transformed calls:', transformedCalls);
-      console.log('✅ Setting', transformedCalls.length, 'calls in state');
       setCalls(transformedCalls);
     } catch (error) {
       console.error('❌ Error fetching campaign calls:', error);
       // Show empty array instead of leaving loading state
       setCalls([]);
     } finally {
-      console.log('🔍 Setting isLoadingCalls to false');
       setIsLoadingCalls(false);
     }
   };
@@ -754,7 +688,6 @@ export default function CampaignDetails() {
 
   const saveChanges = () => {
     // Here you would typically save to backend
-    console.log('Saving campaign:', campaign);
     setIsEditing(false);
   };
 
@@ -881,7 +814,7 @@ export default function CampaignDetails() {
         </div>
 
         {/* Campaign Stats */}
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
+        <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-5">
           <Card className="border-gray-800 bg-gray-900">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -929,6 +862,21 @@ export default function CampaignDetails() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="border-gray-800 bg-gradient-to-br from-emerald-900/30 to-gray-900 border-emerald-800/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-emerald-400/80">Revenue</p>
+                  <p className="text-2xl font-bold text-emerald-400">${((campaign as any).revenue || 0).toLocaleString()}</p>
+                  {(campaign as any).deals_count > 0 && (
+                    <p className="text-[10px] text-emerald-400/60 mt-0.5">{(campaign as any).deals_count} deal{(campaign as any).deals_count !== 1 ? 's' : ''}</p>
+                  )}
+                </div>
+                <DollarSign className="h-8 w-8 text-emerald-500" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Divider */}
@@ -958,7 +906,7 @@ export default function CampaignDetails() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-9 bg-gray-800">
+          <TabsList className="grid w-full grid-cols-10 bg-gray-800">
             <TabsTrigger value="overview" className="text-white">
               Overview
             </TabsTrigger>
@@ -976,6 +924,9 @@ export default function CampaignDetails() {
             </TabsTrigger>
             <TabsTrigger value="script" className="text-white">
               System Prompt
+            </TabsTrigger>
+            <TabsTrigger value="sequence" className="text-white">
+              Sequence
             </TabsTrigger>
             <TabsTrigger value="team" className="text-white">
               Team
@@ -1194,7 +1145,6 @@ export default function CampaignDetails() {
                                 className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  console.log('🎵 Opening call modal for:', call.id);
                                   handleOpenCallModal(call);
                                 }}
                               >
@@ -1747,6 +1697,20 @@ export default function CampaignDetails() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="sequence" className="mt-6">
+            <Card className="border-gray-800 bg-gray-900">
+              <CardHeader>
+                <CardTitle className="text-white">Campaign Sequence</CardTitle>
+                <CardDescription>
+                  Build multi-step follow-up sequences with calls, SMS, emails, and wait periods
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SequenceBuilder campaignId={id || ''} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="settings" className="mt-6">
             <Card className="border-gray-800 bg-gray-900">
               <CardHeader>
@@ -1819,9 +1783,106 @@ export default function CampaignDetails() {
                     disabled={!isEditing}
                   />
                   <Label htmlFor="voicemail" className="text-white">
-                    Enable Voicemail
+                    Enable Voicemail Detection
                   </Label>
                 </div>
+
+                {campaign.settings.voicemailEnabled && (
+                  <div className="mt-2 rounded-lg border border-gray-800 bg-gray-900/50 p-3 space-y-2">
+                    <p className="text-xs text-gray-400">
+                      When enabled, the AI will detect voicemail greetings and can leave a message or hang up.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Advanced Campaign Features */}
+            <Card className="border-gray-800 bg-gray-900">
+              <CardHeader>
+                <CardTitle className="text-white">Advanced Features</CardTitle>
+                <CardDescription className="text-gray-400">Variable mapping, concurrency, and analysis</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Variable Mapping */}
+                <div>
+                  <Label className="text-white mb-2 block">Variable Mapping</Label>
+                  <p className="text-xs text-gray-400 mb-2">
+                    Map CSV columns to template variables. Use {'{{variableName}}'} in your system prompt.
+                  </p>
+                  {isEditing ? (
+                    <Textarea
+                      placeholder={'{"firstName": "first_name", "company": "company_name", "product": "product_interest"}'}
+                      defaultValue={JSON.stringify((campaign as any).variable_mapping || {}, null, 2)}
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          (campaign as any).variable_mapping = parsed;
+                        } catch { /* ignore invalid JSON while typing */ }
+                      }}
+                      className="font-mono text-xs border-gray-700 bg-gray-950 text-white"
+                      rows={3}
+                    />
+                  ) : (
+                    <div className="text-sm text-gray-300">
+                      {(campaign as any).variable_mapping
+                        ? Object.entries((campaign as any).variable_mapping).map(([k, v]) => (
+                            <Badge key={k} variant="outline" className="mr-1 mb-1 border-gray-700 text-gray-400">
+                              {'{{'}{k}{'}}'} → {String(v)}
+                            </Badge>
+                          ))
+                        : <span className="text-gray-500">No variable mapping configured</span>
+                      }
+                    </div>
+                  )}
+                </div>
+
+                {/* Max Concurrent Calls */}
+                <div>
+                  <Label className="text-white">Max Concurrent Calls</Label>
+                  <p className="text-xs text-gray-400 mb-2">
+                    Limit how many calls can run simultaneously in this campaign.
+                  </p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      defaultValue={(campaign as any).max_concurrent_calls || 0}
+                      onChange={(e) => {
+                        (campaign as any).max_concurrent_calls = parseInt(e.target.value) || 0;
+                      }}
+                      placeholder="0 = unlimited"
+                      className="w-32 border-gray-700 bg-gray-950 text-white"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-300">
+                      {(campaign as any).max_concurrent_calls > 0
+                        ? `${(campaign as any).max_concurrent_calls} concurrent calls max`
+                        : 'Unlimited'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Analysis Plan Toggle */}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="analysis-plan"
+                    checked={!!(campaign as any).analysis_plan}
+                    onCheckedChange={(checked) => {
+                      (campaign as any).analysis_plan = checked ? { enabled: true } : null;
+                    }}
+                    disabled={!isEditing}
+                  />
+                  <Label htmlFor="analysis-plan" className="text-white">
+                    Enable Call Analysis
+                  </Label>
+                </div>
+                {(campaign as any).analysis_plan && (
+                  <p className="text-xs text-gray-400 ml-10">
+                    Calls will be analyzed for structured data extraction and success evaluation.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

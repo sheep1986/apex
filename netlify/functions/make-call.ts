@@ -57,24 +57,43 @@ export const handler: Handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing Assistant ID' }) };
     }
 
-    // 4. Check subscription + usage limits
-    const { data: allowed, error: checkError } = await supabase.rpc('check_call_allowed', {
-      p_organization_id: organizationId
+    // 4. Check credit allowance (new credit-based system, falls back to legacy)
+    // Estimate ~30 credits for a 1-minute call at standard rate as a pre-check
+    const { data: creditAllowed, error: creditCheckError } = await supabase.rpc('check_credits_allowed', {
+      p_organization_id: organizationId,
+      p_credits_needed: 30,  // ~1 min at standard rate
     });
 
-    if (checkError) {
-      console.error('Call check RPC failed:', checkError);
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to verify call allowance' }) };
-    }
+    if (!creditCheckError && creditAllowed) {
+      if (!creditAllowed.allowed) {
+        const reason = creditAllowed.reason || 'No credits remaining';
+        console.warn(`Call blocked for Org ${organizationId}: ${reason}`);
+        return {
+          statusCode: 402,
+          headers,
+          body: JSON.stringify({ error: reason }),
+        };
+      }
+    } else {
+      // Fallback to legacy check if new RPC doesn't exist yet
+      const { data: allowed, error: checkError } = await supabase.rpc('check_call_allowed', {
+        p_organization_id: organizationId,
+      });
 
-    if (!allowed?.allowed) {
-      const reason = allowed?.reason || 'Call not permitted';
-      console.warn(`Call blocked for Org ${organizationId}: ${reason}`);
-      return {
-        statusCode: 402,
-        headers,
-        body: JSON.stringify({ error: reason })
-      };
+      if (checkError) {
+        console.error('Call check RPC failed:', checkError);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to verify call allowance' }) };
+      }
+
+      if (!allowed?.allowed) {
+        const reason = allowed?.reason || 'Call not permitted';
+        console.warn(`Call blocked for Org ${organizationId}: ${reason}`);
+        return {
+          statusCode: 402,
+          headers,
+          body: JSON.stringify({ error: reason }),
+        };
+      }
     }
 
     // 5. Lookup Assistant & Verify Ownership

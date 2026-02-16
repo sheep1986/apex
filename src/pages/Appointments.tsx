@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { AppointmentsSection } from '../components/AppointmentsSection';
+import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Calendar, CalendarCheck, Clock, CheckCircle, AlertCircle, ExternalLink, Unlink } from 'lucide-react';
 import { useApiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -68,9 +69,34 @@ export default function Appointments() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-2">Appointments</h1>
-        <p className="text-gray-400">Manage your scheduled appointments and meetings</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-2">Appointments</h1>
+          <p className="text-gray-400">Manage your scheduled appointments and meetings</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            onClick={async () => {
+              try {
+                const response = await apiClient.post('/.netlify/functions/calendar-sync', {
+                  action: 'google-auth-url',
+                });
+                if (response.authUrl) {
+                  window.open(response.authUrl, '_blank');
+                } else {
+                  toast({ title: 'Info', description: 'Google Calendar integration requires GOOGLE_CLIENT_ID to be configured.' });
+                }
+              } catch {
+                toast({ title: 'Info', description: 'Calendar sync available when Google credentials are configured.' });
+              }
+            }}
+          >
+            <CalendarCheck className="mr-2 h-4 w-4" />
+            Connect Google Calendar
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

@@ -6,8 +6,6 @@ let _supabaseClient: ReturnType<typeof getSupabase> | null = null;
 function getSupabaseClient() {
   if (!_supabaseClient) {
     _supabaseClient = getSupabase();
-    console.log('🔍 Supabase client initialized:', !!_supabaseClient);
-    console.log('🔍 Supabase URL:', import.meta.env.VITE_SUPABASE_URL || 'https://twigokrtbvigiqnaybfy.supabase.co');
   }
   return _supabaseClient;
 }
@@ -276,27 +274,20 @@ class SupabaseService {
   
   // Organizations
   async getOrganizations() {
-    console.log('📡 SupabaseService.getOrganizations called');
-    
     const { data, error } = await supabase
       .from('organizations')
       .select('*')
       .order('created_at', { ascending: false });
-    
-    console.log('📊 Supabase query result:', { data, error });
     
     if (error) {
       console.error('❌ Supabase error in getOrganizations:', error);
       throw error;
     }
     
-    console.log('✅ Returning organizations:', data?.length || 0);
     return data as Organization[];
   }
 
   async getOrganization(id: string) {
-    console.log('📡 Fetching organization with ID:', id);
-    
     const { data, error } = await supabase
       .from('organizations')
       .select('*')
@@ -307,18 +298,6 @@ class SupabaseService {
       console.error('❌ Error fetching organization:', error);
       throw error;
     }
-    
-    console.log('✅ Organization fetched from Supabase:', data);
-    console.log('📊 Organization data fields:', {
-      hasName: !!data?.name,
-      hasBillingEmail: !!data?.billing_email,
-      hasPhone: !!data?.phone,
-      hasWebsite: !!data?.website,
-      hasIndustry: !!data?.industry,
-      hasAddress: !!data?.address,
-      hasVapiApiKey: !!data?.vapi_api_key,
-      hasVapiPrivateKey: !!data?.vapi_private_key
-    });
     
     return data as Organization;
   }
@@ -363,7 +342,6 @@ class SupabaseService {
   }
 
   async getUserById(id: string) {
-    console.log('🔍 getUserById called with:', id);
     const { data, error } = await supabase
       .from('profiles')
       .select(`
@@ -379,19 +357,13 @@ class SupabaseService {
 
     if (error) {
       console.error('❌ getUserById error:', error);
-      if (error.code === 'PGRST116') {
-        console.log('⚠️ No user found with ID:', id);
-      }
       return null;
     }
     
     if (!data) {
-      console.log('⚠️ No user found with ID:', id);
       return null;
     }
-    
-    console.log('✅ Found user:', data.email, 'Role:', data.role);
-    
+
     const profile = data as any;
     const nameParts = (profile.full_name || '').split(' ');
     
@@ -404,32 +376,15 @@ class SupabaseService {
   }
 
   async getUserByEmail(email: string) {
-    console.log('🔍 getUserByEmail called with:', email);
-    
     try {
-      // Skip auth context check - it might be causing the hang
-      // Go straight to the query
-      console.log('📡 Attempting simple query...');
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('email', email)
         .single();
       
-      console.log('📊 Query completed - Data:', !!data, 'Error:', !!error);
-      
       if (error) {
-        console.error('❌ Query error:', error);
-        console.log('Error details:', {
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-          message: error.message
-        });
-        
         if (error.code === 'PGRST116') {
-          console.log('⚠️ No user found');
           return null;
         }
         
@@ -437,11 +392,8 @@ class SupabaseService {
       }
       
       if (!data) {
-        console.log('⚠️ No user found with email:', email);
         return null;
       }
-      
-      console.log('✅ Found user:', data.email, 'Role:', data.role, 'ID:', data.id);
       
       // Try to fetch organization if exists
       if (data.organization_id) {
@@ -476,7 +428,6 @@ class SupabaseService {
   }
 
   private async getUserByEmailFallback(email: string) {
-    console.log('🔧 Using fallback query (no joins)...');
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -490,11 +441,8 @@ class SupabaseService {
       }
       
       if (!data) {
-        console.log('⚠️ No user found in fallback');
         return null;
       }
-      
-      console.log('✅ Fallback query successful:', data.email, 'Role:', data.role);
       
       // Try to fetch organization separately if user has one
       if (data.organization_id) {
@@ -916,9 +864,7 @@ class SupabaseService {
 
   async getAssistants(organizationId: string) {
     try {
-      // Since vapi_assistants table doesn't exist, return empty array
-      // In production, assistants should be fetched from Apex API
-      console.log('vapi_assistants table does not exist, returning empty array');
+      // vapi_assistants table does not exist; assistants should be fetched from the API
       return [];
     } catch (error) {
       console.error('Error fetching assistants:', error);

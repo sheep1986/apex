@@ -67,18 +67,48 @@ export const handler: Handler = async (event) => {
     // 3. ORDER OF OPERATIONS: Resolve Number -> Org
     const { data: phoneNumber } = await supabase
         .from('phone_numbers')
-        .select('id, organization_id, inbound_route_id')
+        .select('id, organization_id, inbound_route_id, ai_enabled, ai_disabled_forward_to')
         .eq('e164', calledNumber)
         .single();
 
     if (!phoneNumber) {
         // Zero-Trace / Anti-Enumeration: Return 200 OK
-        // Log locally with redaction
-        console.warn(`❌ Unknown Number: ${maskPhoneNumber(calledNumber)}`); 
+        console.warn(`❌ Unknown Number: ${maskPhoneNumber(calledNumber)}`);
         return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
-    
+
     const orgId = phoneNumber.organization_id;
+
+    // --- B2: AI ON/OFF TOGGLE ---
+    if (phoneNumber.ai_enabled === false) {
+        if (phoneNumber.ai_disabled_forward_to) {
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    assistantId: null,
+                    destination: {
+                        type: 'number',
+                        number: phoneNumber.ai_disabled_forward_to,
+                        message: 'Transferring your call now.',
+                    },
+                }),
+            };
+        }
+        return { statusCode: 200, headers, body: JSON.stringify({ assistantId: null }) };
+    }
+
+    // --- B3: KNOWN-CALLER DETECTION ---
+    let knownContact: any = null;
+    if (callerNumber) {
+        const { data: contact } = await supabase
+            .from('contacts')
+            .select('id, name, email, phone_e164')
+            .eq('organization_id', orgId)
+            .eq('phone_e164', callerNumber)
+            .maybeSingle();
+        if (contact) knownContact = contact;
+    }
 
     // --- PHASE 3.7 GOVERNANCE ENFORCEMENT ---
     const { data: controls } = await supabase
@@ -126,14 +156,71 @@ export const handler: Handler = async (event) => {
     // 5. RESOLVE ROUTE & GOVERNANCE
     let routeConfig: any = {};
     let resolvedAssistant: any = null;
+    let routeBusinessHours: any = null;
+    let routeAfterHoursAction: string | null = null;
+    let routeAfterHoursForwardTo: string | null = null;
+    let routeAfterHoursGreeting: string | null = null;
 
     if (phoneNumber.inbound_route_id) {
          const { data: route } = await supabase
             .from('inbound_routes')
-            .select('config')
+            .select('config, business_hours, after_hours_action, after_hours_forward_to, after_hours_greeting')
             .eq('id', phoneNumber.inbound_route_id)
             .single();
-         if (route) routeConfig = route.config;
+         if (route) {
+             routeConfig = route.config;
+             routeBusinessHours = route.business_hours;
+             routeAfterHoursAction = route.after_hours_action;
+             routeAfterHoursForwardTo = route.after_hours_forward_to;
+             routeAfterHoursGreeting = route.after_hours_greeting;
+         }
+    }
+
+    // --- B1: BUSINESS HOURS CHECK ---
+    if (routeBusinessHours?.enabled && routeBusinessHours.schedule) {
+        const tz = routeBusinessHours.timezone || 'America/New_York';
+        const nowInTz = new Date().toLocaleString('en-US', { timeZone: tz });
+        const localDate = new Date(nowInTz);
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[localDate.getDay()];
+        const currentMinutes = localDate.getHours() * 60 + localDate.getMinutes();
+
+        const daySchedule = routeBusinessHours.schedule[dayName];
+        let withinHours = false;
+
+        if (daySchedule?.enabled) {
+            const [startH, startM] = (daySchedule.start || '09:00').split(':').map(Number);
+            const [endH, endM] = (daySchedule.end || '17:00').split(':').map(Number);
+            const startMins = startH * 60 + startM;
+            const endMins = endH * 60 + endM;
+            withinHours = currentMinutes >= startMins && currentMinutes < endMins;
+        }
+
+        if (!withinHours) {
+            // After hours handling
+            if (routeAfterHoursAction === 'forward' && routeAfterHoursForwardTo) {
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        assistantId: null,
+                        destination: {
+                            type: 'number',
+                            number: routeAfterHoursForwardTo,
+                            message: routeAfterHoursGreeting || 'We are currently closed. Transferring to our answering service.',
+                        },
+                    }),
+                };
+            }
+            if (routeAfterHoursAction === 'hangup') {
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({ assistantId: null, error: 'After hours' }),
+                };
+            }
+            // Default: 'voicemail' — continue to assistant but with after-hours greeting injected
+        }
     }
 
     // Resolve Target Assistant (Phase 3.6 Logic)
@@ -156,20 +243,23 @@ export const handler: Handler = async (event) => {
         }
     }
 
-    // 6. CREATE CALL
+    // 6. CREATE CALL (with contact_id if known caller)
+    const callInsert: any = {
+        organization_id: orgId,
+        phone_number_id: phoneNumber.id,
+        inbound_route_id: phoneNumber.inbound_route_id,
+        direction: 'inbound',
+        status: 'ringing',
+        customer_number: callerNumber,
+        provider_call_id: providerCallId,
+        provider: 'voice_engine',
+        recording_policy: routeConfig.recordingPolicy || 'none',
+    };
+    if (knownContact) callInsert.contact_id = knownContact.id;
+
     const { data: callRow, error: callError } = await supabase
         .from('voice_calls')
-        .insert({
-            organization_id: orgId,
-            phone_number_id: phoneNumber.id,
-            inbound_route_id: phoneNumber.inbound_route_id,
-            direction: 'inbound',
-            status: 'ringing',
-            customer_number: callerNumber, // PII stored encrypted/RLS'd in DB is ok, just not in logs
-            provider_call_id: providerCallId,
-            provider: 'voice_engine',
-            recording_policy: routeConfig.recordingPolicy || 'none'
-        })
+        .insert(callInsert)
         .select('id')
         .single();
 
@@ -209,13 +299,25 @@ export const handler: Handler = async (event) => {
         return { statusCode: 200, body: JSON.stringify({ error: "Configuration Error" }) }; 
     }
 
-    // Prepare Overrides (Governance)
+    // Prepare Overrides (Governance + Known Caller)
     const assistantOverrides: any = {
         metadata: {
             trinityCallId: trinityCallId,
-            organizationId: orgId
-        }
+            organizationId: orgId,
+        },
+        variableValues: {},
     };
+
+    // --- B3: Inject known-caller context ---
+    if (knownContact) {
+        assistantOverrides.variableValues.callerName = knownContact.name || '';
+        assistantOverrides.variableValues.callerEmail = knownContact.email || '';
+        assistantOverrides.variableValues.callerType = 'returning';
+        assistantOverrides.variableValues.contactId = knownContact.id;
+        assistantOverrides.metadata.contactId = knownContact.id;
+    } else {
+        assistantOverrides.variableValues.callerType = 'new';
+    }
 
     // Apply Runtime Config Limits
     if (runtimeConfig.max_duration_seconds) {

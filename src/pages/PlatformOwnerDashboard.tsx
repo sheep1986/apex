@@ -72,7 +72,6 @@ export default function PlatformOwnerDashboard() {
 
       const data = await response.json();
       setAnalytics(data);
-      console.log('✅ Platform analytics loaded:', data);
     } catch (error) {
       console.error('❌ Error fetching platform analytics:', error);
       setError('Failed to load platform analytics');

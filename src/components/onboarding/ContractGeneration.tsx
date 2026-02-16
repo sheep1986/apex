@@ -34,7 +34,8 @@ const ContractGeneration: React.FC<ContractGenerationProps> = ({
         signed: true,
         signedDate: new Date(),
         contractId: `TRINITY-${Date.now()}`,
-        paymentMethodId: 'pm_test_123',
+        // Payment method will be collected via Stripe Checkout after onboarding
+        paymentMethodId: `pending_${Date.now()}`,
         billingCycle: data.contract?.billingCycle || 'monthly',
       },
     });

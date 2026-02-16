@@ -17,7 +17,7 @@ export interface ProspectData {
 }
 
 export interface PlanData {
-  tier: 'starter' | 'professional' | 'enterprise';
+  tier: 'starter' | 'growth' | 'business' | 'employee_1' | 'employee_3' | 'employee_5';
   price: number;
   markup: number;
   features: string[];
@@ -58,53 +58,57 @@ export class OnboardingService {
   private static readonly STORAGE_KEY = 'apex-onboarding-data';
   private static readonly API_BASE = 'http://localhost:3001/api';
 
-  // Plan configurations
+  // Plan configurations — aligned with src/config/plans.ts (AI Employee model)
+  // Uses legacy keys (starter/growth/business) for backward compat with PlanSelection
   static readonly PLANS = {
     starter: {
-      name: 'Starter',
-      price: 299,
-      markup: 100, // Agency markup
+      name: '1 AI Employee',
+      price: 2_500,
+      markup: 0,
       features: [
-        '1,000 AI calls/month',
-        'Basic voice assistant',
-        'Email support',
-        'Standard integrations',
-        'Basic analytics',
+        '200,000 credits (~6,667 standard minutes)',
+        '3 dedicated phone numbers',
+        '5 AI assistants',
+        'CRM + Pipeline',
+        'Campaigns + Sequences',
+        'SMS + Email Follow-up',
+        'Call Recording + Transcription',
+        'Analytics Dashboard',
       ],
       airtableIncluded: false,
       setupAssistance: false,
       priority: 'standard',
     },
-    professional: {
-      name: 'Professional',
-      price: 599,
-      markup: 200,
+    growth: {
+      name: '3 AI Employees',
+      price: 6_500,
+      markup: 0,
       features: [
-        '5,000 AI calls/month',
-        'Advanced voice assistant',
-        'Priority support',
-        'Premium integrations',
-        'Advanced analytics',
-        'Custom workflows',
-        'A/B testing',
+        '650,000 credits (~21,667 standard minutes)',
+        '8 dedicated phone numbers',
+        '15 AI assistants',
+        'Everything in Starter',
+        'Webhooks + API',
+        'Advanced Analytics',
+        'Priority Support',
       ],
       airtableIncluded: true,
       setupAssistance: true,
       priority: 'priority',
     },
-    enterprise: {
-      name: 'Enterprise',
-      price: 1299,
-      markup: 400,
+    business: {
+      name: '5 AI Employees',
+      price: 10_000,
+      markup: 0,
       features: [
-        'Unlimited AI calls',
-        'Custom voice assistant',
-        'Dedicated support',
-        'All integrations',
-        'Full analytics suite',
-        'Custom development',
-        'White-label options',
-        'Multi-user access',
+        '1,100,000 credits (~36,667 standard minutes)',
+        '15 dedicated phone numbers',
+        '30 AI assistants',
+        'Everything in Growth',
+        'White-label Branding',
+        'Dedicated Account Manager',
+        'Premium AI Training',
+        'Custom Integrations',
       ],
       airtableIncluded: true,
       setupAssistance: true,
@@ -134,7 +138,6 @@ export class OnboardingService {
         body: JSON.stringify(updatedData),
       });
 
-      console.log('Onboarding progress saved:', updatedData);
     } catch (error) {
       console.error('Error saving onboarding progress:', error);
       throw error;
@@ -248,16 +251,16 @@ export class OnboardingService {
       recommendations.push('Good fit for Starter plan');
       recommendations.push('Emphasize ROI and cost savings');
     } else {
-      recommendations.push('Excellent fit for Professional or Enterprise plan');
+      recommendations.push('Excellent fit for Growth or Business plan');
       recommendations.push('Focus on advanced features and scalability');
     }
 
     // Suggest plan based on score and characteristics
     let suggestedPlan: keyof typeof OnboardingService.PLANS = 'starter';
-    if (budgetRange >= 1000 && callVolume >= 1000) {
-      suggestedPlan = 'enterprise';
+    if (budgetRange >= 1500 && callVolume >= 5000) {
+      suggestedPlan = 'business';
     } else if (budgetRange >= 500 && callVolume >= 500) {
-      suggestedPlan = 'professional';
+      suggestedPlan = 'growth';
     }
 
     return {
@@ -340,7 +343,7 @@ Generated: ${new Date().toLocaleDateString()}
     subdomain: string
   ): Promise<void> {
     // This would integrate with Airtable API to create workspace
-    console.log(`Creating Airtable workspace for ${subdomain}`);
+    // TODO: Integrate with Airtable API to create workspace
     data.provisioning.airtableWorkspace = `${subdomain}-workspace`;
   }
 
@@ -364,7 +367,7 @@ Generated: ${new Date().toLocaleDateString()}
 
   private static async scheduleSetupCall(data: OnboardingData): Promise<void> {
     // Integration with calendar scheduling service
-    console.log(`Scheduling setup call for ${data.prospect.company}`);
+    // TODO: Integration with calendar scheduling service
     data.provisioning.setupCallScheduled = new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
   }
 }

@@ -56,21 +56,8 @@ const OrganizationSettingsV2: React.FC = () => {
 
   useEffect(() => {
     if (organization) {
-      console.log('🔍 Full organization data loaded:', organization);
-      console.log('📋 Organization fields:', {
-        name: organization.name,
-        billing_email: organization.billing_email,
-        phone: organization.phone,
-        website: organization.website,
-        industry: organization.industry,
-        address: organization.address,
-        industry: organization.industry,
-        address: organization.address
-      });
       // Vapi keys handled internally
       setEditedOrg(organization);
-    } else {
-      console.log('⚠️ No organization data available');
     }
   }, [organization]);
 

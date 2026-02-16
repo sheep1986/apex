@@ -10,38 +10,86 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL ||
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Plan limits — mirrors src/config/plans.ts
+// Credit-based plan limits — mirrors src/config/plans.ts (AI Employee model)
+// Plan IDs: 'employee_1', 'employee_3', 'employee_5', 'enterprise'
+// Legacy IDs 'starter', 'growth', 'business' mapped for backward compat
 const PLAN_LIMITS: Record<string, {
-  includedMinutes: number;
+  includedCredits: number;
+  includedMinutes: number;  // Legacy: approximate standard-tier minutes
+  aiEmployees: number;
   maxPhoneNumbers: number;
   maxAssistants: number;
   maxConcurrentCalls: number;
   maxUsers: number;
-  overagePerMinute: number;
+  overageCreditPrice: number;  // £ per credit
+  overagePerMinute: number;    // Legacy: approximate for display
 }> = {
+  employee_1: {
+    includedCredits: 200_000,
+    includedMinutes: 6_667,
+    aiEmployees: 1,
+    maxPhoneNumbers: 3,
+    maxAssistants: 5,
+    maxConcurrentCalls: 5,
+    maxUsers: 5,
+    overageCreditPrice: 0.012,
+    overagePerMinute: 0.36,  // 30 cr/min × £0.012
+  },
+  employee_3: {
+    includedCredits: 650_000,
+    includedMinutes: 21_667,
+    aiEmployees: 3,
+    maxPhoneNumbers: 8,
+    maxAssistants: 15,
+    maxConcurrentCalls: 15,
+    maxUsers: 15,
+    overageCreditPrice: 0.011,
+    overagePerMinute: 0.33,
+  },
+  employee_5: {
+    includedCredits: 1_100_000,
+    includedMinutes: 36_667,
+    aiEmployees: 5,
+    maxPhoneNumbers: 15,
+    maxAssistants: 30,
+    maxConcurrentCalls: 25,
+    maxUsers: 50,
+    overageCreditPrice: 0.010,
+    overagePerMinute: 0.30,
+  },
+  // Legacy aliases
   starter: {
-    includedMinutes: 1000,
-    maxPhoneNumbers: 1,
-    maxAssistants: 3,
-    maxConcurrentCalls: 2,
-    maxUsers: 3,
-    overagePerMinute: 0.15,
+    includedCredits: 200_000,
+    includedMinutes: 6_667,
+    aiEmployees: 1,
+    maxPhoneNumbers: 3,
+    maxAssistants: 5,
+    maxConcurrentCalls: 5,
+    maxUsers: 5,
+    overageCreditPrice: 0.012,
+    overagePerMinute: 0.36,
   },
   growth: {
-    includedMinutes: 5000,
-    maxPhoneNumbers: 5,
-    maxAssistants: 10,
-    maxConcurrentCalls: 5,
-    maxUsers: 10,
-    overagePerMinute: 0.12,
+    includedCredits: 650_000,
+    includedMinutes: 21_667,
+    aiEmployees: 3,
+    maxPhoneNumbers: 8,
+    maxAssistants: 15,
+    maxConcurrentCalls: 15,
+    maxUsers: 15,
+    overageCreditPrice: 0.011,
+    overagePerMinute: 0.33,
   },
   business: {
-    includedMinutes: 15000,
+    includedCredits: 1_100_000,
+    includedMinutes: 36_667,
+    aiEmployees: 5,
     maxPhoneNumbers: 15,
-    maxAssistants: 25,
-    maxConcurrentCalls: 20,
+    maxAssistants: 30,
+    maxConcurrentCalls: 25,
     maxUsers: 50,
-    overagePerMinute: 0.10,
+    overageCreditPrice: 0.010,
+    overagePerMinute: 0.30,
   },
 };
 
@@ -129,11 +177,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       .from('organizations')
       .update({
         plan: planId,
+        plan_tier_id: planId,
         subscription_status: 'active',
         stripe_subscription_id: subscriptionId,
         stripe_customer_id: typeof session.customer === 'string' ? session.customer : session.customer?.id,
         subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
         subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        // Credit-based fields
+        included_credits: limits.includedCredits,
+        overage_credit_price: limits.overageCreditPrice,
+        ai_employees: limits.aiEmployees,
+        // Legacy fields (backward compat)
         included_minutes: limits.includedMinutes,
         max_phone_numbers: limits.maxPhoneNumbers,
         max_assistants: limits.maxAssistants,
@@ -148,13 +202,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       throw error;
     }
 
-    // Initialize usage tracking for first period
+    // Initialize usage tracking for first period (credit + legacy)
     await supabase.from('subscription_usage').upsert({
       organization_id: organizationId,
       period_start: new Date(subscription.current_period_start * 1000).toISOString(),
       period_end: new Date(subscription.current_period_end * 1000).toISOString(),
       minutes_used: 0,
       calls_count: 0,
+      credits_used: 0,
+      credits_included: limits.includedCredits,
+      overage_credits_used: 0,
     }, { onConflict: 'organization_id,period_start' });
 
     console.log(`Subscription activated for org ${organizationId}: ${planId}`);
@@ -227,7 +284,10 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     .eq('organization_id', org.id)
     .lt('period_end', periodStart);
 
-  // Initialize new period usage
+  // Get plan limits for credit reset
+  const planLimits = PLAN_LIMITS[org.plan] || PLAN_LIMITS.employee_1;
+
+  // Initialize new period usage (credits + legacy)
   await supabase.from('subscription_usage').upsert({
     organization_id: org.id,
     period_start: periodStart,
@@ -235,7 +295,16 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     minutes_used: 0,
     overage_minutes: 0,
     calls_count: 0,
+    credits_used: 0,
+    credits_included: planLimits.includedCredits,
+    overage_credits_used: 0,
   }, { onConflict: 'organization_id,period_start' });
+
+  // Reset period credit counter on org
+  await supabase
+    .from('organizations')
+    .update({ credits_used_this_period: 0 })
+    .eq('id', org.id);
 
   // Record subscription payment in ledger for audit trail
   const amount = (invoice.amount_paid || 0) / 100;
@@ -291,9 +360,14 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
   };
 
-  // If plan changed, update limits
+  // If plan changed, update limits (credit-based + legacy)
   if (planId && limits) {
     updateData.plan = planId;
+    updateData.plan_tier_id = planId;
+    updateData.included_credits = limits.includedCredits;
+    updateData.overage_credit_price = limits.overageCreditPrice;
+    updateData.ai_employees = limits.aiEmployees;
+    // Legacy fields
     updateData.included_minutes = limits.includedMinutes;
     updateData.max_phone_numbers = limits.maxPhoneNumbers;
     updateData.max_assistants = limits.maxAssistants;

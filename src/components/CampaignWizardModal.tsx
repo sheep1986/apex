@@ -64,26 +64,11 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
     assignedTeam: [] as string[],
   });
 
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log('🔍 Assistants state updated:', assistants.length, assistants);
-  }, [assistants]);
-
-  useEffect(() => {
-    console.log('🔍 Phone numbers state updated:', phoneNumbers.length, phoneNumbers);
-  }, [phoneNumbers]);
-
   const loadFormData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Campaign Modal: Loading VAPI assistants and phone numbers...');
-      console.log(
-        '🔧 Current API base URL:',
-        import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
-      );
 
       // First, check if VAPI credentials are configured by checking user profile and org settings
-      console.log('🔍 Checking VAPI credentials configuration...');
       try {
         // Get user profile to get organization ID
         const userResponse = await fetch('http://localhost:3001/api/user-profile', {
@@ -95,7 +80,6 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
 
         if (userResponse.ok) {
           const userData = await userResponse.json();
-          console.log('👤 User data:', userData);
           setUser(userData);
 
           if (userData.organization_id) {
@@ -112,13 +96,10 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
 
             if (orgResponse.ok) {
               const orgData = await orgResponse.json();
-              console.log('🏢 Organization settings:', orgData);
 
               if (orgData.settings?.vapi?.enabled && orgData.settings?.vapi?.apiKey) {
-                console.log('✅ VAPI credentials are configured and enabled');
                 setHasVoiceCredentials(true);
               } else {
-                console.log('❌ VAPI credentials are not configured or disabled');
                 setHasVoiceCredentials(false);
               }
             }
@@ -129,33 +110,21 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
         setHasVoiceCredentials(false);
       }
 
-      // Test individual API calls with detailed logging
-      console.log('📞 Testing assistants API call...');
       let assistantsData: VoiceAssistant[] = [];
       try {
         assistantsData = await campaignOutboundService.getAssistants();
-        console.log('✅ Assistants API call successful:', assistantsData);
       } catch (err: any) {
         console.error('❌ Campaign Modal: Failed to load assistants:', err);
         assistantsData = [];
       }
 
-      console.log('📱 Testing phone numbers API call...');
       let phoneNumbersData: VoicePhoneNumber[] = [];
       try {
         phoneNumbersData = await campaignOutboundService.getPhoneNumbers();
-        console.log('✅ Phone numbers API call successful:', phoneNumbersData);
       } catch (err: any) {
         console.error('❌ Campaign Modal: Failed to load phone numbers:', err);
         phoneNumbersData = [];
       }
-
-      console.log('✅ Campaign Modal: Voice data loaded:', {
-        assistants: assistantsData.length,
-        phoneNumbers: phoneNumbersData.length,
-        assistantsData,
-        phoneNumbersData,
-      });
 
       // Only use real Voice data - no fallback mock data
       if (assistantsData.length === 0) {
@@ -229,7 +198,6 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      console.log('Modal opened, loading VAPI data...');
       loadFormData();
     }
   }, [isOpen, loadFormData]);

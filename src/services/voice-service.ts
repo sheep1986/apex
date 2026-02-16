@@ -1,14 +1,12 @@
-// Voice Provider Configuration
-const VOICE_PROVIDER_BASE_URL = '/api/voice';
-
 /**
- * Voice Service — Complete integration with Voice Provider
- * Full API parity via zero-trace proxy architecture.
- * All provider calls go through Netlify function proxies.
+ * Voice Service — Provider-agnostic voice AI service.
+ *
+ * This is a thin wrapper that delegates all operations to the active VoiceProvider.
+ * Currently uses VapiProvider; swapping providers is a single-line change.
+ *
+ * All types are defined here as the canonical source of truth.
+ * Pages import from this file — never directly from a provider.
  */
-
-import { getSupabase } from './supabase-client';
-import { ToolBuilder } from './tool-builder';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -251,52 +249,63 @@ export interface CallAnalytics {
     neutral: number;
   };
   outcomeBreakdown: Record<string, number>;
+  endedReasonBreakdown: Record<string, number>;
   callsByHour: Array<{ hour: number; count: number }>;
+  callsByDay: Array<{ date: string; count: number; cost: number; avgDuration: number }>;
+  costBreakdownTotals: { stt: number; llm: number; tts: number; vapi: number; transport: number; total: number };
+  assistantBreakdown: Array<{ assistantId: string; calls: number; avgDuration: number; cost: number; successRate: number }>;
   conversionRate: number;
 }
 
-// ─── Service ────────────────────────────────────────────────────────
+// ─── Provider Registry ──────────────────────────────────────────────
+
+import type { VoiceProvider } from './voice-provider';
+import { VapiProvider } from './providers/vapi-provider';
+
+/**
+ * To swap providers, change this line:
+ *   const activeProvider: VoiceProvider = new AlternativeProvider();
+ */
+const activeProvider: VoiceProvider = new VapiProvider();
+
+// ─── Service (thin delegation wrapper) ──────────────────────────────
 
 class VoiceService {
-  private baseURL = VOICE_PROVIDER_BASE_URL;
-  private apiKey: string | null = null;
-  private organizationId: string | null = null;
+  private provider: VoiceProvider = activeProvider;
 
   constructor() {
-    console.log('📝 Voice Service initialized');
+    // Voice Service initialized
   }
 
   /**
-   * Initialize service with organization credentials
+   * Initialize service with organization credentials.
+   * Fetches the API key from the credentials endpoint and passes it to the active provider.
    */
   async initializeWithOrganization(organizationId: string): Promise<boolean> {
     try {
-      this.organizationId = organizationId;
-
-      // Get auth token
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
 
-      // Get organization Voice credentials via API
       const response = await fetch(`${window.location.origin}/api/voice/credentials`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`⚠️ Failed to fetch Voice credentials. Status: ${response.status}`, errorText);
+        console.warn(`⚠️ Failed to fetch Voice credentials. Status: ${response.status}`);
         return false;
       }
 
       const data = await response.json();
 
       if (data.hasApiKey && data.credentials?.provider_api_key) {
-        this.apiKey = data.credentials.provider_api_key;
-        console.log('✅ Voice service initialized with organization credentials');
-        return true;
+        const success = await this.provider.initialize({
+          organizationId,
+          apiKey: data.credentials.provider_api_key,
+        });
+        return success;
       } else if (data.hasApiKey) {
         console.warn('⚠️ Voice API key exists but user lacks permission to view it');
         return false;
@@ -311,569 +320,117 @@ class VoiceService {
   }
 
   isInitialized(): boolean {
-    return !!(this.apiKey && this.organizationId);
+    return this.provider.isInitialized();
   }
 
   getOrganizationId(): string | null {
-    return this.organizationId;
+    return this.provider.getOrganizationId();
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    if (!this.isInitialized()) {
-      throw new Error('Voice Service not initialized. Call initializeWithOrganization() first.');
-    }
+  // ─── Assistants (delegated) ─────────────────────────────────────
 
-    const url = `${this.baseURL}${endpoint}`;
+  getAssistants() { return this.provider.getAssistants(); }
+  getAssistant(id: string) { return this.provider.getAssistant(id); }
+  createAssistant(config: Partial<VoiceAssistant> & { toolIds?: string[]; fileIds?: string[] }) { return this.provider.createAssistant(config); }
+  updateAssistant(id: string, updates: Partial<VoiceAssistant>) { return this.provider.updateAssistant(id, updates); }
+  deleteAssistant(id: string) { return this.provider.deleteAssistant(id); }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.apiKey}`,
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
-    };
+  // ─── Calls (delegated) ─────────────────────────────────────────
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+  getCalls(params?: Parameters<VoiceProvider['getCalls']>[0]) { return this.provider.getCalls(params); }
+  getCall(id: string) { return this.provider.getCall(id); }
+  createCall(payload: Parameters<VoiceProvider['createCall']>[0]) { return this.provider.createCall(payload); }
+  endCall(callId: string) { return this.provider.endCall(callId); }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Voice API Error: ${response.status} - ${errorData.message || errorData.error || 'Unknown error'}`
-        );
-      }
-
-      // Handle 204 No Content (DELETE responses)
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Voice Service Error:', error);
-      throw error;
-    }
+  async transferCall(callId: string, options: { destination: string }) {
+    return this.provider.transferCall?.(callId, options) ?? Promise.resolve();
   }
 
-  // ─── Assistant Management ─────────────────────────────────────────
+  // ─── Phone Numbers (delegated) ─────────────────────────────────
 
-  async getAssistants(): Promise<VoiceAssistant[]> {
-    return this.request<VoiceAssistant[]>('/assistant');
-  }
+  getPhoneNumbers() { return this.provider.getPhoneNumbers(); }
+  getPhoneNumber(id: string) { return this.provider.getPhoneNumber(id); }
+  createPhoneNumber(config: Parameters<VoiceProvider['createPhoneNumber']>[0]) { return this.provider.createPhoneNumber(config); }
+  updatePhoneNumber(id: string, updates: Parameters<VoiceProvider['updatePhoneNumber']>[1]) { return this.provider.updatePhoneNumber(id, updates); }
+  deletePhoneNumber(id: string) { return this.provider.deletePhoneNumber(id); }
+  searchAvailableNumbers(areaCode: string, country?: string) { return this.provider.searchAvailableNumbers(areaCode, country); }
+  buyPhoneNumber(phoneNumber: string, name?: string) { return this.provider.buyPhoneNumber(phoneNumber, name); }
+  autoProvisionNumber(areaCode: string, name?: string, assistantId?: string) { return this.provider.autoProvisionNumber(areaCode, name, assistantId); }
 
-  async getAssistant(id: string): Promise<VoiceAssistant> {
-    return this.request<VoiceAssistant>(`/assistant/${id}`);
-  }
+  // ─── Squads (delegated) ────────────────────────────────────────
 
-  async createAssistant(assistant: Partial<VoiceAssistant> & { toolIds?: string[], fileIds?: string[] }): Promise<VoiceAssistant> {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error('Supabase client not initialized');
+  getSquads() { return this.provider.getSquads(); }
+  getSquad(id: string) { return this.provider.getSquad(id); }
+  createSquad(squad: Parameters<VoiceProvider['createSquad']>[0]) { return this.provider.createSquad(squad); }
+  updateSquad(id: string, updates: Partial<VoiceSquad>) { return this.provider.updateSquad(id, updates); }
+  deleteSquad(id: string) { return this.provider.deleteSquad(id); }
 
-    // 1. Resolve Dynamic Tools
-    const toolBuilder = new ToolBuilder(supabase);
-    let providerTools: any[] = [];
+  // ─── Tools (delegated) ─────────────────────────────────────────
 
-    if (assistant.toolIds && assistant.toolIds.length > 0) {
-        providerTools = await toolBuilder.resolveTools(assistant.toolIds);
-    }
+  getTools() { return this.provider.getTools(); }
+  getTool(id: string) { return this.provider.getTool(id); }
+  createTool(tool: Parameters<VoiceProvider['createTool']>[0]) { return this.provider.createTool(tool); }
+  updateTool(id: string, updates: Partial<VoiceTool>) { return this.provider.updateTool(id, updates); }
+  deleteTool(id: string) { return this.provider.deleteTool(id); }
 
-    // 2. Knowledge Base & Model Configuration
-    // Force universal webhook for brain routing
-    const universalWebhookUrl = `${window.location.origin}/api/vapi-router`;
+  // ─── Knowledge Base (delegated) ────────────────────────────────
 
-    const enhancedAssistant = {
-        ...assistant,
-        serverUrl: universalWebhookUrl,
-        model: {
-            ...assistant.model,
-            tools: providerTools.length > 0 ? providerTools : undefined,
-            ...(assistant.fileIds && assistant.fileIds.length > 0 ? {
-                knowledgeBase: {
-                    fileIds: assistant.fileIds
-                }
-            } : {})
-        }
-    };
+  uploadFile(file: File) { return this.provider.uploadFile(file); }
+  getFiles() { return this.provider.getFiles(); }
+  deleteFile(fileId: string) { return this.provider.deleteFile(fileId); }
 
-    // 3. Create at Provider
-    const createdAssistant = await this.request<VoiceAssistant>('/assistant', {
-      method: 'POST',
-      body: JSON.stringify(enhancedAssistant),
-    });
+  // ─── Analytics (delegated) ─────────────────────────────────────
 
-    // 4. Sync to Trinity DB
-    if (createdAssistant && createdAssistant.id && this.organizationId) {
-        // @ts-ignore
-        const { error: assistantError } = await supabase.from('assistants').upsert({
-            vapi_assistant_id: createdAssistant.id,
-            name: assistant.name || 'Untitled Assistant',
-            organization_id: this.organizationId,
-            configuration: enhancedAssistant,
-            provider_type: 'voice_engine'
-        }, { onConflict: 'vapi_assistant_id' });
+  getCallAnalytics(params?: Parameters<VoiceProvider['getCallAnalytics']>[0]) { return this.provider.getCallAnalytics(params); }
 
-        if (!assistantError && assistant.toolIds && assistant.toolIds.length > 0) {
-            // @ts-ignore
-            const { data: dbAssistant } = await supabase.from('assistants')
-                .select('id')
-                .eq('vapi_assistant_id', createdAssistant.id)
-                .single();
+  // ─── Real-time (delegated) ─────────────────────────────────────
 
-            if (dbAssistant) {
-                const links = assistant.toolIds.map(tId => ({
-                    assistant_id: dbAssistant.id,
-                    tool_id: tId
-                }));
-                // @ts-ignore
-                await supabase.from('assistant_tools').upsert(links);
-            }
-        }
-    }
+  subscribeToCallUpdates(callId: string, callback: (event: VoiceWebhookEvent) => void) { return this.provider.subscribeToCallUpdates(callId, callback); }
 
-    return createdAssistant;
-  }
+  // ─── Lead Scoring (delegated) ──────────────────────────────────
 
-  async updateAssistant(id: string, updates: Partial<VoiceAssistant>): Promise<VoiceAssistant> {
-    return this.request<VoiceAssistant>(`/assistant/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
-  }
+  scoreLeadFromCall(call: VoiceCall) { return this.provider.scoreLeadFromCall(call); }
 
-  async deleteAssistant(id: string): Promise<void> {
-    await this.request<void>(`/assistant/${id}`, {
-      method: 'DELETE',
-    });
-  }
+  // ─── Campaigns (delegated) ─────────────────────────────────────
 
-  // ─── Call Management ──────────────────────────────────────────────
-
-  async getCalls(params?: {
-    assistantId?: string;
-    phoneNumberId?: string;
-    limit?: number;
-    createdAtGt?: string;
-    createdAtLt?: string;
-  }): Promise<VoiceCall[]> {
-    const searchParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) searchParams.append(key, value.toString());
-      });
-    }
-
-    const query = searchParams.toString();
-    return this.request<VoiceCall[]>(`/call${query ? `?${query}` : ''}`);
-  }
-
-  async getCall(id: string): Promise<VoiceCall> {
-    return this.request<VoiceCall>(`/call/${id}`);
-  }
-
-  async createCall(payload: {
-    assistantId?: string;
-    phoneNumberId?: string;
-    squadId?: string;
-    customer: {
-      number: string;
-      extension?: string;
-      name?: string;
-      email?: string;
-    };
-    assistantOverrides?: {
-      firstMessage?: string;
-      model?: {
-        provider?: string;
-        model?: string;
-        temperature?: number;
-        systemMessage?: string;
-      };
-      voice?: {
-        provider?: string;
-        voiceId?: string;
-      };
-      variableValues?: Record<string, string>;
-      analysisPlan?: {
-        structuredDataSchema?: Record<string, any>;
-      };
-    };
-    metadata?: Record<string, any>;
-    maxDurationSeconds?: number;
-  }): Promise<VoiceCall> {
-    if (!payload.assistantId && !payload.squadId && !payload.assistantOverrides) {
-      throw new Error('Must provide either assistantId, squadId, or assistantOverrides');
-    }
-
-    const enrichedMetadata = {
-      ...payload.metadata,
-      trinity_call_id: crypto.randomUUID(),
-      organization_id: this.organizationId,
-    };
-
-    const providerPayload = {
-      assistantId: payload.assistantId,
-      squadId: payload.squadId,
-      phoneNumberId: payload.phoneNumberId,
-      customer: payload.customer,
-      assistantOverrides: payload.assistantOverrides,
-      metadata: enrichedMetadata,
-      maxDurationSeconds: payload.maxDurationSeconds
-    };
-
-    return this.request<VoiceCall>('/call', {
-      method: 'POST',
-      body: JSON.stringify(providerPayload),
-    });
-  }
-
-  async endCall(callId: string): Promise<void> {
-    await this.request<void>(`/call/${callId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'ended' }),
-    });
-  }
-
-  // ─── Phone Number Management ──────────────────────────────────────
-
-  async getPhoneNumbers(): Promise<VoicePhoneNumber[]> {
-    return this.request<VoicePhoneNumber[]>('/phone-number');
-  }
-
-  async getPhoneNumber(id: string): Promise<VoicePhoneNumber> {
-    return this.request<VoicePhoneNumber>(`/phone-number/${id}`);
-  }
-
-  async createPhoneNumber(config: {
-    provider?: string;
-    areaCode?: string;
-    name?: string;
-    assistantId?: string;
-    squadId?: string;
-    serverUrl?: string;
-    twilioAccountSid?: string;
-    twilioAuthToken?: string;
-    twilioPhoneNumber?: string;
-  }): Promise<VoicePhoneNumber> {
-    return this.request<VoicePhoneNumber>('/phone-number', {
-      method: 'POST',
-      body: JSON.stringify(config),
-    });
-  }
-
-  async updatePhoneNumber(id: string, updates: {
-    name?: string;
-    assistantId?: string | null;
-    squadId?: string | null;
-    serverUrl?: string;
-    fallbackDestination?: { type: string; number?: string } | null;
-  }): Promise<VoicePhoneNumber> {
-    return this.request<VoicePhoneNumber>(`/phone-number/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  async deletePhoneNumber(id: string): Promise<void> {
-    await this.request<void>(`/phone-number/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async searchAvailableNumbers(areaCode: string, country: string = 'US'): Promise<any[]> {
-    return this.request<any[]>(`/numbers-search?areaCode=${areaCode}&country=${country}`);
-  }
-
-  async buyPhoneNumber(phoneNumber: string, name?: string): Promise<VoicePhoneNumber> {
-    return this.request<VoicePhoneNumber>('/numbers-purchase', {
-      method: 'POST',
-      body: JSON.stringify({ phoneNumber, name }),
-    });
-  }
-
-  async autoProvisionNumber(areaCode: string, name?: string, assistantId?: string): Promise<any> {
-    return this.request<any>('/auto-provision-number', {
-      method: 'POST',
-      body: JSON.stringify({ areaCode, name, assistantId }),
-    });
-  }
-
-  // ─── Squad Management (Multi-Agent) ───────────────────────────────
-
-  async getSquads(): Promise<VoiceSquad[]> {
-    return this.request<VoiceSquad[]>('/squad');
-  }
-
-  async getSquad(id: string): Promise<VoiceSquad> {
-    return this.request<VoiceSquad>(`/squad/${id}`);
-  }
-
-  async createSquad(squad: {
-    name: string;
-    members: VoiceSquadMember[];
-    membersOverrides?: Record<string, any>;
-  }): Promise<VoiceSquad> {
-    return this.request<VoiceSquad>('/squad', {
-      method: 'POST',
-      body: JSON.stringify(squad),
-    });
-  }
-
-  async updateSquad(id: string, updates: Partial<VoiceSquad>): Promise<VoiceSquad> {
-    return this.request<VoiceSquad>(`/squad/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  async deleteSquad(id: string): Promise<void> {
-    await this.request<void>(`/squad/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // ─── Tool Management ──────────────────────────────────────────────
-
-  async getTools(): Promise<VoiceTool[]> {
-    return this.request<VoiceTool[]>('/tool');
-  }
-
-  async getTool(id: string): Promise<VoiceTool> {
-    return this.request<VoiceTool>(`/tool/${id}`);
-  }
-
-  async createTool(tool: {
-    type: VoiceTool['type'];
-    function?: VoiceTool['function'];
-    messages?: VoiceTool['messages'];
-    server?: VoiceTool['server'];
-    async?: boolean;
-  }): Promise<VoiceTool> {
-    return this.request<VoiceTool>('/tool', {
-      method: 'POST',
-      body: JSON.stringify(tool),
-    });
-  }
-
-  async updateTool(id: string, updates: Partial<VoiceTool>): Promise<VoiceTool> {
-    return this.request<VoiceTool>(`/tool/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  async deleteTool(id: string): Promise<void> {
-    await this.request<void>(`/tool/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // ─── Knowledge Base / File Management ─────────────────────────────
-
-  async uploadFile(file: File): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        try {
-          const base64Content = (reader.result as string).split(',')[1];
-          const response = await this.request<any>('/files-upload', {
-            method: 'POST',
-            body: JSON.stringify({
-              filename: file.name,
-              file: base64Content
-            })
-          });
-          resolve(response);
-        } catch (e) {
-          reject(e);
-        }
-      };
-      reader.onerror = error => reject(error);
-    });
-  }
-
-  // ─── Analytics ────────────────────────────────────────────────────
-
-  async getCallAnalytics(params?: {
-    startDate?: string;
-    endDate?: string;
-    assistantId?: string;
-  }): Promise<CallAnalytics> {
-    const calls = await this.getCalls(params);
-    return this.aggregateCallData(calls);
-  }
-
-  private aggregateCallData(calls: VoiceCall[]): CallAnalytics {
-    const totalCalls = calls.length;
-    const successfulCalls = calls.filter(
-      (call) => call.status === 'ended' && call.duration && call.duration > 30
-    ).length;
-    const totalDuration = calls.reduce((sum, call) => sum + (call.duration || 0), 0);
-    const totalCost = calls.reduce((sum, call) => sum + (call.cost || 0), 0);
-
-    const sentimentBreakdown = calls.reduce(
-      (acc, call) => {
-        const sentiment = call.analysis?.sentiment || 'neutral';
-        acc[sentiment]++;
-        return acc;
-      },
-      { positive: 0, negative: 0, neutral: 0 }
-    );
-
-    const outcomeBreakdown = calls.reduce((acc: Record<string, number>, call) => {
-      const outcome = call.analysis?.outcome || 'unknown';
-      acc[outcome] = (acc[outcome] || 0) + 1;
-      return acc;
-    }, {});
-
-    const callsByHour = Array.from({ length: 24 }, (_, hour) => ({
-      hour,
-      count: calls.filter((call) => {
-        if (!call.startedAt) return false;
-        return new Date(call.startedAt).getHours() === hour;
-      }).length,
-    }));
-
-    return {
-      totalCalls,
-      successfulCalls,
-      averageDuration: totalDuration / (totalCalls || 1),
-      totalCost,
-      sentimentBreakdown,
-      outcomeBreakdown,
-      callsByHour,
-      conversionRate: (successfulCalls / (totalCalls || 1)) * 100,
-    };
-  }
-
-  // ─── Webhook Verification ─────────────────────────────────────────
-
-  async verifyWebhook(signature: string, payload: string, secret: string): Promise<boolean> {
-    try {
-      const crypto = await import('crypto');
-      const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-      return signature === expectedSignature;
-    } catch {
-      return false;
-    }
-  }
-
-  // ─── Real-time Call Updates ───────────────────────────────────────
-
-  async subscribeToCallUpdates(callId: string, callback: (event: VoiceWebhookEvent) => void) {
-    const interval = setInterval(async () => {
-      try {
-        const call = await this.getCall(callId);
-        callback({
-          type: 'status-update',
-          call,
-          timestamp: new Date().toISOString(),
-        });
-        if (call.status === 'ended') {
-          clearInterval(interval);
-        }
-      } catch (error) {
-        console.error('Error polling call updates:', error);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }
-
-  // ─── Lead Scoring ─────────────────────────────────────────────────
-
-  scoreLeadFromCall(call: VoiceCall): {
-    score: number;
-    factors: Array<{ factor: string; impact: number; description: string }>;
-  } {
-    let score = 50;
-    const factors: Array<{ factor: string; impact: number; description: string }> = [];
-
-    if (call.duration) {
-      if (call.duration > 300) {
-        score += 20;
-        factors.push({ factor: 'Long Call Duration', impact: 20, description: 'Engaged in lengthy conversation' });
-      } else if (call.duration > 120) {
-        score += 10;
-        factors.push({ factor: 'Good Call Duration', impact: 10, description: 'Reasonable conversation length' });
-      } else if (call.duration < 30) {
-        score -= 15;
-        factors.push({ factor: 'Short Call Duration', impact: -15, description: 'Very brief interaction' });
-      }
-    }
-
-    if (call.analysis?.sentiment === 'positive') {
-      score += 15;
-      factors.push({ factor: 'Positive Sentiment', impact: 15, description: 'Showed positive attitude during call' });
-    } else if (call.analysis?.sentiment === 'negative') {
-      score -= 10;
-      factors.push({ factor: 'Negative Sentiment', impact: -10, description: 'Expressed negative sentiment' });
-    }
-
-    if (call.analysis?.followUpRequired) {
-      score += 10;
-      factors.push({ factor: 'Follow-up Interest', impact: 10, description: 'Expressed interest in follow-up' });
-    }
-
-    if (call.analysis?.intent) {
-      const intent = call.analysis.intent.toLowerCase();
-      if (intent.includes('purchase') || intent.includes('buy')) {
-        score += 25;
-        factors.push({ factor: 'Purchase Intent', impact: 25, description: 'Showed buying intent' });
-      } else if (intent.includes('interested') || intent.includes('learn')) {
-        score += 15;
-        factors.push({ factor: 'Learning Intent', impact: 15, description: 'Interested in learning more' });
-      }
-    }
-
-    return {
-      score: Math.max(0, Math.min(100, score)),
-      factors,
-    };
-  }
-
-  // ─── Campaign Management ──────────────────────────────────────────
-
-  async launchCampaign(campaignData: {
-    name: string;
-    assistantId: string;
-    phoneNumberId: string;
-    leads: Array<{ number: string; name?: string; metadata?: Record<string, any> }>;
-    schedule?: {
-      startTime: string;
-      endTime: string;
-      timezone: string;
-    };
-    maxConcurrent?: number;
-  }): Promise<{ success: boolean; campaignId: string; scheduledCalls: number }> {
-    // TODO: Implement real campaign dispatch via campaign-manager function
-    const scheduledCalls = campaignData.leads.length;
-    return {
-      success: true,
-      campaignId: `campaign_${Date.now()}`,
-      scheduledCalls,
-    };
-  }
+  launchCampaign(campaignData: Parameters<VoiceProvider['launchCampaign']>[0]) { return this.provider.launchCampaign(campaignData); }
 
   async launchProductionCampaign(campaignData: {
     name: string;
     assistantId: string;
     phoneNumberId: string;
     leads: Array<{ number: string; name?: string }>;
-    schedule?: {
-      startTime: string;
-      endTime: string;
-      timezone: string;
-    };
+    schedule?: { startTime: string; endTime: string; timezone: string };
   }): Promise<{ success: boolean; campaignId: string; scheduledCalls: number }> {
     if (!campaignData.leads || campaignData.leads.length === 0) {
       throw new Error('No leads provided for campaign');
     }
-    if (!this.apiKey) {
+    if (!this.isInitialized()) {
       throw new Error('Voice API key not configured');
     }
     return this.launchCampaign(campaignData);
+  }
+
+  // ─── Webhook (provider-independent utility) ────────────────────
+
+  async verifyWebhook(signature: string, payload: string, secret: string): Promise<boolean> {
+    try {
+      const encoder = new TextEncoder();
+      const key = await globalThis.crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const sig = await globalThis.crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+      const expectedSignature = Array.from(new Uint8Array(sig))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      return signature === expectedSignature;
+    } catch {
+      return false;
+    }
   }
 }
 

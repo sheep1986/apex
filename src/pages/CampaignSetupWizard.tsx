@@ -227,19 +227,6 @@ export default function CampaignSetupWizard() {
       Object.keys(errors).length > 0
     );
     
-    console.log('🔍 Draft check:', {
-      name: campaignData.name.trim(),
-      objective: campaignData.objective.trim(),
-      description: campaignData.description.trim(),
-      phoneNumber: campaignData.phoneNumber.trim(),
-      voiceAgent: campaignData.voiceAgent.trim(),
-      leadsCount: campaignData.leads.length,
-      csvFileName: campaignData.csvFileName.trim(),
-      campaignType: campaignData.campaignType,
-      currentStep,
-      hasChanges
-    });
-    
     return hasChanges;
   };
 
@@ -255,7 +242,7 @@ export default function CampaignSetupWizard() {
         version: '1.0'
       };
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
-      console.log('Draft saved successfully');
+      // Draft saved successfully
     } catch (error) {
       console.error('Failed to save draft:', error);
     } finally {
@@ -284,16 +271,12 @@ export default function CampaignSetupWizard() {
   };
 
   const handleExitAttempt = (path: string) => {
-    console.log('🚪 Exit attempt to:', path);
     const hasChanges = hasUnsavedChanges();
-    console.log('🚪 Has unsaved changes:', hasChanges);
-    
+
     if (hasChanges) {
-      console.log('🚪 Showing exit dialog');
       setPendingNavigation(path);
       setShowExitDialog(true);
     } else {
-      console.log('🚪 No changes, navigating directly');
       navigate(path);
     }
   };
@@ -344,15 +327,6 @@ export default function CampaignSetupWizard() {
         setLoadingNumbers(true);
         setApexErrors([]);
 
-        console.log('🔄 Loading Trinity data...');
-
-        // Load assistants and phone numbers in parallel
-        console.log('🔄 Campaign Wizard: Loading Trinity data from backend...');
-        console.log(
-          '🔄 Campaign Wizard: API Base URL:',
-          import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
-        );
-
         const [assistantsResponse, numbersResponse] = await Promise.all([
           campaignOutboundService.getAssistants().catch((err) => {
             console.error('❌ Failed to load assistants:', err);
@@ -365,9 +339,6 @@ export default function CampaignSetupWizard() {
             return { phoneNumbers: [] };
           }),
         ]);
-
-        console.log('📞 Loaded assistants:', assistantsResponse);
-        console.log('📱 Loaded phone numbers:', numbersResponse);
 
         // Set the loaded data - handle both array and object responses
         const assistants = Array.isArray(assistantsResponse)
@@ -435,14 +406,7 @@ export default function CampaignSetupWizard() {
   // Block React Router navigation when there are unsaved changes
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => {
-      console.log('🚧 Router blocker triggered:', { 
-        currentLocation: currentLocation.pathname, 
-        nextLocation: nextLocation.pathname,
-        hasChanges: hasUnsavedChanges()
-      });
       const shouldBlock = hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname;
-      console.log('🚧 Should block navigation:', shouldBlock);
-      
       return shouldBlock;
     }
   );
@@ -450,7 +414,6 @@ export default function CampaignSetupWizard() {
   // Handle the blocked navigation
   useEffect(() => {
     if (blocker.state === 'blocked') {
-      console.log('🚧 Navigation blocked, showing dialog');
       setPendingNavigation(blocker.location?.pathname || '/campaigns');
       setShowExitDialog(true);
     }
@@ -459,7 +422,6 @@ export default function CampaignSetupWizard() {
   // Add global event listeners to detect user interaction
   useEffect(() => {
     const handleInteraction = () => {
-      console.log('👤 User interaction detected');
       setUserHasInteracted(true);
     };
 

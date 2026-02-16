@@ -287,28 +287,20 @@ export default function OrganizationSetupWizard() {
   };
 
   const completeSetup = async () => {
-    console.log('🔄 Complete Setup button clicked - Starting process...');
-
     if (!validateStep(currentStep)) {
-      console.log('❌ Validation failed for current step:', currentStep);
       return;
     }
 
     setIsLoading(true);
-    console.log('⏳ Loading state set to true');
 
     try {
       // Get authentication token
-      console.log('🔑 Getting authentication token...');
       const token = await getToken();
-      console.log('🔐 Token received:', token ? 'Yes' : 'No');
 
       if (!token) {
-        console.error('❌ No authentication token received');
+        console.error('No authentication token received');
         throw new Error('Authentication required. Please sign in.');
       }
-
-      console.log('✅ Authentication token received:', token ? 'Token exists' : 'No token');
 
       // Prepare the data for submission
       const setupData = {
@@ -333,17 +325,9 @@ export default function OrganizationSetupWizard() {
 
       };
 
-      console.log('🚀 Submitting organization setup:', setupData);
-
       // Submit to the backend API with proper authentication
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const apiUrl = `${API_BASE_URL}/api/organization-setup/setup`;
-
-      console.log('📡 Making API call to:', apiUrl);
-      console.log('📋 Request headers:', {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token.substring(0, 20)}...`,
-      });
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -354,31 +338,21 @@ export default function OrganizationSetupWizard() {
         body: JSON.stringify(setupData),
       });
 
-      console.log('📥 Response status:', response.status, response.statusText);
-
       const result = await response.json();
-      console.log('📋 Response body:', result);
 
       if (!response.ok) {
-        console.error('❌ API call failed:', result);
         throw new Error(result.error || `HTTP error! status: ${response.status}`);
       }
 
-      console.log('✅ Organization setup completed:', result);
-
       // Store result for display
-      console.log('💾 Setting setup result and showing success screen...');
       setSetupResult(result);
       setSetupComplete(true); // Enable success screen
 
       // Clear sensitive data from state
       updateOrganizationData({
       });
-
-      console.log('🎉 Success screen should now be visible!');
     } catch (error) {
-      console.error('❌ Error completing setup:', error);
-      console.log('💾 Setting error result and showing error screen...');
+      console.error('Error completing setup:', error);
 
       setSetupResult({
         success: false,
@@ -386,11 +360,8 @@ export default function OrganizationSetupWizard() {
         details: 'If the problem persists, please contact support.',
       });
       setSetupComplete(true); // Enable error screen
-
-      console.log('⚠️ Error screen should now be visible!');
     } finally {
       setIsLoading(false);
-      console.log('✅ Loading state set to false');
     }
   };
 

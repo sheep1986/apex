@@ -95,7 +95,6 @@ const DropdownMenuItem = React.forwardRef<
       ...style,
     }}
     onMouseEnter={(e) => {
-      console.log('Mouse enter - setting background to #374151');
       e.currentTarget.style.cssText =
         'background-color: #374151 !important; background: #374151 !important; color: #10b981 !important;';
       onMouseEnter?.(e);
@@ -128,7 +127,6 @@ const DropdownMenuCheckboxItem = React.forwardRef<
       ...style,
     }}
     onMouseEnter={(e) => {
-      console.log('Mouse enter - setting background to #374151');
       e.currentTarget.style.cssText =
         'background-color: #374151 !important; background: #374151 !important; color: #10b981 !important;';
       onMouseEnter?.(e);
@@ -167,7 +165,6 @@ const DropdownMenuRadioItem = React.forwardRef<
       ...style,
     }}
     onMouseEnter={(e) => {
-      console.log('Mouse enter - setting background to #374151');
       e.currentTarget.style.cssText =
         'background-color: #374151 !important; background: #374151 !important; color: #10b981 !important;';
       onMouseEnter?.(e);

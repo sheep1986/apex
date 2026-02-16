@@ -2,6 +2,41 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { verifyVapiSignature } from './security';
 
+// ─── Credit Rate Constants (mirrors src/config/credit-rates.ts) ──────────
+// Duplicated here because Netlify Functions can't import from src/config
+
+type VoiceTier = 'budget' | 'standard' | 'premium' | 'ultra';
+
+const VOICE_TIER_CREDITS: Record<VoiceTier, number> = {
+  budget: 18,
+  standard: 30,
+  premium: 35,
+  ultra: 40,
+};
+
+const MODEL_TIER_MAP: Record<string, VoiceTier> = {
+  'gemini-1.5-flash': 'budget', 'gemini-2.0-flash': 'budget', 'gemini-2.5-flash': 'budget',
+  'gpt-3.5-turbo': 'budget', 'llama-3.1-8b-instant': 'budget', 'mixtral-8x7b-32768': 'budget',
+  'gpt-4o': 'standard', 'gpt-4o-mini': 'standard', 'gpt-4-turbo': 'standard',
+  'gemini-1.5-pro': 'standard', 'gemini-2.5-pro': 'standard', 'llama-3.1-70b-versatile': 'standard',
+  'claude-3-5-sonnet-20241022': 'premium', 'claude-3-haiku-20240307': 'premium', 'claude-3-5-haiku-20241022': 'premium',
+  'claude-3-opus-20240229': 'ultra', 'claude-3-5-sonnet-latest': 'ultra', 'claude-sonnet-4-20250514': 'ultra',
+};
+
+const VOICE_PROVIDER_TIER_MAP: Record<string, VoiceTier> = {
+  'deepgram': 'budget', 'rime-ai': 'budget', 'playht': 'budget',
+  'openai': 'standard', 'azure': 'standard', 'cartesia': 'standard',
+  '11labs': 'premium', 'elevenlabs': 'premium',
+};
+
+const TIER_RANK: Record<VoiceTier, number> = { budget: 0, standard: 1, premium: 2, ultra: 3 };
+
+function classifyTier(model?: string, voiceProvider?: string): VoiceTier {
+  const mTier = model ? (MODEL_TIER_MAP[model] || 'standard') : 'standard';
+  const vTier = voiceProvider ? (VOICE_PROVIDER_TIER_MAP[voiceProvider.toLowerCase()] || 'budget') : 'budget';
+  return TIER_RANK[mTier] >= TIER_RANK[vTier] ? mTier : vTier;
+}
+
 /**
  * Voice Webhook — Comprehensive handler for ALL voice provider events.
  *
@@ -175,60 +210,91 @@ async function handleEndOfCallReport(message: any, organizationId: string, trini
       .catch(() => {}); // Ignore duplicate
   }
 
-  // 4. Usage tracking + overage billing
+  // 4. Credit-based usage tracking + overage billing
   const durationSeconds = call.durationSeconds || 0;
 
   if (durationSeconds > 0) {
-    // Record usage for subscription metering
-    const { data: usageData, error: usageError } = await supabase.rpc('record_call_usage', {
+    // Determine voice tier from assistant config
+    const assistantModel = call.assistant?.model?.model || call.assistant?.model || '';
+    const voiceProvider = call.assistant?.voice?.provider || '';
+    const tier = classifyTier(
+      typeof assistantModel === 'string' ? assistantModel : '',
+      typeof voiceProvider === 'string' ? voiceProvider : ''
+    );
+    const creditsPerMinute = VOICE_TIER_CREDITS[tier];
+    const minutes = durationSeconds / 60;
+    const creditsConsumed = Math.ceil(minutes * creditsPerMinute);
+    const actionType = `voice_${tier}`;
+
+    // Record credit usage via the new credit-based RPC
+    const { data: creditResult, error: creditError } = await supabase.rpc('record_credit_usage', {
       p_organization_id: organizationId,
-      p_duration_seconds: durationSeconds,
-      p_call_id: trinityCallId
+      p_credits: creditsConsumed,
+      p_action_type: actionType,
+      p_unit_count: minutes,
+      p_description: `Voice call: ${Math.round(minutes * 10) / 10} min (${tier})`,
+      p_reference_id: trinityCallId,
+      p_metadata: {
+        duration_seconds: durationSeconds,
+        tier,
+        credits_per_minute: creditsPerMinute,
+        model: typeof assistantModel === 'string' ? assistantModel : '',
+        voice_provider: typeof voiceProvider === 'string' ? voiceProvider : '',
+        provider_cost: call.cost || 0,
+        provider_status: call.status,
+        ended_reason: call.endedReason,
+        cost_breakdown: call.costBreakdown || null,
+      },
     });
 
-    if (usageError) {
-      console.error('Usage tracking RPC failed:', usageError);
-    } else {
-      console.log(`Usage tracked for Org ${organizationId}: ${usageData?.minutes_used}/${usageData?.included_minutes} min`);
-
-      // Only charge credit_balance for overage minutes
-      const overageThisCall = usageData?.overage_this_call || 0;
-      if (overageThisCall > 0) {
-        const overageRate = usageData?.overage_rate || 0.15;
-        const overageCost = overageThisCall * overageRate;
-
-        console.log(`Overage billing: ${overageThisCall.toFixed(2)} min @ $${overageRate}/min = $${overageCost.toFixed(4)}`);
-
-        const { error: rpcError } = await supabase.rpc('apply_ledger_entry', {
-          p_organization_id: organizationId,
-          p_amount: -overageCost,
-          p_type: 'overage',
-          p_description: `Overage: ${overageThisCall.toFixed(1)} min @ $${overageRate}/min`,
-          p_reference_id: trinityCallId,
-          p_metadata: {
-            duration: durationSeconds,
-            overage_minutes: overageThisCall,
-            rate: overageRate,
-            provider_status: call.status,
-            ended_reason: call.endedReason
-          }
-        });
-
-        if (rpcError) {
-          console.error('Overage billing RPC failed:', rpcError);
-        }
+    if (creditError) {
+      console.error('Credit usage RPC failed:', creditError);
+    } else if (creditResult) {
+      // Log overage info for monitoring
+      if (creditResult.from_balance > 0) {
+        console.warn(`Overage for org ${organizationId}: ${creditResult.from_balance} credits from balance (£${creditResult.balance_deducted_gbp})`);
       }
     }
+
+    // Also record in legacy minute-based tracking for backward compat
+    await supabase.rpc('record_call_usage', {
+      p_organization_id: organizationId,
+      p_duration_seconds: durationSeconds,
+      p_call_id: trinityCallId,
+    }).catch((err: any) => {
+      console.warn('Legacy usage tracking failed (non-critical):', err?.message);
+    });
   }
 
   // 5. Record event
   await recordEvent(organizationId, trinityCallId, 'end-of-call-report', {
-    cost,
+    cost: call.cost || 0,
     duration: call.durationSeconds,
     endedReason: call.endedReason,
     hasRecording: !!call.recordingUrl,
     hasTranscript: !!call.transcript
   });
+
+  // 6. Dispatch webhook event to customer endpoints (fire-and-forget)
+  const webhookEventType = (call.endedReason === 'assistant-error' || call.endedReason === 'system-error')
+    ? 'call.failed' : 'call.completed';
+  const siteUrl = process.env.URL || 'http://localhost:8888';
+  fetch(`${siteUrl}/.netlify/functions/webhook-dispatch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      organizationId,
+      eventType: webhookEventType,
+      payload: {
+        callId: trinityCallId,
+        duration: call.durationSeconds || 0,
+        endedReason: call.endedReason,
+        cost: call.cost || 0,
+        hasRecording: !!call.recordingUrl,
+        hasTranscript: !!call.transcript,
+      },
+    }),
+  }).catch(() => {}); // non-blocking — never delay the webhook response
 }
 
 async function handleStatusUpdate(message: any, organizationId: string, trinityCallId: string) {
@@ -342,11 +408,11 @@ export const handler: Handler = async (event) => {
     // 1. Signature Verification
     if (webhookSecret) {
       if (!signature || !verifyVapiSignature(rawBody, signature, webhookSecret)) {
-        console.error('⛔ Invalid webhook signature');
+        console.error('Invalid webhook signature');
         return { statusCode: 401, headers, body: JSON.stringify({ message: 'Unauthorized' }) };
       }
     } else {
-      console.warn('⚠️ WEBHOOK_SECRET not set — accepting unsigned requests');
+      console.warn('WEBHOOK_SECRET not set — accepting unsigned requests');
     }
 
     const payload = JSON.parse(rawBody);
@@ -369,7 +435,7 @@ export const handler: Handler = async (event) => {
     if (message.type === 'end-of-call-report') {
       const isDuplicate = await checkDedup(eventId);
       if (isDuplicate) {
-        console.log('⏭️ Duplicate event skipped:', eventId);
+        // Duplicate event — already processed
         return { statusCode: 200, headers, body: JSON.stringify({ received: true, duplicate: true }) };
       }
     }

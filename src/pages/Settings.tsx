@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNotificationStore } from "@/lib/notification-store";
 import { useUserContext } from "@/services/MinimalUserProvider";
+import { supabase } from "@/services/supabase-client";
 import {
     Bell,
     Edit,
@@ -11,6 +12,9 @@ import {
     Save,
     Settings as SettingsIcon,
     Shield,
+    Trash2,
+    Download,
+    AlertTriangle,
     User,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -60,7 +64,7 @@ export default function Settings() {
     }`.trim(),
     email: userContext?.email || "",
     company: userContext?.organizationName || "",
-    timezone: "Eastern Time",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
   });
 
   // Security state
@@ -81,14 +85,38 @@ export default function Settings() {
   const handleSaveChanges = async () => {
     setSaving(true);
     try {
+      // Update Supabase auth user metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: profile.fullName,
+          timezone: profile.timezone,
+        },
+      });
+
+      if (authError) throw authError;
+
+      // Update profiles table if it exists
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const nameParts = profile.fullName.split(' ');
+        await supabase
+          .from('profiles')
+          .update({
+            first_name: nameParts[0] || '',
+            last_name: nameParts.slice(1).join(' ') || '',
+            timezone: profile.timezone,
+          })
+          .eq('id', user.id);
+      }
+
       toast({
         title: "Changes saved",
         description: "Your settings have been updated successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to save changes.",
+        description: error.message || "Failed to save changes.",
         variant: "destructive",
       });
     } finally {
@@ -130,7 +158,13 @@ export default function Settings() {
 
     setSaving(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Supabase updateUser updates the password directly
+      // (requires the user to be authenticated, which they are)
+      const { error } = await supabase.auth.updateUser({
+        password: security.newPassword,
+      });
+
+      if (error) throw error;
 
       toast({
         title: "Password updated",
@@ -142,10 +176,10 @@ export default function Settings() {
         newPassword: "",
         confirmPassword: "",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to change password. Please try again.",
+        description: error.message || "Failed to change password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -191,7 +225,7 @@ export default function Settings() {
 
         {/* Settings Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 border-gray-800 bg-gray-900">
+          <TabsList className="grid w-full grid-cols-4 border-gray-800 bg-gray-900">
             <TabsTrigger
               value="profile"
               className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400"
@@ -212,6 +246,13 @@ export default function Settings() {
             >
               <SettingsIcon className="mr-2 h-4 w-4" />
               Appearance
+            </TabsTrigger>
+            <TabsTrigger
+              value="data-privacy"
+              className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Data & Privacy
             </TabsTrigger>
           </TabsList>
 
@@ -289,14 +330,21 @@ export default function Settings() {
                     <SelectTrigger className="border-gray-700 bg-gray-900/50 text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="border-gray-700 bg-gray-900">
-                      <SelectItem value="Eastern Time">Eastern Time</SelectItem>
-                      <SelectItem value="Central Time">Central Time</SelectItem>
-                      <SelectItem value="Mountain Time">
-                        Mountain Time
-                      </SelectItem>
-                      <SelectItem value="Pacific Time">Pacific Time</SelectItem>
-                      <SelectItem value="GMT">GMT</SelectItem>
+                    <SelectContent className="border-gray-700 bg-gray-900 max-h-60">
+                      {(() => {
+                        try {
+                          const tzList = (Intl as any).supportedValuesOf('timeZone') as string[];
+                          return tzList.map((tz: string) => (
+                            <SelectItem key={tz} value={tz}>{tz.replace(/_/g, ' ')}</SelectItem>
+                          ));
+                        } catch {
+                          // Fallback for older browsers
+                          const fallback = ['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Anchorage','Pacific/Honolulu','Europe/London','Europe/Paris','Europe/Berlin','Asia/Tokyo','Asia/Shanghai','Asia/Kolkata','Australia/Sydney','UTC'];
+                          return fallback.map((tz) => (
+                            <SelectItem key={tz} value={tz}>{tz.replace(/_/g, ' ')}</SelectItem>
+                          ));
+                        }
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
@@ -591,6 +639,119 @@ export default function Settings() {
                 <p className="text-gray-400">
                   Appearance settings coming soon...
                 </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Data & Privacy Tab */}
+          <TabsContent value="data-privacy" className="space-y-6">
+            {/* Data Export */}
+            <Card className="border-gray-800 bg-gray-900">
+              <CardHeader>
+                <CardTitle className="flex items-center text-white">
+                  <Download className="mr-2 h-5 w-5" />
+                  Export Your Data
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Download a copy of all your personal data stored in Trinity
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-400 mb-4">
+                  Your export will include your profile information, organization memberships,
+                  voice call history, contacts, and appointments in JSON format.
+                </p>
+                <Button
+                  variant="outline"
+                  className="border-gray-700"
+                  onClick={async () => {
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const resp = await fetch('/.netlify/functions/gdpr-request', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${session?.access_token}`,
+                        },
+                        body: JSON.stringify({ action: 'export' }),
+                      });
+                      const blob = await resp.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `data-export-${new Date().toISOString().slice(0,10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast({ title: 'Export Complete', description: 'Your data has been downloaded.' });
+                    } catch {
+                      toast({ title: 'Error', description: 'Failed to export data.', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download My Data
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Delete Account */}
+            <Card className="border-red-900/50 bg-gray-900">
+              <CardHeader>
+                <CardTitle className="flex items-center text-red-400">
+                  <AlertTriangle className="mr-2 h-5 w-5" />
+                  Delete Account
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Permanently delete your account and all associated data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border border-red-900/30 bg-red-950/20 p-4 mb-4">
+                  <p className="text-sm text-red-300">
+                    <strong>Warning:</strong> Account deletion is permanent. After a 30-day cooling period,
+                    all your data including profile, call history, contacts, and campaign data will be
+                    permanently removed. This action cannot be undone.
+                  </p>
+                </div>
+                <ul className="text-sm text-gray-400 space-y-1 mb-4">
+                  <li>• Your profile and personal information will be deleted</li>
+                  <li>• All voice call recordings and transcripts will be removed</li>
+                  <li>• Your contacts and CRM data will be permanently erased</li>
+                  <li>• You will lose access to all organizations you belong to</li>
+                  <li>• A 30-day cooling period allows you to cancel the request</li>
+                </ul>
+                <Button
+                  variant="outline"
+                  className="border-red-800 text-red-400 hover:bg-red-950/30"
+                  onClick={async () => {
+                    if (!window.confirm('Are you sure you want to delete your account? You have 30 days to cancel this request.')) return;
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const resp = await fetch('/.netlify/functions/gdpr-request', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${session?.access_token}`,
+                        },
+                        body: JSON.stringify({ action: 'delete-request', reason: 'User initiated' }),
+                      });
+                      const result = await resp.json();
+                      if (result.success) {
+                        toast({
+                          title: 'Deletion Scheduled',
+                          description: `Your account will be deleted on ${new Date(result.deletion_date).toLocaleDateString()}. You can cancel this from the settings page.`,
+                        });
+                      } else {
+                        throw new Error(result.error);
+                      }
+                    } catch {
+                      toast({ title: 'Error', description: 'Failed to process deletion request.', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Request Account Deletion
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

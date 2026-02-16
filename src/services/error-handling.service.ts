@@ -473,7 +473,7 @@ export class ErrorHandlingService {
             label: 'Retry',
             callback: () => {
               // Retry logic would be implemented by the calling component
-              console.log('Retry requested for error:', errorDetails.code);
+              // Retry requested
             },
           }
         : undefined,
@@ -509,13 +509,7 @@ export class ErrorHandlingService {
    */
   private static trackError(errorDetails: ErrorDetails): void {
     // In a real app, this would send to analytics service
-    console.log('Error tracked:', {
-      code: errorDetails.code,
-      category: errorDetails.category,
-      severity: errorDetails.severity,
-      context: errorDetails.context,
-      timestamp: new Date().toISOString(),
-    });
+    // TODO: Send error to analytics service
   }
 
   /**
