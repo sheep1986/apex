@@ -1,4 +1,4 @@
-import { Handler, schedule } from "@netlify/functions";
+import { Handler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -220,14 +220,8 @@ async function runHealthCheck() {
   console.log(`[provider-health] Check complete: ${finalStatus}`);
 }
 
-// Schedule: every 5 minutes
-const scheduledHandler = schedule("*/5 * * * *", async () => {
-  await runHealthCheck();
-  return { statusCode: 200, body: "OK" };
-});
-
-// Also allow manual trigger and status query
-export const handler: Handler = async (event, context) => {
+// Supports manual trigger (POST), status query (GET), and scheduled invocation
+export const handler: Handler = async (event) => {
   const headers = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
@@ -239,9 +233,10 @@ export const handler: Handler = async (event, context) => {
     return { statusCode: 200, headers, body: "" };
   }
 
-  // Scheduled trigger
+  // Scheduled trigger (invoked by external cron or Netlify scheduled function config)
   if (event.headers?.["x-netlify-event"] === "schedule") {
-    return scheduledHandler(event, context);
+    await runHealthCheck();
+    return { statusCode: 200, body: "OK" };
   }
 
   // GET: Return current health status

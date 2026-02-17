@@ -1,4 +1,4 @@
-import { Handler, schedule } from "@netlify/functions";
+import { schedule } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -139,61 +139,7 @@ async function retentionCleanup() {
 }
 
 // Schedule: daily at 2:00 AM UTC
-const scheduledHandler = schedule("0 2 * * *", async () => {
+export const handler = schedule("0 2 * * *", async () => {
   await retentionCleanup();
   return { statusCode: 200, body: "OK" };
 });
-
-// Also allow manual trigger for testing
-export const handler: Handler = async (event, context) => {
-  // If triggered by scheduler, use the scheduled handler
-  if (event.headers?.["x-netlify-event"] === "schedule") {
-    return scheduledHandler(event, context);
-  }
-
-  // Manual trigger (POST only, with auth)
-  if (event.httpMethod === "POST") {
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: "Unauthorized" }),
-      };
-    }
-
-    const token = authHeader.split(" ")[1];
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: "Unauthorized" }),
-      };
-    }
-
-    // Check user is admin/owner
-    const { data: member } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!member || !["admin", "owner"].includes(member.role)) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: "Admin access required" }),
-      };
-    }
-
-    await retentionCleanup();
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ success: true, message: "Manual retention cleanup completed" }),
-    };
-  }
-
-  return {
-    statusCode: 405,
-    body: JSON.stringify({ error: "Method not allowed" }),
-  };
-};
