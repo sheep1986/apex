@@ -27,14 +27,33 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const supabase = getSupabase();
 
   useEffect(() => {
-    let loadingUserId: string | null = null;
+    let loadedUserId: string | null = null;
+    let loadVersion = 0; // Prevents stale responses from overwriting fresh ones
+
+    const loadDbUser = async (authUser: User) => {
+      const thisVersion = ++loadVersion;
+      try {
+        const result = await supabaseService.getUserById(authUser.id);
+        // Only apply if this is still the latest request
+        if (thisVersion === loadVersion) {
+          setDbUser(result);
+          loadedUserId = authUser.id;
+        }
+      } catch (error: any) {
+        // Ignore AbortErrors — these happen when auth state changes rapidly
+        if (error?.name === 'AbortError') return;
+        console.error('❌ Error loading database user:', error);
+        if (thisVersion === loadVersion) {
+          setDbUser(null);
+        }
+      }
+    };
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadingUserId = session.user.id;
         loadDbUser(session.user);
       }
       setLoading(false);
@@ -52,33 +71,23 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        // Skip if we're already loading this user's profile (avoids duplicate fetches)
-        if (loadingUserId === session.user.id) return;
-        loadingUserId = session.user.id;
+        // Skip if we already loaded this user's profile successfully
+        if (loadedUserId === session.user.id) return;
         await loadDbUser(session.user);
       } else {
-        loadingUserId = null;
+        loadVersion++; // Cancel any in-flight requests
+        loadedUserId = null;
         setDbUser(null);
       }
 
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      loadVersion++; // Cancel any in-flight requests on cleanup
+      subscription.unsubscribe();
+    };
   }, []);
-
-  const loadDbUser = async (authUser: User) => {
-    try {
-      // Use auth ID directly (profiles table doesn't have an email column)
-      const dbUser = await supabaseService.getUserById(authUser.id);
-      setDbUser(dbUser);
-    } catch (error: any) {
-      // Ignore AbortErrors — these happen when auth state changes rapidly
-      if (error?.name === 'AbortError') return;
-      console.error('❌ Error loading database user:', error);
-      setDbUser(null);
-    }
-  };
 
   const signUp = async (email: string, password: string, userData?: any) => {
     setLoading(true);
