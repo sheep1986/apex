@@ -60,7 +60,7 @@ export interface CallPrediction {
 }
 
 class AICallDirectorService {
-  private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  private baseUrl = ''; // All API calls go through Netlify Functions (relative paths)
 
   async routeCall(lead: LeadProfile, agents: AgentProfile[]): Promise<CallRoutingDecision> {
     const availableAgents = agents.filter(

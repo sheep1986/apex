@@ -196,12 +196,14 @@ export interface VoiceSquad {
 export interface VoiceSquadMember {
   assistantId?: string;
   assistant?: Partial<VoiceAssistant>;
+  assistantOverrides?: Record<string, any>;
   assistantDestinations?: Array<{
     type: 'assistant' | 'number';
     assistantName?: string;
     number?: string;
     message?: string;
     description?: string;
+    transferMode?: 'blind-transfer' | 'blind-transfer-add-summary-to-sip-header' | 'warm-transfer-say-message' | 'warm-transfer-say-summary';
   }>;
 }
 
@@ -332,7 +334,7 @@ class VoiceService {
   getAssistants() { return this.provider.getAssistants(); }
   getAssistant(id: string) { return this.provider.getAssistant(id); }
   createAssistant(config: Partial<VoiceAssistant> & { toolIds?: string[]; fileIds?: string[] }) { return this.provider.createAssistant(config); }
-  updateAssistant(id: string, updates: Partial<VoiceAssistant>) { return this.provider.updateAssistant(id, updates); }
+  updateAssistant(id: string, updates: Partial<VoiceAssistant> & { toolIds?: string[]; fileIds?: string[] }) { return this.provider.updateAssistant(id, updates); }
   deleteAssistant(id: string) { return this.provider.deleteAssistant(id); }
 
   // ─── Calls (delegated) ─────────────────────────────────────────

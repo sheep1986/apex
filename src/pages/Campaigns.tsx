@@ -36,18 +36,25 @@ interface CampaignProgress {
   failed: number;
 }
 
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: string, pausedReason?: string | null) => {
   switch (status) {
     case 'running':
       return <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Running</Badge>;
     case 'completed':
       return <Badge className="border-gray-500/30 bg-gray-500/10 text-gray-400">Completed</Badge>;
     case 'paused':
-      return <Badge className="border-yellow-500/30 bg-yellow-500/10 text-yellow-400">Paused</Badge>;
+      return (
+        <div className="flex items-center gap-1.5">
+          <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-400">Paused</Badge>
+          {pausedReason === 'insufficient_credits' && (
+            <span className="text-xs text-amber-400/70">Insufficient Credits</span>
+          )}
+        </div>
+      );
     case 'scheduled':
       return <Badge className="border-purple-500/30 bg-purple-500/10 text-purple-400">Scheduled</Badge>;
     case 'draft':
-      return <Badge className="border-blue-500/30 bg-blue-500/10 text-blue-400">Draft</Badge>;
+      return <Badge className="border-blue-500/30 bg-blue-500/10 text-blue-400 border">Draft</Badge>;
     case 'failed':
       return <Badge className="border-red-500/30 bg-red-500/10 text-red-400">Failed</Badge>;
     default:
@@ -141,9 +148,37 @@ export const Campaigns = () => {
 
     const handleActivateCampaign = async (campaignId: string) => {
         try {
+            // Credit-gate: check if org has sufficient credits before activating
+            if (organization?.id) {
+                const { data: orgData } = await supabase
+                    .from('organizations')
+                    .select('credit_balance, included_credits, credits_used_this_period')
+                    .eq('id', organization.id)
+                    .single();
+
+                if (orgData) {
+                    const remainingIncluded = Math.max(0, (orgData.included_credits || 0) - (orgData.credits_used_this_period || 0));
+                    const hasCredits = remainingIncluded > 0 || (orgData.credit_balance || 0) > 0;
+
+                    if (!hasCredits) {
+                        // Check if auto-recharge is enabled
+                        const { data: arConfig } = await supabase
+                            .from('auto_recharge_config')
+                            .select('enabled')
+                            .eq('organization_id', organization.id)
+                            .maybeSingle();
+
+                        if (!arConfig?.enabled) {
+                            alert('Insufficient credits. Please top up or enable auto-recharge before launching a campaign.');
+                            return;
+                        }
+                    }
+                }
+            }
+
             await supabase
                 .from('campaigns')
-                .update({ status: 'running' })
+                .update({ status: 'running', paused_reason: null, updated_at: new Date().toISOString() })
                 .eq('id', campaignId);
             await loadCampaigns();
         } catch (err) {
@@ -155,7 +190,7 @@ export const Campaigns = () => {
         try {
             await supabase
                 .from('campaigns')
-                .update({ status: 'paused' })
+                .update({ status: 'paused', paused_reason: 'manual', updated_at: new Date().toISOString() })
                 .eq('id', campaignId);
             await loadCampaigns();
         } catch (err) {
@@ -280,7 +315,7 @@ export const Campaigns = () => {
                 {/* Loading */}
                 {loading && campaigns.length === 0 && (
                     <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
                         <span className="ml-3 text-gray-400">Loading campaigns...</span>
                     </div>
                 )}
@@ -315,7 +350,7 @@ export const Campaigns = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <h3 className="font-semibold text-lg text-white truncate">{camp.name}</h3>
-                                                    {getStatusBadge(camp.status)}
+                                                    {getStatusBadge(camp.status, camp.paused_reason)}
                                                     {isRunning && loading && (
                                                         <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
                                                     )}

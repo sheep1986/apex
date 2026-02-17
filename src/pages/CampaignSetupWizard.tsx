@@ -22,7 +22,12 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { campaignOutboundService } from '@/services/campaign-outbound.service';
+import CampaignCapacityPlanner, { type ScheduleConfig } from '@/components/CampaignCapacityPlanner';
+import { classifyAssistantTier } from '@/config/credit-rates';
+import { getPlanById } from '@/config/plans';
+import Papa from 'papaparse';
 import {
     AlertCircle,
     Bot,
@@ -31,10 +36,10 @@ import {
     ChevronLeft,
     ChevronRight,
     CreditCard,
-    DollarSign,
     Download,
     Globe,
     Info,
+    Loader2,
     Phone,
     Play,
     Sparkles,
@@ -109,7 +114,7 @@ const STEPS = [
   { id: 4, name: 'Voice Agent', icon: Bot },
   { id: 5, name: 'Test Agent', icon: Play },
   { id: 6, name: 'Import Leads', icon: Upload },
-  { id: 7, name: 'Budget & Credits', icon: DollarSign },
+  { id: 7, name: 'Capacity & Credits', icon: CreditCard },
   { id: 8, name: 'Team Assignment', icon: Users },
   { id: 9, name: 'Final Review', icon: CheckCircle2 },
 ];
@@ -123,59 +128,38 @@ const OBJECTIVES = [
   { id: 'custom', name: 'Custom', description: 'Define your own objective' },
 ];
 
-const VOICE_AGENTS = [
-  {
-    id: 'emma',
-    name: 'Emma - Sales Specialist',
-    description: 'Friendly and persuasive, great for B2C sales',
-    avatar: '👩‍💼',
-    languages: ['English', 'Spanish'],
-    specialties: ['Sales', 'Product Demos', 'Objection Handling'],
-  },
-  {
-    id: 'marcus',
-    name: 'Marcus - Enterprise Sales',
-    description: 'Professional and consultative for B2B',
-    avatar: '👨‍💼',
-    languages: ['English'],
-    specialties: ['Enterprise Sales', 'Technical Discussions', 'ROI Analysis'],
-  },
-  {
-    id: 'sophia',
-    name: 'Sophia - Lead Qualifier',
-    description: 'Efficient at gathering information and scoring leads',
-    avatar: '👩‍💻',
-    languages: ['English', 'French'],
-    specialties: ['Lead Qualification', 'Data Collection', 'Scheduling'],
-  },
-  {
-    id: 'alex',
-    name: 'Alex - Customer Success',
-    description: 'Warm and helpful for follow-ups and support',
-    avatar: '🧑‍💼',
-    languages: ['English'],
-    specialties: ['Follow-ups', 'Customer Support', 'Satisfaction Surveys'],
-  },
-];
-
-const TEAM_MEMBERS = [
-  { id: '1', name: 'Sarah Johnson', role: 'Sales Manager', avatar: 'SJ' },
-  { id: '2', name: 'Mike Davis', role: 'Senior Sales Rep', avatar: 'MD' },
-  { id: '3', name: 'Emily Wilson', role: 'Sales Rep', avatar: 'EW' },
-  { id: '4', name: 'John Smith', role: 'Sales Rep', avatar: 'JS' },
-  { id: '5', name: 'Lisa Chen', role: 'Sales Coordinator', avatar: 'LC' },
-];
+// No hardcoded mock data — voice agents and team members are loaded from Supabase.
+// If no data loads, the UI shows an empty state with a prompt to create assistants/invite members.
+const VOICE_AGENTS: { id: string; name: string; description: string; avatar: string; languages: string[]; specialties: string[] }[] = [];
+const TEAM_MEMBERS: { id: string; name: string; role: string; avatar: string }[] = [];
 
 export default function CampaignSetupWizard() {
   const navigate = useNavigate();
+  const { supabase, user, profile } = useSupabaseAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [isDraftSaving, setIsDraftSaving] = useState(false);
   const [userHasInteracted, setUserHasInteracted] = useState(false);
+  // CSV parsing state
+  const [csvParseErrors, setCsvParseErrors] = useState<string[]>([]);
+  const [csvValidCount, setCsvValidCount] = useState(0);
+  const [csvInvalidCount, setCsvInvalidCount] = useState(0);
+  // Capacity planner state
+  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
+  const [avgCallDuration, setAvgCallDuration] = useState(2);
+  // Org data for capacity planner
+  const [orgPlanId, setOrgPlanId] = useState('employee_1');
+  const [orgCreditBalance, setOrgCreditBalance] = useState(0);
+  const [orgCreditsUsed, setOrgCreditsUsed] = useState(0);
+  const [orgAutoRechargeEnabled, setOrgAutoRechargeEnabled] = useState(false);
+  // Team members from Supabase
+  const [teamMembersData, setTeamMembersData] = useState<any[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
 
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
@@ -371,6 +355,60 @@ export default function CampaignSetupWizard() {
     loadTrinityData();
   }, []);
 
+  // Load org billing data + team members
+  useEffect(() => {
+    const loadOrgData = async () => {
+      if (!profile?.organization_id) return;
+      const orgId = profile.organization_id;
+
+      // Load org billing info
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('credit_balance, plan_id, settings')
+        .eq('id', orgId)
+        .single();
+
+      if (org) {
+        setOrgCreditBalance(org.credit_balance || 0);
+        setOrgPlanId(org.plan_id || 'employee_1');
+      }
+
+      // Credits used this period
+      const { data: usage } = await supabase.rpc('get_credits_used_this_period', {
+        p_organization_id: orgId,
+      }).catch(() => ({ data: 0 }));
+      setOrgCreditsUsed(usage || 0);
+
+      // Auto-recharge status
+      const { data: arConfig } = await supabase
+        .from('auto_recharge_config')
+        .select('enabled')
+        .eq('organization_id', orgId)
+        .single();
+      setOrgAutoRechargeEnabled(arConfig?.enabled || false);
+
+      // Team members
+      setLoadingTeam(true);
+      const { data: members } = await supabase
+        .from('organization_members')
+        .select('user_id, role, profiles(id, full_name, email, avatar_url)')
+        .eq('organization_id', orgId);
+
+      if (members) {
+        setTeamMembersData(members.map((m: any) => ({
+          id: m.user_id,
+          name: m.profiles?.full_name || m.profiles?.email || 'Team Member',
+          email: m.profiles?.email || '',
+          role: m.role || 'member',
+          avatar: (m.profiles?.full_name || 'TM').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase(),
+        })));
+      }
+      setLoadingTeam(false);
+    };
+
+    loadOrgData();
+  }, [profile?.organization_id, supabase]);
+
   // Load draft on component mount
   useEffect(() => {
     if (isDraftPresent()) {
@@ -441,27 +479,30 @@ export default function CampaignSetupWizard() {
     const newErrors: Record<string, string> = {};
 
     switch (step) {
-      case 1:
+      case 1: // Campaign Type
+        if (!campaignData.campaignType) newErrors.campaignType = 'Please select a campaign type';
+        break;
+      case 2: // Name & Objective
         if (!campaignData.name.trim()) newErrors.name = 'Campaign name is required';
         if (!campaignData.objective) newErrors.objective = 'Please select an objective';
         break;
-      case 2:
+      case 3: // Phone Numbers
         if (!campaignData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
         break;
-      case 3:
+      case 4: // Voice Agent
         if (!campaignData.voiceAgent) newErrors.voiceAgent = 'Please select a voice agent';
         break;
-      case 4:
+      case 5: // Test Agent
         if (!campaignData.testCompleted)
           newErrors.test = 'Please test the voice agent before proceeding';
         break;
-      case 5:
+      case 6: // Import Leads
         if (campaignData.leads.length === 0) newErrors.leads = 'Please import at least one lead';
         break;
-      case 6:
-        if (campaignData.budget < 10) newErrors.budget = 'Minimum budget is $10';
+      case 7: // Capacity & Credits
+        // No hard validation — capacity planner is informational
         break;
-      case 7:
+      case 8: // Team Assignment
         if (campaignData.assignedTeam.length === 0)
           newErrors.team = 'Please assign at least one team member';
         if (!campaignData.teamLeader) newErrors.teamLeader = 'Please select a team leader';
@@ -737,8 +778,8 @@ export default function CampaignSetupWizard() {
                   <Label className="text-gray-300">Select Trinity Phone Number *</Label>
 
                   {loadingNumbers && (
-                    <div className="mb-2 flex items-center gap-2 text-blue-400">
-                      <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-blue-400"></div>
+                    <div className="mb-2 flex items-center gap-2 text-emerald-400">
+                      <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-emerald-400"></div>
                       <span>Loading phone numbers...</span>
                     </div>
                   )}
@@ -870,8 +911,8 @@ export default function CampaignSetupWizard() {
               )}
 
               {loadingAgents && (
-                <div className="flex items-center gap-2 text-blue-400">
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-blue-400"></div>
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-emerald-400"></div>
                   <span>Loading voice agents...</span>
                 </div>
               )}
@@ -886,8 +927,16 @@ export default function CampaignSetupWizard() {
                 </Alert>
               )}
 
+              {voiceAgents.length === 0 && VOICE_AGENTS.length === 0 && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-6 text-center">
+                  <Bot className="mx-auto mb-3 h-10 w-10 text-amber-400" />
+                  <p className="font-medium text-white">No AI Assistants Found</p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Create an AI assistant first from the AI Assistants page, then come back to set up your campaign.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {/* Show real Voice Engine agents if available, otherwise show hardcoded fallback */}
                 {(voiceAgents.length > 0 ? voiceAgents : VOICE_AGENTS).map((agent) => (
                   <div
                     key={agent.id}
@@ -1205,31 +1254,64 @@ export default function CampaignSetupWizard() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      // Mock CSV processing
-                      const mockLeads: Lead[] = [
-                        {
-                          id: '1',
-                          firstName: 'John',
-                          lastName: 'Doe',
-                          phone: '+1234567890',
-                          email: 'john@example.com',
+                      setCsvParseErrors([]);
+                      setCsvValidCount(0);
+                      setCsvInvalidCount(0);
+                      Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                          const parseErrors: string[] = [];
+                          const validLeads: Lead[] = [];
+                          let invalidCount = 0;
+
+                          for (let i = 0; i < results.data.length; i++) {
+                            const row = results.data[i] as Record<string, string>;
+                            const phone = row.phone || row.Phone || row.phone_number || row.PhoneNumber || '';
+                            const firstName = row.firstName || row.first_name || row.FirstName || row.name || row.Name || '';
+                            const lastName = row.lastName || row.last_name || row.LastName || '';
+
+                            // Validate phone
+                            const cleaned = phone.replace(/[^\d+]/g, '');
+                            if (!cleaned || cleaned.replace(/\D/g, '').length < 10) {
+                              invalidCount++;
+                              if (invalidCount <= 5) {
+                                parseErrors.push(`Row ${i + 1}: Invalid phone "${phone}"`);
+                              }
+                              continue;
+                            }
+
+                            validLeads.push({
+                              id: String(i + 1),
+                              firstName: firstName || 'Unknown',
+                              lastName,
+                              phone: cleaned.startsWith('+') ? cleaned : (cleaned.length === 10 ? `+1${cleaned}` : `+${cleaned}`),
+                              email: row.email || row.Email || '',
+                              company: row.company || row.Company || '',
+                              title: row.title || row.Title || row.job_title || '',
+                              customFields: Object.fromEntries(
+                                Object.entries(row).filter(([k]) =>
+                                  !['phone', 'Phone', 'phone_number', 'PhoneNumber', 'firstName', 'first_name', 'FirstName',
+                                    'lastName', 'last_name', 'LastName', 'name', 'Name', 'email', 'Email',
+                                    'company', 'Company', 'title', 'Title', 'job_title'].includes(k)
+                                )
+                              ),
+                            });
+                          }
+
+                          if (invalidCount > 5) {
+                            parseErrors.push(`...and ${invalidCount - 5} more invalid rows`);
+                          }
+
+                          setCsvParseErrors(parseErrors);
+                          setCsvValidCount(validLeads.length);
+                          setCsvInvalidCount(invalidCount);
+                          updateCampaignData({ leads: validLeads, csvFileName: file.name });
                         },
-                        {
-                          id: '2',
-                          firstName: 'Jane',
-                          lastName: 'Smith',
-                          phone: '+1234567891',
-                          email: 'jane@example.com',
+                        error: (err) => {
+                          setCsvParseErrors([`Failed to parse CSV: ${err.message}`]);
                         },
-                        {
-                          id: '3',
-                          firstName: 'Bob',
-                          lastName: 'Johnson',
-                          phone: '+1234567892',
-                          email: 'bob@example.com',
-                        },
-                      ];
-                      updateCampaignData({ leads: mockLeads, csvFileName: file.name });
+                      });
                     }
                   }}
                   className="hidden"
@@ -1303,6 +1385,32 @@ export default function CampaignSetupWizard() {
                 </div>
               )}
 
+              {/* CSV Parse Results */}
+              {(csvValidCount > 0 || csvInvalidCount > 0) && (
+                <div className="flex items-center gap-3 text-sm">
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                    {csvValidCount.toLocaleString()} valid
+                  </Badge>
+                  {csvInvalidCount > 0 && (
+                    <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                      {csvInvalidCount.toLocaleString()} errors
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {csvParseErrors.length > 0 && (
+                <Alert className="border-amber-500 bg-amber-900/20">
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-amber-300">
+                    <p className="font-medium mb-1">Some rows were skipped:</p>
+                    {csvParseErrors.map((err, i) => (
+                      <p key={i} className="text-xs">{err}</p>
+                    ))}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {errors.leads && (
                 <Alert className="border-red-500 bg-red-900/20">
                   <AlertCircle className="h-4 w-4 text-red-500" />
@@ -1313,123 +1421,47 @@ export default function CampaignSetupWizard() {
           </div>
         );
 
-      case 7:
+      case 7: {
+        // Determine assistant tier for capacity planner
+        const selectedAgent = (voiceAgents.length > 0 ? voiceAgents : VOICE_AGENTS).find(
+          (a: any) => a.id === campaignData.voiceAgent
+        );
+        const assistantTier = selectedAgent?.model?.provider && selectedAgent?.voice?.provider
+          ? classifyAssistantTier(selectedAgent.model.provider, selectedAgent.voice.provider)
+          : 'standard' as const;
+
         return (
           <div className="space-y-6">
             <div>
               <h2 className="mb-2 text-2xl font-bold text-white">
-                Budget Allocation & Call Credits
+                Capacity Planning & Credits
               </h2>
               <p className="mb-6 text-gray-400">
-                Set your campaign budget and configure credit management
+                Estimate completion time, credit usage, and set your campaign schedule
               </p>
             </div>
 
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <Card className="border-gray-800 bg-gray-900">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <DollarSign className="h-5 w-5 text-green-500" />
-                      Campaign Budget
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-gray-300">Total Budget ($)</Label>
-                        <Input
-                          type="number"
-                          value={campaignData.budget}
-                          onChange={(e) =>
-                            updateCampaignData({
-                              budget: parseFloat(e.target.value) || 0,
-                              callCredits: Math.floor((parseFloat(e.target.value) || 0) / 0.1),
-                            })
-                          }
-                          className="border-gray-600 bg-gray-700 text-white"
-                          min="10"
-                          step="10"
-                        />
-                        {errors.budget && (
-                          <p className="mt-1 text-sm text-red-400">{errors.budget}</p>
-                        )}
-                      </div>
+            <CampaignCapacityPlanner
+              leadCount={campaignData.leads.length}
+              assistantTier={assistantTier}
+              planId={orgPlanId}
+              creditsUsedThisPeriod={orgCreditsUsed}
+              creditBalance={orgCreditBalance}
+              autoRechargeEnabled={orgAutoRechargeEnabled}
+              onDurationChange={(mins) => setAvgCallDuration(mins)}
+              onScheduleChange={(config) => setScheduleConfig(config)}
+            />
 
-                      <div className="space-y-2 rounded bg-gray-900/50 p-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-400">Cost per call</span>
-                          <span className="text-white">$0.10</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-400">Estimated calls</span>
-                          <span className="text-white">{campaignData.callCredits}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-gray-800 bg-gray-900">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <CreditCard className="h-5 w-5 text-emerald-500" />
-                      Call Credits
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="py-4 text-center">
-                        <div className="text-3xl font-bold text-white">
-                          {campaignData.callCredits}
-                        </div>
-                        <p className="text-sm text-gray-400">Available Credits</p>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-gray-300">Auto-reload</Label>
-                          <input
-                            type="checkbox"
-                            checked={campaignData.autoReload}
-                            onChange={(e) => updateCampaignData({ autoReload: e.target.checked })}
-                            className="rounded border-gray-600 bg-gray-700 text-emerald-600"
-                          />
-                        </div>
-
-                        {campaignData.autoReload && (
-                          <div>
-                            <Label className="text-sm text-gray-300">Reload when below</Label>
-                            <Input
-                              type="number"
-                              value={campaignData.autoReloadThreshold}
-                              onChange={(e) =>
-                                updateCampaignData({
-                                  autoReloadThreshold: parseInt(e.target.value) || 0,
-                                })
-                              }
-                              className="mt-1 border-gray-600 bg-gray-700 text-white"
-                              min="10"
-                              step="10"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Alert className="border-blue-500 bg-blue-900/20">
-                <AlertCircle className="h-4 w-4 text-blue-500" />
-                <AlertDescription className="text-blue-300">
-                  <strong>Billing Note:</strong> You'll only be charged for completed calls. Failed
-                  or unanswered calls don't consume credits.
-                </AlertDescription>
-              </Alert>
-            </div>
+            <Alert className="border-blue-500 bg-blue-900/20">
+              <Info className="h-4 w-4 text-blue-500" />
+              <AlertDescription className="text-blue-300">
+                <strong>Billing Note:</strong> Credits are consumed for connected call minutes only.
+                Failed or unanswered calls do not consume credits.
+              </AlertDescription>
+            </Alert>
           </div>
         );
+      }
 
       case 8:
         return (
@@ -1444,6 +1476,12 @@ export default function CampaignSetupWizard() {
             <div className="space-y-6">
               <div>
                 <Label className="mb-3 block text-gray-300">Team Leader *</Label>
+                {loadingTeam ? (
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading team members...</span>
+                  </div>
+                ) : (
                 <Select
                   value={campaignData.teamLeader}
                   onValueChange={(value) => updateCampaignData({ teamLeader: value })}
@@ -1452,7 +1490,7 @@ export default function CampaignSetupWizard() {
                     <SelectValue placeholder="Select team leader" />
                   </SelectTrigger>
                   <SelectContent className="border-gray-700 bg-gray-800">
-                    {TEAM_MEMBERS.filter((m) => m.role.includes('Manager')).map((member) => (
+                    {(teamMembersData.length > 0 ? teamMembersData : TEAM_MEMBERS).filter((m: any) => ['owner', 'admin', 'Manager', 'Sales Manager'].some(r => (m.role || '').includes(r))).map((member: any) => (
                       <SelectItem key={member.id} value={member.id}>
                         <div className="flex items-center gap-2">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-xs text-white">
@@ -1467,6 +1505,7 @@ export default function CampaignSetupWizard() {
                     ))}
                   </SelectContent>
                 </Select>
+                )}
                 {errors.teamLeader && (
                   <p className="mt-1 text-sm text-red-400">{errors.teamLeader}</p>
                 )}
@@ -1475,7 +1514,7 @@ export default function CampaignSetupWizard() {
               <div>
                 <Label className="mb-3 block text-gray-300">Team Members *</Label>
                 <div className="space-y-2">
-                  {TEAM_MEMBERS.map((member) => (
+                  {(teamMembersData.length > 0 ? teamMembersData : TEAM_MEMBERS).map((member: any) => (
                     <div
                       key={member.id}
                       className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-all ${
@@ -1487,7 +1526,7 @@ export default function CampaignSetupWizard() {
                         const isSelected = campaignData.assignedTeam.includes(member.id);
                         updateCampaignData({
                           assignedTeam: isSelected
-                            ? campaignData.assignedTeam.filter((id) => id !== member.id)
+                            ? campaignData.assignedTeam.filter((id: string) => id !== member.id)
                             : [...campaignData.assignedTeam, member.id],
                         });
                       }}
@@ -1665,7 +1704,7 @@ export default function CampaignSetupWizard() {
       case 6:
         return campaignData.leads.length > 0;
       case 7:
-        return campaignData.budget > 0 && campaignData.callCredits > 0;
+        return campaignData.leads.length > 0; // Capacity step valid if leads exist
       case 8:
         return campaignData.teamLeader.length > 0 && campaignData.assignedTeam.length > 0;
       case 9:
@@ -1691,9 +1730,9 @@ export default function CampaignSetupWizard() {
                       Saving draft...
                     </div>
                   )}
-                  {/* Debug: Show current state */}
+                  {/* Step indicator */}
                   <div className="text-xs text-gray-500">
-                    Step: {currentStep} | Changes: {hasUnsavedChanges() ? 'Yes' : 'No'} | Blocker: {blocker.state}
+                    Step {currentStep} of {STEPS.length}
                   </div>
                 </div>
               </div>
@@ -1800,16 +1839,159 @@ export default function CampaignSetupWizard() {
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
+                <div className="space-y-2">
+                  {launchError && (
+                    <p className="text-sm text-red-400 text-right">{launchError}</p>
+                  )}
                 <Button
-                  onClick={() => {
-                    if (isStepValid()) {
-                      setIsLoading(true);
-                      // Simulate campaign launch
-                      setTimeout(() => {
-                        setIsLoading(false);
-                        clearDraft(); // Clear draft on successful campaign creation
-                        navigate('/campaigns');
-                      }, 2000);
+                  onClick={async () => {
+                    if (!isStepValid()) return;
+                    setIsLoading(true);
+                    setLaunchError(null);
+
+                    try {
+                      const orgId = profile?.organization_id;
+                      if (!orgId) throw new Error('No organization found');
+
+                      // Get plan limits for concurrency
+                      const plan = getPlanById(orgPlanId);
+                      const concurrencyLimit = plan?.maxConcurrentCalls || 5;
+
+                      // Pre-campaign credit check
+                      const estimatedMinutes = campaignData.leads.length * avgCallDuration;
+                      const assistantTier = classifyAssistantTier('gpt-4o', '11labs');
+                      const creditsPerMin = assistantTier === 'budget' ? 18 : assistantTier === 'standard' ? 30 : assistantTier === 'premium' ? 35 : 40;
+                      const estimatedCredits = estimatedMinutes * creditsPerMin;
+
+                      const { data: orgData } = await supabase
+                        .from('organizations')
+                        .select('included_credits, credits_used_this_period, credit_balance')
+                        .eq('id', orgId)
+                        .single();
+
+                      if (orgData) {
+                        const remainingIncluded = Math.max(0, (orgData.included_credits || 0) - (orgData.credits_used_this_period || 0));
+                        const totalAvailable = remainingIncluded + ((orgData.credit_balance || 0) * 100); // credit_balance is in dollars, rough conversion
+
+                        if (estimatedCredits > totalAvailable && !orgAutoRechargeEnabled) {
+                          const deficit = estimatedCredits - totalAvailable;
+                          throw new Error(
+                            `Insufficient credits. This campaign needs ~${estimatedCredits.toLocaleString()} credits but you have ~${totalAvailable.toLocaleString()} available. ` +
+                            `Please enable auto-recharge or top up before launching.`
+                          );
+                        }
+                      }
+
+                      // Build schedule config for working hours
+                      const scheduleConfigData = scheduleConfig ? {
+                        working_hours: {
+                          enabled: scheduleConfig.workingHoursEnabled,
+                          start: scheduleConfig.workingHoursStart,
+                          end: scheduleConfig.workingHoursEnd,
+                          days: scheduleConfig.workingDays,
+                          timezone: scheduleConfig.timezone,
+                        },
+                        timeframe: scheduleConfig.timeframe,
+                        start_date: scheduleConfig.startDate || null,
+                        end_date: scheduleConfig.endDate || null,
+                      } : null;
+
+                      // Determine campaign status
+                      const campaignStatus = campaignData.immediateStart ? 'running' : 'scheduled';
+
+                      // 1. Insert campaign into Supabase
+                      const { data: campaign, error: campaignError } = await supabase
+                        .from('campaigns')
+                        .insert({
+                          name: campaignData.name,
+                          organization_id: orgId,
+                          created_by: user?.id || null,
+                          status: campaignStatus,
+                          type: campaignData.campaignType || 'outbound',
+                          description: campaignData.description || `${campaignData.objective} campaign with ${campaignData.leads.length} leads`,
+                          concurrency_limit: concurrencyLimit,
+                          phone_number_id: campaignData.providerPhoneId || campaignData.phoneNumber,
+                          script_config: {
+                            assistantId: campaignData.voiceAgent,
+                            phoneNumberId: campaignData.providerPhoneId || campaignData.phoneNumber,
+                            voiceSettings: campaignData.voiceSettings,
+                          },
+                          schedule_config: scheduleConfigData,
+                          settings: {
+                            objective: campaignData.objective,
+                            campaign_type: campaignData.campaignType,
+                            assigned_team: campaignData.assignedTeam,
+                            team_leader: campaignData.teamLeader,
+                            avg_call_duration: avgCallDuration,
+                            test_completed: campaignData.testCompleted,
+                            test_notes: campaignData.testNotes,
+                            scheduled_start: campaignData.scheduledStart || null,
+                            immediate_start: campaignData.immediateStart,
+                          },
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                        })
+                        .select()
+                        .single();
+
+                      if (campaignError || !campaign) {
+                        throw new Error(campaignError?.message || 'Failed to create campaign');
+                      }
+
+                      // 2. Import leads via the campaign-import function
+                      const contacts = campaignData.leads.map((lead) => ({
+                        phone: lead.phone,
+                        name: `${lead.firstName} ${lead.lastName}`.trim(),
+                        email: lead.email || undefined,
+                        company: lead.company || undefined,
+                        metadata: {
+                          ...(lead.title ? { title: lead.title } : {}),
+                          ...(lead.customFields || {}),
+                        },
+                      }));
+
+                      // Send in batches of 500 to the import function
+                      const BATCH_SIZE = 500;
+                      let totalImported = 0;
+                      let totalSkipped = 0;
+
+                      const { data: sessionData } = await supabase.auth.getSession();
+                      const accessToken = sessionData?.session?.access_token;
+
+                      for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
+                        const batch = contacts.slice(i, i + BATCH_SIZE);
+                        const response = await fetch('/.netlify/functions/campaign-import', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}`,
+                          },
+                          body: JSON.stringify({
+                            campaignId: campaign.id,
+                            contacts: batch,
+                          }),
+                        });
+
+                        if (!response.ok) {
+                          const errBody = await response.text();
+                          console.error(`Import batch ${i / BATCH_SIZE + 1} failed:`, errBody);
+                        } else {
+                          const result = await response.json();
+                          totalImported += result.created || 0;
+                          totalSkipped += result.skipped || 0;
+                        }
+                      }
+
+                      console.log(`Campaign ${campaign.id} created. Imported: ${totalImported}, Skipped: ${totalSkipped}`);
+
+                      // 3. Clear draft and navigate
+                      clearDraft();
+                      navigate('/campaigns');
+                    } catch (err: any) {
+                      console.error('Campaign launch failed:', err);
+                      setLaunchError(err.message || 'Failed to create campaign. Please try again.');
+                    } finally {
+                      setIsLoading(false);
                     }
                   }}
                   disabled={isLoading}
@@ -1817,7 +1999,7 @@ export default function CampaignSetupWizard() {
                 >
                   {isLoading ? (
                     <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Launching Campaign...
                     </>
                   ) : (
@@ -1827,6 +2009,7 @@ export default function CampaignSetupWizard() {
                     </>
                   )}
                 </Button>
+                </div>
               )}
             </div>
           </div>

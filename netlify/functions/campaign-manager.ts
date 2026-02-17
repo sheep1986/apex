@@ -16,7 +16,7 @@ const siteUrl = process.env.URL || 'http://localhost:8888';
 const BATCH_SIZE = 50;                   // Up from 10 — 50 items per cron tick
 const MAX_RETRIES = 5;                   // Max attempts before permanent failure
 const MIN_BALANCE_THRESHOLD = 1.00;      // $1.00 minimum to start calls
-const DEFAULT_ORG_CONCURRENCY = 20;      // Default org-level concurrent call cap
+const DEFAULT_ORG_CONCURRENCY = 5;       // Default org-level concurrent call cap
 const WORKER_ID = `worker-${Date.now()}-${uuidv4().substring(0, 8)}`;
 
 // ─── Error Classification ───────────────────────────────────────────
@@ -99,28 +99,31 @@ const ProviderFactory = {
 
 // ─── Org Concurrency Check ──────────────────────────────────────────
 async function checkOrgConcurrency(organizationId: string): Promise<boolean> {
-    // Count all currently active calls for this org across ALL campaigns
-    const { count, error } = await supabase
+    const { count } = await supabase
         .from('campaign_items')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId)
         .in('status', ['queued', 'in_progress']);
 
-    if (error) {
-        console.error('[ConcurrencyCheck] Query error:', error.message);
-        return true; // Allow on error to avoid blocking all calls
-    }
-
-    // Check if org has a custom override
+    // Priority: 1) org override, 2) plan-tier limit, 3) default
     const { data: controls } = await supabase
         .from('organization_controls')
         .select('max_concurrency_override')
         .eq('organization_id', organizationId)
         .single();
 
-    const maxConcurrency = controls?.max_concurrency_override || DEFAULT_ORG_CONCURRENCY;
-    const currentActive = count || 0;
+    let maxConcurrency = controls?.max_concurrency_override;
 
+    if (!maxConcurrency) {
+        const { data: org } = await supabase
+            .from('organizations')
+            .select('max_concurrent_calls')
+            .eq('id', organizationId)
+            .single();
+        maxConcurrency = org?.max_concurrent_calls || DEFAULT_ORG_CONCURRENCY;
+    }
+
+    const currentActive = count || 0;
     if (currentActive >= maxConcurrency) {
         console.log(`[ConcurrencyCheck] Org ${hashIdentifier(organizationId)}: ${currentActive}/${maxConcurrency} — at limit`);
         return false;
@@ -134,7 +137,7 @@ async function syncCampaignCompletion() {
         // Find campaigns that are 'running' where ALL items are in terminal states
         const { data: runningCampaigns } = await supabase
             .from('campaigns')
-            .select('id')
+            .select('id, organization_id')
             .eq('status', 'running');
 
         if (!runningCampaigns || runningCampaigns.length === 0) return;
@@ -257,10 +260,65 @@ const runWorker = async () => {
         // Phase 2: Sync campaign completion
         await syncCampaignCompletion();
 
+        // Phase 2.5: Credit-gate — pause campaigns for orgs with depleted credits
+        const { data: runningCampaigns } = await supabase
+            .from('campaigns')
+            .select('id, organization_id, name')
+            .eq('status', 'running')
+            .is('paused_reason', null);
+
+        if (runningCampaigns && runningCampaigns.length > 0) {
+            const orgIds = [...new Set(runningCampaigns.map(c => c.organization_id))];
+            for (const orgId of orgIds) {
+                const { data: creditCheck } = await supabase.rpc('check_credits_allowed', {
+                    p_organization_id: orgId,
+                    p_credits_needed: 30, // ~1 min at standard rate
+                });
+
+                if (creditCheck && !creditCheck.allowed) {
+                    const orgCampaigns = runningCampaigns.filter(c => c.organization_id === orgId);
+                    for (const campaign of orgCampaigns) {
+                        await supabase.from('campaigns').update({
+                            status: 'paused',
+                            paused_reason: 'insufficient_credits',
+                            updated_at: new Date().toISOString(),
+                        }).eq('id', campaign.id);
+
+                        console.log(`[CreditGate] Paused campaign "${campaign.name}" — ${creditCheck.reason}`);
+                    }
+                }
+            }
+        }
+
+        // Phase 2.7: Provider health check — skip dispatch if provider is down
+        let providerDegraded = false;
+        try {
+            const { data: healthCheck } = await supabase
+                .from('provider_health')
+                .select('status, response_time_ms, checked_at')
+                .eq('provider', 'vapi')
+                .order('checked_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (healthCheck?.status === 'down') {
+                console.log('[CampaignManager] Provider is DOWN — skipping dispatch phase');
+                return { statusCode: 200, body: JSON.stringify({ processed: 0, synced: true, skipped: 'provider_down' }) };
+            }
+
+            if (healthCheck?.status === 'degraded') {
+                providerDegraded = true;
+                console.warn('[CampaignManager] Provider is DEGRADED — reducing batch size');
+            }
+        } catch {
+            // Health check table may not exist yet — proceed normally
+        }
+
         // Phase 3: Atomic Reservation via RPC (Concurrency Aware)
+        const effectiveBatchSize = providerDegraded ? Math.max(1, Math.floor(BATCH_SIZE / 2)) : BATCH_SIZE;
         const { data: items, error: rpcError } = await supabase
             .rpc('reserve_campaign_items', {
-                p_batch_size: BATCH_SIZE,
+                p_batch_size: effectiveBatchSize,
                 p_worker_id: WORKER_ID
             });
 
@@ -322,7 +380,54 @@ async function processItem(item: any) {
             return;
         }
 
-        // C. Credit Enforcement
+        // C. Working Hours Check
+        const { data: campaignData } = await supabase
+            .from('campaigns')
+            .select('schedule_config')
+            .eq('id', campaign_id)
+            .single();
+
+        if (campaignData?.schedule_config?.working_hours?.enabled) {
+            const wh = campaignData.schedule_config.working_hours;
+            const tz = wh.timezone || 'UTC';
+            const now = new Date();
+            // Simple timezone-aware check using toLocaleString
+            const localTime = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+            const dayIndex = localTime.getDay(); // 0=Sunday
+            const days = wh.days || [false, true, true, true, true, true, false]; // default Mon-Fri
+
+            if (!days[dayIndex]) {
+                // Not a working day — reschedule to next working day
+                await supabase.from('campaign_items').update({
+                    status: 'pending',
+                    reserved_at: null,
+                    reserved_by: null,
+                    next_try_at: getNextWorkingDay(localTime, days, wh.start || '09:00', tz),
+                }).eq('id', itemId);
+                return;
+            }
+
+            const timeStr = localTime.toTimeString().slice(0, 5); // "HH:MM"
+            const start = wh.start || '09:00';
+            const end = wh.end || '18:00';
+
+            if (timeStr < start || timeStr >= end) {
+                // Outside working hours
+                const nextStart = timeStr >= end
+                    ? getNextWorkingDay(localTime, days, start, tz) // Tomorrow's start
+                    : new Date(localTime.setHours(parseInt(start.split(':')[0]), parseInt(start.split(':')[1]), 0)).toISOString();
+
+                await supabase.from('campaign_items').update({
+                    status: 'pending',
+                    reserved_at: null,
+                    reserved_by: null,
+                    next_try_at: nextStart,
+                }).eq('id', itemId);
+                return;
+            }
+        }
+
+        // D. Credit Enforcement
         const { data: balance, error: balError } = await supabase
             .rpc('get_organization_balance', { p_organization_id: organization_id });
 
@@ -332,7 +437,7 @@ async function processItem(item: any) {
             throw new Error('Insufficient Funds: Balance below threshold.');
         }
 
-        // D. Governance Enforcement
+        // E. Governance Enforcement
         const { data: controls } = await supabase
             .from('organization_controls')
             .select('is_suspended, shadow_mode, max_concurrency_override')
@@ -345,7 +450,7 @@ async function processItem(item: any) {
 
         const isShadowMode = controls?.shadow_mode || false;
 
-        // E. Circuit Breaker Check
+        // F. Circuit Breaker Check
         const breaker = new CircuitBreakerService(supabase);
         const { allowed, reason } = await breaker.checkLimit(organization_id, 0.10);
 
@@ -353,7 +458,7 @@ async function processItem(item: any) {
             throw new Error(`Circuit Breaker: ${reason}`);
         }
 
-        // F. Fetch Contact Data
+        // G. Fetch Contact Data
         const { data: contact } = await supabase
             .from('contacts')
             .select('phone_e164, name, metadata')
@@ -364,14 +469,14 @@ async function processItem(item: any) {
             throw new Error('Invalid Contact Data');
         }
 
-        // G. Fetch Campaign Config
+        // H. Fetch Campaign Config
         const { data: campaign } = await supabase
             .from('campaigns')
             .select('script_config, type, phone_number_id')
             .eq('id', campaign_id)
             .single();
 
-        // H. Create Outbound Call Record
+        // I. Create Outbound Call Record
         const { data: callRow, error: callError } = await supabase
             .from('voice_calls')
             .insert({
@@ -388,13 +493,18 @@ async function processItem(item: any) {
         if (callError) throw callError;
         const trinityCallId = callRow.id;
 
-        // I. Build Assistant Overrides (variable mapping from contact metadata)
+        // J. Build Assistant Overrides (variable mapping from contact metadata)
         const assistantOverrides: any = {};
         if (contact.metadata) {
             assistantOverrides.variableValues = {};
             for (const [key, value] of Object.entries(contact.metadata)) {
+                if (value == null) continue; // Skip null/undefined
                 if (typeof value === 'string') {
                     assistantOverrides.variableValues[key] = value;
+                } else if (typeof value === 'number' || typeof value === 'boolean') {
+                    assistantOverrides.variableValues[key] = String(value);
+                } else if (typeof value === 'object') {
+                    assistantOverrides.variableValues[key] = JSON.stringify(value);
                 }
             }
             // Common mapping: name → firstName
@@ -403,7 +513,7 @@ async function processItem(item: any) {
             }
         }
 
-        // J. Dispatch to Telephony Provider
+        // K. Dispatch to Telephony Provider
         await dispatchCall(
             contact.phone_e164,
             campaign?.script_config,
@@ -416,7 +526,7 @@ async function processItem(item: any) {
             Object.keys(assistantOverrides).length > 0 ? assistantOverrides : undefined
         );
 
-        // K. Update Item State (Success)
+        // L. Update Item State (Success)
         await supabase
             .from('campaign_items')
             .update({
@@ -456,6 +566,23 @@ async function processItem(item: any) {
 
         throw err;
     }
+}
+
+// ─── Working Hours Helper ────────────────────────────────────────────
+function getNextWorkingDay(fromDate: Date, workingDays: boolean[], startTime: string, timezone: string): string {
+    const next = new Date(fromDate);
+    for (let i = 1; i <= 7; i++) {
+        next.setDate(next.getDate() + 1);
+        const dayIndex = next.getDay();
+        if (workingDays[dayIndex]) {
+            const [hours, minutes] = startTime.split(':').map(Number);
+            next.setHours(hours, minutes, 0, 0);
+            return next.toISOString();
+        }
+    }
+    // Fallback: tomorrow
+    next.setDate(next.getDate() + 1);
+    return next.toISOString();
 }
 
 // ─── Dispatch Call ──────────────────────────────────────────────────

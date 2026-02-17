@@ -225,7 +225,7 @@ export const CampaignExport: React.FC<CampaignExportProps> = ({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'processing':
-        return <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />;
+        return <RefreshCw className="w-4 h-4 animate-spin text-emerald-500" />;
       case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'failed':

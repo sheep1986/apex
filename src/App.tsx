@@ -71,6 +71,8 @@ const EmailTemplates = lazy(() => import('./pages/EmailTemplates'));
 const AgencyBranding = lazy(() => import('./pages/AgencyBranding'));
 const CostAnalytics = lazy(() => import('./pages/CostAnalytics'));
 const ReportsAnalytics = lazy(() => import('./pages/ReportsAnalytics'));
+const GDPRCompliance = lazy(() => import('./pages/GDPRCompliance'));
+const CallQualityReview = lazy(() => import('./pages/CallQualityReview'));
 
 // Platform owner pages
 const PlatformOwnerDashboard = lazy(() => import('./pages/PlatformOwnerDashboard'));
@@ -168,6 +170,8 @@ function App() {
               <Route path="/api-keys" element={<ApiKeys />} />
               <Route path="/cost-analytics" element={<CostAnalytics />} />
               <Route path="/reports" element={<ReportsAnalytics />} />
+              <Route path="/gdpr-compliance" element={<GDPRCompliance />} />
+              <Route path="/call-quality-review" element={<CallQualityReview />} />
 
               {/* Catch all for dashboard */}
               <Route path="/overview" element={<Navigate to="/dashboard" replace />} />

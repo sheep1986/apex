@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
+import { corsHeaders } from './utils/cors';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,9 +18,8 @@ const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
  */
 export const handler: Handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json',
+    ...corsHeaders(),
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -150,6 +150,85 @@ export const handler: Handler = async (event) => {
             requested_at: profile?.deletion_requested_at,
             scheduled_at: profile?.deletion_scheduled_at,
           }),
+        };
+      }
+
+      case 'admin-list': {
+        // Admin action: list all DSAR requests for the org
+        const orgHeader = event.headers['x-organization-id'];
+        if (!orgHeader) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing x-organization-id header' }) };
+        }
+
+        // Verify admin role
+        const { data: adminMember } = await supabase
+          .from('organization_members')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('organization_id', orgHeader)
+          .single();
+
+        if (!adminMember || !['admin', 'owner'].includes(adminMember.role)) {
+          return { statusCode: 403, headers, body: JSON.stringify({ error: 'Admin access required' }) };
+        }
+
+        // Get all members with deletion requests
+        const { data: membersWithRequests } = await supabase
+          .from('organization_members')
+          .select('user_id, profiles(id, email, full_name, deletion_requested_at, deletion_scheduled_at, deletion_reason)')
+          .eq('organization_id', orgHeader);
+
+        const dsarRequests = (membersWithRequests || [])
+          .filter((m: any) => m.profiles?.deletion_requested_at)
+          .map((m: any) => ({
+            id: m.profiles.id,
+            user_id: m.user_id,
+            email: m.profiles.email,
+            full_name: m.profiles.full_name,
+            action: 'delete-request',
+            requested_at: m.profiles.deletion_requested_at,
+            scheduled_at: m.profiles.deletion_scheduled_at,
+            reason: m.profiles.deletion_reason,
+          }));
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ requests: dsarRequests }),
+        };
+      }
+
+      case 'admin-process': {
+        // Admin action: mark a DSAR request as in-progress
+        const { targetUserId } = JSON.parse(event.body || '{}');
+        if (!targetUserId) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing targetUserId' }) };
+        }
+
+        // Verify admin role
+        const { data: processMember } = await supabase
+          .from('organization_members')
+          .select('role, organization_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!processMember || !['admin', 'owner'].includes(processMember.role)) {
+          return { statusCode: 403, headers, body: JSON.stringify({ error: 'Admin access required' }) };
+        }
+
+        // Audit log
+        await supabase.from('audit_logs').insert({
+          organization_id: processMember.organization_id,
+          action: 'gdpr_dsar_processed',
+          actor_id: user.id,
+          details: `DSAR request for user ${targetUserId.slice(0, 8)} marked as in-progress`,
+          created_at: new Date().toISOString(),
+        }).catch(() => {});
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, message: 'DSAR request marked as in-progress' }),
         };
       }
 

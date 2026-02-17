@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Clock, User, TrendingUp } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 interface ActiveCall {
   id: string;
@@ -24,22 +27,51 @@ export const CallMonitor: React.FC<CallMonitorProps> = ({ campaignId }) => {
   const [callStats, setCallStats] = useState<CallStats | null>(null);
 
   useEffect(() => {
-    // WebSocket connection for real-time updates
-    const ws = new WebSocket(`ws://localhost:3001/calls/${campaignId}`);
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'call_started') {
-        setActiveCalls(prev => [...prev, data.call]);
-      } else if (data.type === 'call_ended') {
-        setActiveCalls(prev => prev.filter(call => call.id !== data.call.id));
-      } else if (data.type === 'stats_update') {
-        setCallStats(data.stats);
+    // Initial fetch of active calls
+    const loadActiveCalls = async () => {
+      const { data } = await supabase
+        .from('voice_calls')
+        .select('id, contact_name, phone_number, duration, status')
+        .eq('campaign_id', campaignId)
+        .in('status', ['in-progress', 'ringing', 'queued'])
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        setActiveCalls(data.map(c => ({
+          id: c.id,
+          leadName: c.contact_name || 'Unknown',
+          phoneNumber: c.phone_number || '',
+          duration: c.duration ? `${Math.floor(c.duration / 60)}m ${c.duration % 60}s` : '0s',
+          status: c.status || 'unknown',
+        })));
       }
+
+      // Get stats
+      const { count: totalCount } = await supabase.from('voice_calls').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId);
+      const { count: answeredCount } = await supabase.from('voice_calls').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId).eq('status', 'completed');
+      const { data: avgData } = await supabase.from('voice_calls').select('duration').eq('campaign_id', campaignId).not('duration', 'is', null);
+
+      const avgDuration = avgData && avgData.length > 0 ? avgData.reduce((sum, c) => sum + (c.duration || 0), 0) / avgData.length : 0;
+      const answerRate = totalCount && totalCount > 0 ? ((answeredCount || 0) / totalCount * 100) : 0;
+
+      setCallStats({
+        avgDuration: `${Math.floor(avgDuration / 60)}m`,
+        answerRate: `${answerRate.toFixed(0)}%`,
+        qualifiedToday: answeredCount || 0,
+      });
     };
-    
-    return () => ws.close();
+
+    loadActiveCalls();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel(`call-monitor-${campaignId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_calls', filter: `campaign_id=eq.${campaignId}` }, () => {
+        loadActiveCalls(); // Reload on any change
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [campaignId]);
 
   return (

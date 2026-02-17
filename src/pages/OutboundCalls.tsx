@@ -96,7 +96,7 @@ export default function OutboundCalls() {
       const token = await getToken();
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/campaign/campaigns/${campaignId}/calls`,
+        `/api/campaign/campaigns/${campaignId}/calls`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

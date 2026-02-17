@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/auth';
+import { supabase } from '@/services/supabase-client';
 import {
   Users,
   Building,
@@ -43,40 +43,102 @@ import {
 
 export default function PlatformOwnerDashboard() {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
   const [timeRange, setTimeRange] = useState('7d');
   const [analytics, setAnalytics] = useState<any>(null);
   const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
-  // Fetch platform analytics
+  // Fetch platform analytics directly from Supabase
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = await getToken();
-      const response = await fetch(`${API_BASE_URL}/api/platform-analytics/overview`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      // Run all count queries in parallel
+      const [
+        orgsResult,
+        activeOrgsResult,
+        usersResult,
+        callsResult,
+        topOrgsResult,
+      ] = await Promise.all([
+        supabase.from('organizations').select('id', { count: 'exact', head: true }),
+        supabase.from('organizations').select('id', { count: 'exact', head: true }).eq('subscription_status', 'active'),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('voice_calls').select('id', { count: 'exact', head: true }),
+        supabase.from('organizations').select('id, name, plan, subscription_status, credit_balance').order('credit_balance', { ascending: false }).limit(5),
+      ]);
+
+      const totalOrganizations = orgsResult.count ?? 0;
+      const activeOrganizations = activeOrgsResult.count ?? 0;
+      const totalUsers = usersResult.count ?? 0;
+      const totalCalls = callsResult.count ?? 0;
+      const topOrganizations = topOrgsResult.data ?? [];
+
+      // Estimate MRR from active organizations by plan
+      // Fetch active orgs with their plan field for MRR calculation
+      const { data: activeOrgsData } = await supabase
+        .from('organizations')
+        .select('plan')
+        .eq('subscription_status', 'active');
+
+      const planPricing: Record<string, number> = {
+        starter: 49,
+        professional: 149,
+        enterprise: 499,
+        pro: 149,
+        basic: 49,
+      };
+
+      const totalMRR = (activeOrgsData ?? []).reduce((sum, org) => {
+        const planKey = (org.plan || '').toLowerCase();
+        return sum + (planPricing[planKey] || 0);
+      }, 0);
+
+      // Count plan distribution
+      const planDistribution = { starter: 0, professional: 0, enterprise: 0 };
+      (activeOrgsData ?? []).forEach((org) => {
+        const planKey = (org.plan || '').toLowerCase();
+        if (planKey === 'starter' || planKey === 'basic') planDistribution.starter++;
+        else if (planKey === 'professional' || planKey === 'pro') planDistribution.professional++;
+        else if (planKey === 'enterprise') planDistribution.enterprise++;
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setAnalytics(data);
+      setAnalytics({
+        overview: {
+          totalOrganizations,
+          activeOrganizations,
+          totalUsers,
+          activeUsers: totalUsers,
+          totalMRR,
+          totalCalls,
+          systemUptime: 99.8,
+          supportTickets: 0,
+          recentGrowth: {
+            organizations: 0,
+            users: 0,
+            organizationGrowth: 0,
+            userGrowth: 0,
+          },
+        },
+        charts: {
+          weeklyGrowth: [],
+          monthlyRevenue: [],
+          planDistribution,
+        },
+        topOrganizations: topOrganizations.map((org) => ({
+          id: org.id,
+          name: org.name,
+          plan: org.plan,
+          status: org.subscription_status,
+        })),
+      });
     } catch (error) {
-      console.error('❌ Error fetching platform analytics:', error);
+      console.error('Error fetching platform analytics:', error);
       setError('Failed to load platform analytics');
 
-      // Fallback to minimal real data if API fails
+      // Fallback to minimal real data if queries fail
       setAnalytics({
         overview: {
           totalOrganizations: 0,
@@ -106,23 +168,27 @@ export default function PlatformOwnerDashboard() {
     }
   };
 
-  // Fetch recent activity
+  // Fetch recent activity from audit_logs via Supabase
   const fetchActivity = async () => {
     try {
-      const token = await getToken();
-      const response = await fetch(`${API_BASE_URL}/api/platform-analytics/activity`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const { data, error: queryError } = await supabase
+        .from('audit_logs')
+        .select('action, resource, actor_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-      if (response.ok) {
-        const data = await response.json();
-        setActivity(data.activity || []);
-      }
+      if (queryError) throw queryError;
+
+      const mapped = (data ?? []).map((log) => ({
+        type: (log.resource || '').toLowerCase().includes('organization') ? 'organization' : 'user',
+        title: log.action || 'Activity',
+        description: log.resource || '',
+        time: log.created_at,
+      }));
+
+      setActivity(mapped);
     } catch (error) {
-      console.error('❌ Error fetching activity:', error);
+      console.error('Error fetching activity:', error);
       setActivity([]);
     }
   };

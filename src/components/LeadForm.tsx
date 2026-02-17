@@ -170,7 +170,7 @@ export default function LeadForm({ lead, isOpen, onClose, onSave, mode }: LeadFo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <Card className="max-h-[90vh] w-full max-w-4xl overflow-y-auto border-gray-800 bg-gray-900/95 shadow-2xl">
         <CardHeader className="border-b border-gray-800">
           <div className="flex items-center justify-between">

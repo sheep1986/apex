@@ -326,8 +326,8 @@ export default function OrganizationSetupWizard() {
       };
 
       // Submit to the backend API with proper authentication
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const apiUrl = `${API_BASE_URL}/api/organization-setup/setup`;
+      // All API calls go through Netlify Functions (relative paths)
+      const apiUrl = '/api/organization-setup/setup';
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -996,7 +996,7 @@ export default function OrganizationSetupWizard() {
   // Success/Completion Screen
   if (setupComplete && setupResult) {
     return (
-      <div className="min-h-screen bg-gray-900 p-6">
+      <div className="min-h-screen bg-black p-6">
         <div className="mx-auto max-w-4xl">
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500">

@@ -23,9 +23,11 @@ import {
   Building,
   Check,
   CheckCircle,
+  Copy,
   CreditCard,
   Loader2,
   Phone,
+  PhoneForwarded,
   Rocket,
   Sparkles,
   Star,
@@ -46,7 +48,7 @@ interface WizardStep {
 
 // ─── Constants ───────────────────────────────────────────────────
 
-const STEPS: WizardStep[] = [
+const BASE_STEPS: WizardStep[] = [
   { id: 'welcome', title: 'Your Organisation', subtitle: 'Tell us about your business', icon: Building },
   { id: 'plan', title: 'Choose Your Plan', subtitle: 'Select the right tier', icon: CreditCard },
   { id: 'assistant', title: 'Create AI Assistant', subtitle: 'Set up your first voice agent', icon: Bot },
@@ -54,6 +56,138 @@ const STEPS: WizardStep[] = [
   { id: 'checkout', title: 'Activate', subtitle: 'Start your subscription', icon: Zap },
   { id: 'launch', title: 'Ready to Launch', subtitle: "You're all set!", icon: Rocket },
 ];
+
+const FORWARDING_STEP: WizardStep = {
+  id: 'forwarding',
+  title: 'Call Forwarding',
+  subtitle: 'Route calls to your AI',
+  icon: PhoneForwarded,
+};
+
+interface CarrierInfo {
+  name: string;
+  code: string;
+  cancelCode: string;
+  note: string;
+}
+
+interface CountryCarriers {
+  country: string;
+  flag: string;
+  carriers: CarrierInfo[];
+  genericCode: string;
+  genericCancel: string;
+}
+
+const CARRIER_DATABASE: CountryCarriers[] = [
+  {
+    country: 'United Kingdom',
+    flag: '🇬🇧',
+    carriers: [
+      { name: 'O2', code: '*21*{number}#', cancelCode: '##21#', note: 'Forwards all calls. Dial ##21# to cancel.' },
+      { name: 'EE', code: '*21*{number}#', cancelCode: '##21#', note: 'Immediate unconditional forwarding.' },
+      { name: 'Vodafone', code: '*21*{number}#', cancelCode: '#21#', note: 'Diverts all incoming calls. Dial #21# to cancel.' },
+      { name: 'Three', code: '*21*{number}#', cancelCode: '##21#', note: 'Works on all Three pay monthly and PAYG plans.' },
+      { name: 'BT (Landline)', code: '*21*{number}#', cancelCode: '#21#', note: 'BT landline call divert. Charges may apply.' },
+    ],
+    genericCode: '*21*{number}#',
+    genericCancel: '##21#',
+  },
+  {
+    country: 'United States',
+    flag: '🇺🇸',
+    carriers: [
+      { name: 'AT&T', code: '*21*{number}#', cancelCode: '#21#', note: 'Immediate call forwarding for all calls.' },
+      { name: 'T-Mobile', code: '**21*{number}#', cancelCode: '##21#', note: 'Unconditional call forwarding.' },
+      { name: 'Verizon', code: '*72{number}', cancelCode: '*73', note: 'Dial *72 then the number. Dial *73 to cancel.' },
+      { name: 'Xfinity Mobile', code: '*72{number}', cancelCode: '*73', note: 'Same as Verizon network forwarding.' },
+    ],
+    genericCode: '*72{number}',
+    genericCancel: '*73',
+  },
+  {
+    country: 'Canada',
+    flag: '🇨🇦',
+    carriers: [
+      { name: 'Bell', code: '*72{number}', cancelCode: '*73', note: 'Standard call forwarding. Dial *73 to cancel.' },
+      { name: 'Rogers', code: '*72{number}', cancelCode: '*73', note: 'Standard call forwarding activation.' },
+      { name: 'Telus', code: '*72{number}', cancelCode: '*73', note: 'Works on postpaid and prepaid plans.' },
+    ],
+    genericCode: '*72{number}',
+    genericCancel: '*73',
+  },
+  {
+    country: 'Australia',
+    flag: '🇦🇺',
+    carriers: [
+      { name: 'Telstra', code: '*21*{number}#', cancelCode: '#21#', note: 'Immediate diversion for all calls.' },
+      { name: 'Optus', code: '*21*{number}#', cancelCode: '#21#', note: 'Unconditional call diversion.' },
+      { name: 'Vodafone AU', code: '*21*{number}#', cancelCode: '#21#', note: 'Diverts all incoming calls.' },
+    ],
+    genericCode: '*21*{number}#',
+    genericCancel: '#21#',
+  },
+  {
+    country: 'Germany',
+    flag: '🇩🇪',
+    carriers: [
+      { name: 'Telekom', code: '*21*{number}#', cancelCode: '##21#', note: 'Rufumleitung sofort.' },
+      { name: 'Vodafone DE', code: '*21*{number}#', cancelCode: '##21#', note: 'Sofortige Rufumleitung.' },
+      { name: 'O2 DE', code: '*21*{number}#', cancelCode: '##21#', note: 'Alle Anrufe umleiten.' },
+    ],
+    genericCode: '*21*{number}#',
+    genericCancel: '##21#',
+  },
+  {
+    country: 'France',
+    flag: '🇫🇷',
+    carriers: [
+      { name: 'Orange', code: '*21*{number}#', cancelCode: '#21#', note: 'Renvoi immédiat de tous les appels.' },
+      { name: 'SFR', code: '*21*{number}#', cancelCode: '#21#', note: 'Transfert inconditionnel.' },
+      { name: 'Bouygues', code: '*21*{number}#', cancelCode: '#21#', note: 'Renvoi d\'appel immédiat.' },
+    ],
+    genericCode: '*21*{number}#',
+    genericCancel: '#21#',
+  },
+  {
+    country: 'India',
+    flag: '🇮🇳',
+    carriers: [
+      { name: 'Jio', code: '*401*{number}#', cancelCode: '*402#', note: 'Unconditional call forwarding.' },
+      { name: 'Airtel', code: '*21*{number}#', cancelCode: '##21#', note: 'All call divert activation.' },
+      { name: 'Vi (Vodafone Idea)', code: '*21*{number}#', cancelCode: '##21#', note: 'Unconditional divert.' },
+    ],
+    genericCode: '*21*{number}#',
+    genericCancel: '##21#',
+  },
+  {
+    country: 'UAE',
+    flag: '🇦🇪',
+    carriers: [
+      { name: 'Etisalat', code: '*21*{number}#', cancelCode: '##21#', note: 'Unconditional call diversion.' },
+      { name: 'du', code: '*21*{number}#', cancelCode: '##21#', note: 'All call forwarding.' },
+    ],
+    genericCode: '*21*{number}#',
+    genericCancel: '##21#',
+  },
+  {
+    country: 'Other (GSM Standard)',
+    flag: '🌍',
+    carriers: [],
+    genericCode: '*21*{number}#',
+    genericCancel: '##21#',
+  },
+];
+
+function buildSteps(useCase: string): WizardStep[] {
+  const steps = [...BASE_STEPS];
+  if (useCase === 'inbound' || useCase === 'both') {
+    // Insert forwarding step right after 'phone' (index 3), before 'checkout'
+    const phoneIndex = steps.findIndex((s) => s.id === 'phone');
+    steps.splice(phoneIndex + 1, 0, FORWARDING_STEP);
+  }
+  return steps;
+}
 
 const INDUSTRIES = [
   'Telesales / Lead Generation',
@@ -89,6 +223,12 @@ export default function OnboardingWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Forwarding step state
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [selectedCarrier, setSelectedCarrier] = useState<string | null>(null);
+  const [forwardingTested, setForwardingTested] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+
   // Step 1: Organisation info
   const [orgName, setOrgName] = useState('');
   const [industry, setIndustry] = useState('');
@@ -116,6 +256,12 @@ export default function OnboardingWizard() {
 
   // Voice service readiness
   const [voiceReady, setVoiceReady] = useState(false);
+
+  // Dynamic steps based on use case
+  const STEPS = React.useMemo(() => buildSteps(useCase), [useCase]);
+
+  // Helper to find step index by id
+  const stepIndexOf = (id: string) => STEPS.findIndex((s) => s.id === id);
 
   // ─── Effects ─────────────────────────────────────────────────────
 
@@ -149,10 +295,13 @@ export default function OnboardingWizard() {
   useEffect(() => {
     if (searchParams.get('subscription_success') === 'true') {
       setCheckoutComplete(true);
-      setCompletedSteps((prev) => new Set([...prev, 0, 1, 2, 3, 4]));
-      setCurrentStep(5); // Jump to launch step
+      // Mark all steps before launch as complete
+      const launchIdx = stepIndexOf('launch');
+      const allBefore = Array.from({ length: launchIdx }, (_, i) => i);
+      setCompletedSteps((prev) => new Set([...prev, ...allBefore]));
+      setCurrentStep(launchIdx);
     }
-  }, [searchParams]);
+  }, [searchParams, STEPS]);
 
   // ─── Handlers ────────────────────────────────────────────────────
 
@@ -188,7 +337,7 @@ export default function OnboardingWizard() {
       if (result?.id) {
         setAssistantCreated(true);
         setCreatedAssistantId(result.id);
-        markStepComplete(2);
+        markStepComplete(stepIndexOf('assistant'));
       } else {
         throw new Error('Failed to create assistant');
       }
@@ -217,7 +366,7 @@ export default function OnboardingWizard() {
 
       if (result?.success && result?.number) {
         setProvisionedNumber(result.number.number || result.number.id);
-        markStepComplete(3);
+        markStepComplete(stepIndexOf('phone'));
       } else {
         throw new Error('Failed to provision number');
       }
@@ -262,8 +411,9 @@ export default function OnboardingWizard() {
 
   const handleNext = async () => {
     setError(null);
+    const currentId = STEPS[currentStep]?.id;
 
-    if (currentStep === 0) {
+    if (currentId === 'welcome') {
       if (!orgName.trim()) {
         setError('Please enter your organisation name.');
         return;
@@ -275,11 +425,15 @@ export default function OnboardingWizard() {
           console.warn('Could not update org name:', err);
         }
       }
-      markStepComplete(0);
+      markStepComplete(currentStep);
     }
 
-    if (currentStep === 1) {
-      markStepComplete(1);
+    if (currentId === 'plan') {
+      markStepComplete(currentStep);
+    }
+
+    if (currentId === 'forwarding') {
+      markStepComplete(currentStep);
     }
 
     if (currentStep < STEPS.length - 1) {
@@ -298,12 +452,31 @@ export default function OnboardingWizard() {
     setLoading(true);
     try {
       if (userContext?.organization_id) {
+        // Mark profile as onboarding completed
         await supabase
           .from('profiles')
           .update({ onboarding_completed: true })
           .eq('organization_id', userContext.organization_id);
+
+        // Set org onboarded_at timestamp + initial activation checklist
+        await supabase
+          .from('organizations')
+          .update({
+            onboarded_at: new Date().toISOString(),
+            activation_checklist: {
+              create_org: true,
+              choose_plan: true,
+              create_assistant: completedSteps.has(stepIndexOf('assistant')),
+              assign_phone: completedSteps.has(stepIndexOf('phone')),
+              first_test_call: false,
+              first_campaign: false,
+              first_deal: false,
+            },
+          })
+          .eq('id', userContext.organization_id)
+          .catch(() => {}); // non-critical
       }
-      markStepComplete(5);
+      markStepComplete(stepIndexOf('launch'));
       await new Promise((r) => setTimeout(r, 800));
       navigate('/dashboard', { replace: true });
     } catch {
@@ -314,13 +487,28 @@ export default function OnboardingWizard() {
   };
 
   const handleSkipAssistant = () => {
-    markStepComplete(2);
-    setCurrentStep(3);
+    const idx = stepIndexOf('assistant');
+    markStepComplete(idx);
+    setCurrentStep(idx + 1);
   };
 
   const handleSkipPhone = () => {
-    markStepComplete(3);
-    setCurrentStep(4);
+    const idx = stepIndexOf('phone');
+    markStepComplete(idx);
+    setCurrentStep(idx + 1);
+  };
+
+  const handleSkipForwarding = () => {
+    const idx = stepIndexOf('forwarding');
+    markStepComplete(idx);
+    setCurrentStep(idx + 1);
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    });
   };
 
   // ─── Progress ────────────────────────────────────────────────────
@@ -605,6 +793,210 @@ export default function OnboardingWizard() {
     </div>
   );
 
+  const renderForwardingStep = () => {
+    const trinityNumber = provisionedNumber || '(your Trinity number)';
+    const activeCountry = CARRIER_DATABASE.find((c) => c.country === selectedCountry);
+    const activeCarrier = activeCountry?.carriers.find((c) => c.name === selectedCarrier);
+
+    // Use carrier-specific code, or fall back to country's generic GSM code
+    const rawCode = activeCarrier?.code || activeCountry?.genericCode || null;
+    const dialCode = rawCode ? rawCode.replace('{number}', trinityNumber) : null;
+    const cancelCode = activeCarrier?.cancelCode || activeCountry?.genericCancel || null;
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="mb-2 text-2xl font-bold text-white">Forward Calls to Your AI</h2>
+          <p className="text-gray-400">
+            Forward your existing number to your Trinity number so incoming calls are answered by your AI assistant.
+          </p>
+        </div>
+
+        {/* Instruction banner */}
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <PhoneForwarded className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-400" />
+            <div>
+              <p className="font-medium text-white">Forward your existing number to your Trinity number</p>
+              <p className="mt-1 text-sm text-gray-400">
+                Select your country and carrier below, then dial the forwarding code from your phone. All incoming calls
+                will be routed to your AI assistant automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Trinity number display */}
+        {provisionedNumber && (
+          <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-400">Your Trinity Number</p>
+            <p className="font-mono text-lg text-emerald-400">{provisionedNumber}</p>
+          </div>
+        )}
+
+        {/* Country selection */}
+        <div>
+          <Label className="mb-3 block text-gray-300">Select Your Country</Label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {CARRIER_DATABASE.map((country) => (
+              <div
+                key={country.country}
+                onClick={() => {
+                  setSelectedCountry(country.country);
+                  setSelectedCarrier(null);
+                }}
+                className={`cursor-pointer rounded-lg border p-3 text-center transition-all ${
+                  selectedCountry === country.country
+                    ? 'border-emerald-500/50 bg-emerald-500/10'
+                    : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                }`}
+              >
+                <span className="text-lg">{country.flag}</span>
+                <p className="mt-1 text-xs font-medium text-white">{country.country}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Carrier selection (shown after country is selected) */}
+        {activeCountry && activeCountry.carriers.length > 0 && (
+          <div>
+            <Label className="mb-3 block text-gray-300">Select Your Carrier</Label>
+            <div className="grid gap-2">
+              {activeCountry.carriers.map((carrier) => (
+                <div
+                  key={carrier.name}
+                  onClick={() => setSelectedCarrier(carrier.name)}
+                  className={`cursor-pointer rounded-lg border p-4 transition-all ${
+                    selectedCarrier === carrier.name
+                      ? 'border-emerald-500/50 bg-emerald-500/10'
+                      : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-white">{carrier.name}</p>
+                      <p className="text-sm text-gray-400">{carrier.note}</p>
+                    </div>
+                    {selectedCarrier === carrier.name && (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0 text-emerald-400" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dialer code display (shown when country is selected — uses generic code if no carrier chosen) */}
+        {activeCountry && dialCode && (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-gray-700 bg-gray-900 p-4">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+                Dial This Code From Your Phone
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <code className="text-lg font-bold text-emerald-400">{dialCode}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCopyCode(dialCode)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  {copiedCode ? (
+                    <><Check className="mr-1.5 h-4 w-4 text-emerald-400" /> Copied</>
+                  ) : (
+                    <><Copy className="mr-1.5 h-4 w-4" /> Copy</>
+                  )}
+                </Button>
+              </div>
+              {cancelCode && (
+                <p className="mt-3 text-xs text-gray-500">
+                  To cancel forwarding later, dial: <code className="text-gray-300">{cancelCode}</code>
+                </p>
+              )}
+              {!activeCarrier && activeCountry.carriers.length > 0 && (
+                <p className="mt-2 text-xs text-amber-400/80">
+                  This is the standard GSM code. Select your carrier above for carrier-specific instructions.
+                </p>
+              )}
+            </div>
+
+            {/* Steps to forward */}
+            <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+              <p className="mb-3 text-sm font-medium text-white">How to set up</p>
+              <ol className="space-y-2 text-sm text-gray-400">
+                <li className="flex gap-2">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400">
+                    1
+                  </span>
+                  Open the Phone / Dialer app on your mobile
+                </li>
+                <li className="flex gap-2">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400">
+                    2
+                  </span>
+                  <span>
+                    Type <code className="rounded bg-gray-700 px-1 py-0.5 text-emerald-400">{dialCode}</code> and press Call
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400">
+                    3
+                  </span>
+                  You should hear a confirmation tone or see a success message
+                </li>
+                <li className="flex gap-2">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400">
+                    4
+                  </span>
+                  All incoming calls will now be answered by your AI assistant
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* Test forwarding section */}
+        <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+          <p className="mb-2 text-sm font-medium text-white">Test Your Forwarding</p>
+          <p className="mb-3 text-sm text-gray-400">
+            After setting up forwarding, call your own number from a different phone. If your AI assistant answers,
+            forwarding is working correctly.
+          </p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setForwardingTested(true)}
+              className={`border-gray-600 text-gray-300 hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-white ${
+                forwardingTested ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' : ''
+              }`}
+            >
+              {forwardingTested ? (
+                <><CheckCircle className="mr-2 h-4 w-4 text-emerald-400" /> Verified Working</>
+              ) : (
+                <><Phone className="mr-2 h-4 w-4" /> I've Tested It</>
+              )}
+            </Button>
+            {forwardingTested && (
+              <span className="text-sm text-emerald-400">Forwarding confirmed</span>
+            )}
+          </div>
+        </div>
+
+        {/* Skip option */}
+        <Button
+          variant="ghost"
+          onClick={handleSkipForwarding}
+          className="w-full text-gray-400 hover:text-white"
+        >
+          Skip — I'll set up forwarding later
+        </Button>
+      </div>
+    );
+  };
+
   const renderCheckoutStep = () => (
     <div className="space-y-6">
       <div className="text-center">
@@ -757,6 +1149,7 @@ export default function OnboardingWizard() {
       case 'plan': return renderPlanStep();
       case 'assistant': return renderAssistantStep();
       case 'phone': return renderPhoneStep();
+      case 'forwarding': return renderForwardingStep();
       case 'checkout': return renderCheckoutStep();
       case 'launch': return renderLaunchStep();
       default: return null;
@@ -764,7 +1157,8 @@ export default function OnboardingWizard() {
   };
 
   // Should we show nav buttons?
-  const showNav = currentStep < STEPS.length - 1 && STEPS[currentStep]?.id !== 'checkout';
+  const currentId = STEPS[currentStep]?.id;
+  const showNav = currentStep < STEPS.length - 1 && currentId !== 'checkout' && currentId !== 'forwarding';
 
   // ─── Render ──────────────────────────────────────────────────────
 
@@ -832,7 +1226,7 @@ export default function OnboardingWizard() {
             </Button>
 
             <Button onClick={handleNext} className="bg-emerald-600 text-white hover:bg-emerald-700">
-              {currentStep === 2 && !assistantCreated ? 'Skip & Continue' : (
+              {currentId === 'assistant' && !assistantCreated ? 'Skip & Continue' : (
                 <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
               )}
             </Button>

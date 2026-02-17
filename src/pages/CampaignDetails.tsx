@@ -682,8 +682,23 @@ export default function CampaignDetails() {
     );
   };
 
-  const toggleCampaignStatus = () => {
-    updateCampaign('status', campaign.status === 'active' ? 'paused' : 'active');
+  const toggleCampaignStatus = async () => {
+    const newStatus = campaign.status === 'active' || campaign.status === 'running' ? 'paused' : 'running';
+    const updates: Record<string, any> = {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+    // Clear paused_reason when resuming
+    if (newStatus === 'running') {
+      updates.paused_reason = null;
+    } else {
+      updates.paused_reason = 'manual';
+    }
+
+    if (campaign.id) {
+      await supabase.from('campaigns').update(updates).eq('id', campaign.id);
+    }
+    setCampaign((prev) => ({ ...prev, ...updates }));
   };
 
   const saveChanges = () => {
@@ -694,15 +709,28 @@ export default function CampaignDetails() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>;
+      case 'running':
+        return <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Running</Badge>;
       case 'paused':
-        return <Badge className="bg-yellow-500 hover:bg-yellow-600">Paused</Badge>;
+        return (
+          <div className="flex items-center gap-1.5">
+            <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-400">Paused</Badge>
+            {campaign?.paused_reason === 'insufficient_credits' && (
+              <span className="text-xs text-amber-400/70">Insufficient Credits</span>
+            )}
+          </div>
+        );
       case 'draft':
-        return <Badge className="bg-gray-500 hover:bg-gray-600">Draft</Badge>;
+        return <Badge className="border-blue-500/30 bg-blue-500/10 text-blue-400 border">Draft</Badge>;
+      case 'scheduled':
+        return <Badge className="border-purple-500/30 bg-purple-500/10 text-purple-400">Scheduled</Badge>;
+      case 'completed':
+        return <Badge className="border-gray-500/30 bg-gray-500/10 text-gray-400">Completed</Badge>;
       case 'disabled':
-        return <Badge className="bg-red-500 hover:bg-red-600">Disabled</Badge>;
+      case 'failed':
+        return <Badge className="border-red-500/30 bg-red-500/10 text-red-400">Failed</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="outline" className="text-gray-400">{status}</Badge>;
     }
   };
 
@@ -878,6 +906,60 @@ export default function CampaignDetails() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Revenue & ROI Card */}
+        {((campaign as any).revenue > 0 || (campaign as any).deals_count > 0) && (
+          <Card className="mb-6 border-gray-800 bg-gray-900">
+            <CardContent className="p-6">
+              <h3 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-emerald-400" />
+                Revenue & ROI
+              </h3>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div>
+                  <p className="text-xs text-gray-400">Campaign Cost</p>
+                  <p className="mt-1 text-lg font-bold text-white">
+                    {campaign.totalCost > 0 ? `$${campaign.totalCost.toFixed(2)}` : '$0'}
+                  </p>
+                  <p className="text-[10px] text-gray-500">credits consumed</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Closed Revenue</p>
+                  <p className="mt-1 text-lg font-bold text-emerald-400">
+                    ${((campaign as any).revenue || 0).toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-gray-500">{(campaign as any).deals_count || 0} won deal{(campaign as any).deals_count !== 1 ? 's' : ''}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">ROI</p>
+                  {(() => {
+                    const revenue = (campaign as any).revenue || 0;
+                    const cost = campaign.totalCost || 1;
+                    const roi = ((revenue - cost) / cost) * 100;
+                    const roiColor = roi > 100 ? 'text-emerald-400' : roi > 0 ? 'text-amber-400' : 'text-red-400';
+                    return (
+                      <>
+                        <p className={`mt-1 text-lg font-bold ${roiColor}`}>
+                          {roi > 0 ? '+' : ''}{roi.toFixed(0)}%
+                        </p>
+                        <p className="text-[10px] text-gray-500">return on investment</p>
+                      </>
+                    );
+                  })()}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Per Call</p>
+                  <p className="mt-1 text-lg font-bold text-white">
+                    ${campaign.callsCompleted > 0
+                      ? (((campaign as any).revenue || 0) / campaign.callsCompleted).toFixed(2)
+                      : '0.00'}
+                  </p>
+                  <p className="text-[10px] text-gray-500">revenue per call</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Divider */}
         <div className="mb-8 border-b border-gray-700"></div>

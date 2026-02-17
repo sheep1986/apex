@@ -241,12 +241,14 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'active': return 'bg-green-500';
-      case 'paused': return 'bg-yellow-500';
-      case 'scheduled': return 'bg-blue-500';
-      case 'completed': return 'bg-purple-500';
-      case 'draft': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'active':
+      case 'running': return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
+      case 'paused': return 'border-amber-500/30 bg-amber-500/10 text-amber-400';
+      case 'scheduled': return 'border-purple-500/30 bg-purple-500/10 text-purple-400';
+      case 'completed': return 'border-gray-500/30 bg-gray-500/10 text-gray-400';
+      case 'draft': return 'border-blue-500/30 bg-blue-500/10 text-blue-400';
+      case 'failed': return 'border-red-500/30 bg-red-500/10 text-red-400';
+      default: return 'border-gray-500/30 bg-gray-500/10 text-gray-400';
     }
   };
 
@@ -287,7 +289,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
       </div>
     );
   }
@@ -448,8 +450,8 @@ export const CampaignList: React.FC<CampaignListProps> = ({ websocketUrl, token 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {getStatusIcon(campaign.status)}
-                  <Badge className={`${getStatusColor(campaign.status)} text-white`}>
-                    {campaign.status.toUpperCase()}
+                  <Badge className={getStatusColor(campaign.status)}>
+                    {campaign.status === 'active' ? 'Running' : campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-1">

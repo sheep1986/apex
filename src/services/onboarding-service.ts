@@ -56,7 +56,8 @@ export interface OnboardingData {
 
 export class OnboardingService {
   private static readonly STORAGE_KEY = 'apex-onboarding-data';
-  private static readonly API_BASE = 'http://localhost:3001/api';
+  // All API calls go through Netlify Functions (relative paths)
+  private static readonly API_BASE = '/api';
 
   // Plan configurations — aligned with src/config/plans.ts (AI Employee model)
   // Uses legacy keys (starter/growth/business) for backward compat with PlanSelection

@@ -341,7 +341,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
   const leadScore = editedLead.score || 75;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
         {/* Header */}
         <div className="border-b border-gray-800 p-6">

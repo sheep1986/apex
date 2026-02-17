@@ -1,3 +1,4 @@
+import { InboundCapacityEstimator } from '@/components/InboundCapacityEstimator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,11 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useUserContext } from '@/services/MinimalUserProvider';
 import { voiceService, type VoiceAssistant, type VoicePhoneNumber, type VoiceSquad } from '@/services/voice-service';
 import {
   AlertCircle,
   Bot,
+  Clock,
   Globe,
   Loader2,
   Phone,
@@ -50,6 +54,68 @@ interface AvailableNumber {
   cost?: number;
   vanity?: boolean;
 }
+
+interface DaySchedule {
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+interface BusinessHoursSchedule {
+  monday: DaySchedule;
+  tuesday: DaySchedule;
+  wednesday: DaySchedule;
+  thursday: DaySchedule;
+  friday: DaySchedule;
+  saturday: DaySchedule;
+  sunday: DaySchedule;
+}
+
+interface BusinessHoursConfig {
+  enabled: boolean;
+  timezone: string;
+  schedule: BusinessHoursSchedule;
+}
+
+type AfterHoursAction = 'forward' | 'voicemail' | 'hangup';
+
+const DAY_LABELS: { key: keyof BusinessHoursSchedule; label: string; short: string }[] = [
+  { key: 'monday', label: 'Monday', short: 'Mon' },
+  { key: 'tuesday', label: 'Tuesday', short: 'Tue' },
+  { key: 'wednesday', label: 'Wednesday', short: 'Wed' },
+  { key: 'thursday', label: 'Thursday', short: 'Thu' },
+  { key: 'friday', label: 'Friday', short: 'Fri' },
+  { key: 'saturday', label: 'Saturday', short: 'Sat' },
+  { key: 'sunday', label: 'Sunday', short: 'Sun' },
+];
+
+const TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern (ET)' },
+  { value: 'America/Chicago', label: 'Central (CT)' },
+  { value: 'America/Denver', label: 'Mountain (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { value: 'America/Anchorage', label: 'Alaska (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (HT)' },
+  { value: 'America/Phoenix', label: 'Arizona (no DST)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Berlin', label: 'Berlin (CET)' },
+  { value: 'Europe/Paris', label: 'Paris (CET)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+];
+
+const DEFAULT_SCHEDULE: BusinessHoursSchedule = {
+  monday: { enabled: true, start: '09:00', end: '17:00' },
+  tuesday: { enabled: true, start: '09:00', end: '17:00' },
+  wednesday: { enabled: true, start: '09:00', end: '17:00' },
+  thursday: { enabled: true, start: '09:00', end: '17:00' },
+  friday: { enabled: true, start: '09:00', end: '17:00' },
+  saturday: { enabled: false, start: '09:00', end: '17:00' },
+  sunday: { enabled: false, start: '09:00', end: '17:00' },
+};
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function formatPhoneNumber(number: string): string {
@@ -101,6 +167,14 @@ export default function Telephony() {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [aiDisabledForwardTo, setAiDisabledForwardTo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Business hours state
+  const [businessHoursEnabled, setBusinessHoursEnabled] = useState(false);
+  const [businessHoursTimezone, setBusinessHoursTimezone] = useState('America/New_York');
+  const [businessHoursSchedule, setBusinessHoursSchedule] = useState<BusinessHoursSchedule>({ ...DEFAULT_SCHEDULE });
+  const [afterHoursAction, setAfterHoursAction] = useState<AfterHoursAction>('voicemail');
+  const [afterHoursForwardTo, setAfterHoursForwardTo] = useState('');
+  const [afterHoursGreeting, setAfterHoursGreeting] = useState('');
 
   // SIP Trunk dialog
   const [showSipDialog, setShowSipDialog] = useState(false);
@@ -219,7 +293,7 @@ export default function Telephony() {
       }
       await voiceService.updatePhoneNumber(selectedNumber.id, updates);
 
-      // Save AI toggle to Supabase (custom fields not in Vapi)
+      // Save AI toggle + business hours to Supabase
       try {
         const { supabase } = await import('@/services/supabase-client');
         await supabase
@@ -229,8 +303,52 @@ export default function Telephony() {
             ai_disabled_forward_to: !aiEnabled ? aiDisabledForwardTo || null : null,
           })
           .eq('e164', selectedNumber.number);
+
+        // Get or create inbound route for business hours
+        const { data: phoneRow } = await supabase
+          .from('phone_numbers')
+          .select('inbound_route_id, organization_id')
+          .eq('e164', selectedNumber.number)
+          .single();
+
+        if (phoneRow) {
+          const businessHoursPayload = {
+            business_hours: businessHoursEnabled ? {
+              enabled: true,
+              timezone: businessHoursTimezone,
+              schedule: businessHoursSchedule,
+            } : { enabled: false },
+            after_hours_action: afterHoursAction,
+            after_hours_forward_to: afterHoursAction === 'forward' ? afterHoursForwardTo || null : null,
+            after_hours_greeting: afterHoursGreeting || null,
+          };
+
+          if (phoneRow.inbound_route_id) {
+            await supabase
+              .from('inbound_routes')
+              .update(businessHoursPayload)
+              .eq('id', phoneRow.inbound_route_id);
+          } else {
+            // Create a new inbound route and link it
+            const { data: newRoute } = await supabase
+              .from('inbound_routes')
+              .insert({
+                organization_id: phoneRow.organization_id,
+                config: {},
+                ...businessHoursPayload,
+              })
+              .select('id')
+              .single();
+            if (newRoute) {
+              await supabase
+                .from('phone_numbers')
+                .update({ inbound_route_id: newRoute.id })
+                .eq('e164', selectedNumber.number);
+            }
+          }
+        }
       } catch {
-        // AI toggle save is non-critical
+        // Business hours save is non-critical
       }
 
       setShowConfigDialog(false);
@@ -244,6 +362,12 @@ export default function Telephony() {
       setFallbackNumber('');
       setAiEnabled(true);
       setAiDisabledForwardTo('');
+      setBusinessHoursEnabled(false);
+      setBusinessHoursTimezone('America/New_York');
+      setBusinessHoursSchedule({ ...DEFAULT_SCHEDULE });
+      setAfterHoursAction('voicemail');
+      setAfterHoursForwardTo('');
+      setAfterHoursGreeting('');
       await fetchData();
     } catch (err: any) {
       console.error('Failed to update phone number:', err);
@@ -367,7 +491,7 @@ export default function Telephony() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-purple-500 mx-auto" />
+          <Loader2 className="h-10 w-10 animate-spin text-emerald-500 mx-auto" />
           <p className="text-gray-400">Connecting to Telephony Network...</p>
         </div>
       </div>
@@ -530,7 +654,7 @@ export default function Telephony() {
         {/* Loading */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
             <span className="ml-3 text-gray-400">Loading phone numbers...</span>
           </div>
         )}
@@ -564,6 +688,7 @@ export default function Telephony() {
           <div className="space-y-3">
             {filteredNumbers.map((number) => {
               const assignedAssistant = getAssistantName(number.assistantId);
+              const assignedSquad = getSquadName(number.squadId);
               return (
                 <Card
                   key={number.id}
@@ -599,7 +724,7 @@ export default function Telephony() {
                             {!assignedAssistant && number.squadId && (
                               <span className="text-sm text-blue-400 flex items-center gap-1">
                                 <Users className="h-3 w-3" />
-                                {getSquadName(number.squadId)}
+                                {assignedSquad}
                               </span>
                             )}
                             {!assignedAssistant && !number.squadId && (
@@ -620,7 +745,7 @@ export default function Telephony() {
                           size="sm"
                           variant="outline"
                           className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedNumber(number);
                             setSelectedAssistantId(number.assistantId || '');
                             setSelectedSquadId(number.squadId || '');
@@ -629,6 +754,57 @@ export default function Telephony() {
                             setNumberServerUrl(number.serverUrl || '');
                             setFallbackType(number.fallbackDestination?.number ? 'number' : 'none');
                             setFallbackNumber(number.fallbackDestination?.number || '');
+                            // Load business hours from inbound_routes
+                            try {
+                              const { supabase } = await import('@/services/supabase-client');
+                              const { data: phoneRow } = await supabase
+                                .from('phone_numbers')
+                                .select('inbound_route_id, ai_enabled, ai_disabled_forward_to')
+                                .eq('e164', number.number)
+                                .single();
+                              if (phoneRow) {
+                                setAiEnabled(phoneRow.ai_enabled !== false);
+                                setAiDisabledForwardTo(phoneRow.ai_disabled_forward_to || '');
+                              }
+                              if (phoneRow?.inbound_route_id) {
+                                const { data: route } = await supabase
+                                  .from('inbound_routes')
+                                  .select('business_hours, after_hours_action, after_hours_forward_to, after_hours_greeting')
+                                  .eq('id', phoneRow.inbound_route_id)
+                                  .single();
+                                if (route) {
+                                  const bh = route.business_hours;
+                                  setBusinessHoursEnabled(bh?.enabled ?? false);
+                                  setBusinessHoursTimezone(bh?.timezone || 'America/New_York');
+                                  setBusinessHoursSchedule(bh?.schedule ? { ...DEFAULT_SCHEDULE, ...bh.schedule } : { ...DEFAULT_SCHEDULE });
+                                  setAfterHoursAction((route.after_hours_action as AfterHoursAction) || 'voicemail');
+                                  setAfterHoursForwardTo(route.after_hours_forward_to || '');
+                                  setAfterHoursGreeting(route.after_hours_greeting || '');
+                                } else {
+                                  setBusinessHoursEnabled(false);
+                                  setBusinessHoursTimezone('America/New_York');
+                                  setBusinessHoursSchedule({ ...DEFAULT_SCHEDULE });
+                                  setAfterHoursAction('voicemail');
+                                  setAfterHoursForwardTo('');
+                                  setAfterHoursGreeting('');
+                                }
+                              } else {
+                                setBusinessHoursEnabled(false);
+                                setBusinessHoursTimezone('America/New_York');
+                                setBusinessHoursSchedule({ ...DEFAULT_SCHEDULE });
+                                setAfterHoursAction('voicemail');
+                                setAfterHoursForwardTo('');
+                                setAfterHoursGreeting('');
+                              }
+                            } catch {
+                              // If loading fails, reset to defaults
+                              setBusinessHoursEnabled(false);
+                              setBusinessHoursTimezone('America/New_York');
+                              setBusinessHoursSchedule({ ...DEFAULT_SCHEDULE });
+                              setAfterHoursAction('voicemail');
+                              setAfterHoursForwardTo('');
+                              setAfterHoursGreeting('');
+                            }
                             setShowConfigDialog(true);
                           }}
                         >
@@ -654,11 +830,16 @@ export default function Telephony() {
             })}
           </div>
         )}
+
+        {/* Inbound Capacity Estimator */}
+        {!isLoading && phoneNumbers.length > 0 && (
+          <InboundCapacityEstimator currentPhoneNumbers={phoneNumbers.length} />
+        )}
       </div>
 
       {/* ── Configure Number Dialog ──────────────────────────────────────── */}
       <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
-        <DialogContent className="sm:max-w-[480px] bg-gray-950 border-gray-800 text-white">
+        <DialogContent className="sm:max-w-[560px] bg-gray-950 border-gray-800 text-white">
           <DialogHeader>
             <DialogTitle>Configure Phone Number</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -833,6 +1014,151 @@ export default function Telephony() {
               </p>
             </div>
 
+            {/* Business Hours */}
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-gray-300 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-emerald-400" />
+                  Business Hours
+                </Label>
+                <Switch
+                  checked={businessHoursEnabled}
+                  onCheckedChange={setBusinessHoursEnabled}
+                />
+              </div>
+
+              {businessHoursEnabled && (
+                <div className="space-y-4 rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+                  {/* Timezone */}
+                  <div className="grid gap-2">
+                    <Label className="text-gray-400 text-xs">Timezone</Label>
+                    <Select value={businessHoursTimezone} onValueChange={setBusinessHoursTimezone}>
+                      <SelectTrigger className="border-gray-700 bg-gray-800 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-950 border-gray-700">
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Day Grid */}
+                  <div className="space-y-2">
+                    <Label className="text-gray-400 text-xs">Schedule</Label>
+                    <div className="space-y-1.5">
+                      {DAY_LABELS.map(({ key, short }) => {
+                        const day = businessHoursSchedule[key];
+                        return (
+                          <div
+                            key={key}
+                            className={`flex items-center gap-3 rounded-md border p-2 transition-colors ${
+                              day.enabled
+                                ? 'border-gray-700 bg-gray-800'
+                                : 'border-gray-800 bg-gray-900/30'
+                            }`}
+                          >
+                            <Switch
+                              checked={day.enabled}
+                              onCheckedChange={(checked) =>
+                                setBusinessHoursSchedule((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], enabled: checked },
+                                }))
+                              }
+                              className="scale-75"
+                            />
+                            <span className={`w-10 text-sm font-medium ${day.enabled ? 'text-white' : 'text-gray-500'}`}>
+                              {short}
+                            </span>
+                            {day.enabled ? (
+                              <div className="flex items-center gap-1.5 ml-auto">
+                                <input
+                                  type="time"
+                                  value={day.start}
+                                  onChange={(e) =>
+                                    setBusinessHoursSchedule((prev) => ({
+                                      ...prev,
+                                      [key]: { ...prev[key], start: e.target.value },
+                                    }))
+                                  }
+                                  className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none [color-scheme:dark]"
+                                />
+                                <span className="text-gray-500 text-xs">to</span>
+                                <input
+                                  type="time"
+                                  value={day.end}
+                                  onChange={(e) =>
+                                    setBusinessHoursSchedule((prev) => ({
+                                      ...prev,
+                                      [key]: { ...prev[key], end: e.target.value },
+                                    }))
+                                  }
+                                  className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none [color-scheme:dark]"
+                                />
+                              </div>
+                            ) : (
+                              <span className="ml-auto text-xs text-gray-500">Closed</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* After-Hours Action */}
+                  <div className="grid gap-2">
+                    <Label className="text-gray-400 text-xs">After-Hours Action</Label>
+                    <div className="flex gap-2">
+                      {([
+                        { value: 'voicemail' as const, label: 'Voicemail' },
+                        { value: 'forward' as const, label: 'Forward' },
+                        { value: 'hangup' as const, label: 'Hang Up' },
+                      ]).map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setAfterHoursAction(opt.value)}
+                          className={`flex-1 rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                            afterHoursAction === opt.value
+                              ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                              : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Forward-to Number (conditional) */}
+                  {afterHoursAction === 'forward' && (
+                    <div className="grid gap-2">
+                      <Label className="text-gray-400 text-xs">Forward To</Label>
+                      <Input
+                        value={afterHoursForwardTo}
+                        onChange={(e) => setAfterHoursForwardTo(e.target.value)}
+                        placeholder="+1234567890"
+                        className="border-gray-700 bg-gray-800 text-white placeholder-gray-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* After-Hours Greeting */}
+                  <div className="grid gap-2">
+                    <Label className="text-gray-400 text-xs">After-Hours Greeting</Label>
+                    <Textarea
+                      value={afterHoursGreeting}
+                      onChange={(e) => setAfterHoursGreeting(e.target.value)}
+                      placeholder="We are currently closed. Our business hours are Monday through Friday, 9 AM to 5 PM. Please leave a message."
+                      rows={3}
+                      className="border-gray-700 bg-gray-800 text-white placeholder-gray-500 resize-none text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Number Details */}
             {selectedNumber && (
               <div className="space-y-2 text-sm bg-gray-900/50 p-3 rounded-lg">
@@ -869,6 +1195,12 @@ export default function Telephony() {
                 setNumberServerUrl('');
                 setFallbackType('none');
                 setFallbackNumber('');
+                setBusinessHoursEnabled(false);
+                setBusinessHoursTimezone('America/New_York');
+                setBusinessHoursSchedule({ ...DEFAULT_SCHEDULE });
+                setAfterHoursAction('voicemail');
+                setAfterHoursForwardTo('');
+                setAfterHoursGreeting('');
               }}
               className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
             >

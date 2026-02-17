@@ -284,7 +284,7 @@ export function Organizations() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-black to-gray-950">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         <span className="ml-3 text-lg text-gray-400">Loading organizations...</span>
       </div>
     );

@@ -46,7 +46,7 @@ class CallsService {
    * Get detailed call information including transcript and recording
    */
   async getCallDetails(callId: string): Promise<CallDetails> {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const API_BASE_URL = ''; // Netlify Functions (relative paths)
     const result = await safeApi<{ call: CallDetails }>({
       method: 'GET',
       url: `${API_BASE_URL}/api/campaign/calls/${callId}`
@@ -69,7 +69,7 @@ class CallsService {
    * Get all calls for a specific campaign
    */
   async getCampaignCalls(campaignId: string): Promise<{ calls: CallSummary[] }> {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const API_BASE_URL = ''; // Netlify Functions (relative paths)
     const result = await safeApi<{ calls: CallSummary[] }>({
       method: 'GET',
       url: `${API_BASE_URL}/api/campaign/campaigns/${campaignId}/calls`
@@ -86,7 +86,7 @@ class CallsService {
    * Sync call data from provider
    */
   async syncCall(providerCallId: string): Promise<{ success: boolean; aiProcessing?: boolean }> {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const API_BASE_URL = ''; // Netlify Functions (relative paths)
     const result = await safeApi<{ success: boolean; aiProcessing?: boolean }>({
       method: 'POST',
       url: `${API_BASE_URL}/api/voice/sync-call/${providerCallId}`

@@ -1,7 +1,7 @@
 import type { Handler } from '@netlify/functions';
 
-// Always use Railway API for the proxy since this runs on Netlify servers
-const RAILWAY_API = 'https://apex-backend-august-production.up.railway.app';
+// Railway backend URL — configurable via env var, with hardcoded fallback
+const RAILWAY_API = process.env.RAILWAY_API_URL || 'https://apex-backend-august-production.up.railway.app';
 
 export const handler: Handler = async (event) => {
   // Handle OPTIONS preflight requests immediately
@@ -21,7 +21,7 @@ export const handler: Handler = async (event) => {
   const path = event.path.replace('/.netlify/functions/api-proxy', '');
   const url = `${RAILWAY_API}${path}${event.rawQuery ? `?${event.rawQuery}` : ''}`;
   
-  console.log(`Proxying ${event.httpMethod} request to: ${url}`);
+  console.log(`[api-proxy] ${event.httpMethod} ${path}`);
   
   try {
     // Build headers - forward what we need

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useUserContext } from '@/services/MinimalUserProvider'; // Context
 import { createClient } from '@supabase/supabase-js';
-import { Phone, Plus, Search, Settings } from 'lucide-react';
+import { Loader2, Phone, Plus, Search, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -32,29 +32,73 @@ export default function PhoneNumbersPage() {
     setNumbers(data || []);
   };
 
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [buyingNumber, setBuyingNumber] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || '';
+  };
+
   const handleSearch = async () => {
-    // Call Netlify Function (Mocked/Proxy)
-    const token = localStorage.getItem('auth_token'); // Or get session
-    // In real app, we use correct auth hook to get token. Assuming dev env or hook availability.
-    
-    // Simulating API call since we don't have full auth hook wired in this file snippet easily without updates
-    // fetch('/.netlify/functions/numbers-search?areaCode=' + searchAreaCode)...
-    
-    // MOCK UI ACTIVITY
-    setAvailableNumbers([
-        { e164: `+1${searchAreaCode || '415'}5550199`, friendly: `(${searchAreaCode || '415'}) 555-0199` },
-        { e164: `+1${searchAreaCode || '415'}5550200`, friendly: `(${searchAreaCode || '415'}) 555-0200` }
-    ]);
-    setIsSearching(true);
+    if (!searchAreaCode || searchAreaCode.length < 3) {
+      setSearchError('Please enter a valid area code (e.g. 415)');
+      return;
+    }
+    setSearchError(null);
+    setSearchLoading(true);
+    try {
+      const token = await getAuthToken();
+      const response = await fetch(
+        `/.netlify/functions/numbers-search?areaCode=${encodeURIComponent(searchAreaCode)}&organizationId=${userContext?.organization_id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to search numbers');
+      }
+      const data = await response.json();
+      const nums = Array.isArray(data) ? data : data.numbers || [];
+      setAvailableNumbers(nums.map((n: any) => ({
+        e164: n.phoneNumber || n.e164 || n.number,
+        friendly: n.friendlyName || n.friendly || n.phoneNumber || n.e164 || n.number,
+      })));
+      setIsSearching(true);
+    } catch (err: any) {
+      setSearchError(err.message || 'Search failed');
+    } finally {
+      setSearchLoading(false);
+    }
   };
 
   const handleBuy = async (phoneNumber: string) => {
-      // Call /.netlify/functions/numbers-purchase
-      // Then reload
-      alert(`Purchasing ${phoneNumber}... (Mock)`);
+    setBuyingNumber(phoneNumber);
+    try {
+      const token = await getAuthToken();
+      const response = await fetch('/.netlify/functions/numbers-purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phoneNumber,
+          organizationId: userContext?.organization_id,
+        }),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to purchase number');
+      }
       setIsSearching(false);
       setAvailableNumbers([]);
-      loadNumbers(); // Refresh
+      await loadNumbers();
+    } catch (err: any) {
+      setSearchError(err.message || 'Purchase failed');
+    } finally {
+      setBuyingNumber(null);
+    }
   };
 
   return (
@@ -82,18 +126,31 @@ export default function PhoneNumbersPage() {
                 value={searchAreaCode}
                 onChange={(e) => setSearchAreaCode(e.target.value)}
               />
-              <Button variant="secondary" onClick={handleSearch}>
-                <Search className="mr-2 h-4 w-4" /> Search
+              <Button variant="secondary" onClick={handleSearch} disabled={searchLoading}>
+                {searchLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                {searchLoading ? 'Searching...' : 'Search'}
               </Button>
             </div>
             
+            {searchError && (
+              <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+                {searchError}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {availableNumbers.map((num) => (
                 <div key={num.e164} className="p-4 border border-gray-700 rounded-lg flex justify-between items-center">
                   <div className="text-lg font-mono">{num.friendly}</div>
-                  <Button size="sm" onClick={() => handleBuy(num.e164)}>Buy $1/mo</Button>
+                  <Button size="sm" onClick={() => handleBuy(num.e164)} disabled={buyingNumber !== null}>
+                    {buyingNumber === num.e164 ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Buy'}
+                  </Button>
                 </div>
               ))}
+              {availableNumbers.length === 0 && !searchLoading && (
+                <div className="col-span-3 text-center py-4 text-gray-500">
+                  No numbers found for this area code. Try a different one.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

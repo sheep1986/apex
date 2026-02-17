@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { useAuth } from '@/hooks/auth';
 import { useToast } from '@/hooks/use-toast';
 import {
     AlertCircle,
@@ -49,6 +48,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '@/services/supabase-client';
 
 interface Organization {
   id: string;
@@ -141,7 +141,6 @@ const ROLES = [
 export default function OrganizationManagement() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getToken } = useAuth();
   const { toast } = useToast();
 
   const [currentStep, setCurrentStep] = useState(2); // Start on Team tab to match screenshot
@@ -249,57 +248,24 @@ export default function OrganizationManagement() {
         setLoading(false);
         return;
       } catch (err) {
-        console.error('❌ Error fetching from Supabase:', err);
+        console.error('Error fetching from Supabase:', err);
         setError('Organization not found');
         setLoading(false);
         return;
       }
 
-      const token = await getToken();
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      };
-
-      // Fetch organization details
-      const orgResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/organizations/${id}`, {
-        headers,
-      });
-
-      if (!orgResponse.ok) throw new Error('Failed to fetch organization');
-      const orgData = await orgResponse.json();
-      const org = orgData.organization || orgData;
-      setOrganization(org);
-      setEditedOrg(org);
-
-      // Load VAPI settings if available
-      if (org.vapi_settings || org.settings?.vapi) {
-        const vapiSettings = org.vapi_settings ? 
-          (typeof org.vapi_settings === 'string' ? JSON.parse(org.vapi_settings) : org.vapi_settings) : 
-          org.settings?.vapi;
-        
-        
-        // setVapiPrivateKey(vapiSettings.privateKey || vapiSettings.apiKey || '');
-        // setVapiPublicKey(vapiSettings.publicKey || '');
-        // setVapiEnabled(vapiSettings.enabled !== undefined ? vapiSettings.enabled : true);
-      }
-
-      // Fetch users
-      const usersResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/organizations/${id}/users`, {
-        headers,
-      });
-      if (usersResponse.ok) {
-        const usersData = await usersResponse.json();
-        setUsers(usersData.users || []);
-      }
-
-      // Fetch invitations
-      const invitationsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/organizations/${id}/invitations`, {
-        headers,
-      });
-      if (invitationsResponse.ok) {
-        const invitationsData = await invitationsResponse.json();
-        setInvitations(invitationsData.invitations || []);
+      // Fetch invitations from Supabase (table may not exist yet)
+      try {
+        const { data: invData } = await supabase
+          .from('invitations')
+          .select('*')
+          .eq('organization_id', id);
+        if (invData) {
+          setInvitations(invData);
+        }
+      } catch (err) {
+        console.warn('Could not fetch invitations (table may not exist):', err);
+        setInvitations([]);
       }
     } catch (error) {
       console.error('Error fetching organization data:', error);
@@ -362,26 +328,66 @@ export default function OrganizationManagement() {
   const sendInvitation = async () => {
     try {
       setSendingInvite(true);
-      const token = await getToken();
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/organizations/${id}/invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
+      // Create a new auth user via Supabase signUp (sends confirmation email)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: inviteEmail,
+        password: crypto.randomUUID(), // temporary password; user sets their own via email
+        options: {
+          data: {
+            full_name: `${inviteFirstName} ${inviteLastName}`.trim(),
+            first_name: inviteFirstName,
+            last_name: inviteLastName,
+            role: inviteRole,
+          },
+          emailRedirectTo: `${window.location.origin}/login`,
         },
-        body: JSON.stringify({
-          email: inviteEmail,
-          firstName: inviteFirstName,
-          lastName: inviteLastName,
-          role: inviteRole,
-          inviterName: 'Admin', // You might want to get this from the current user
-        }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to send invitation');
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      // Link user to organization if auth succeeded
+      if (authData.user) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              organization_id: id,
+              role: inviteRole,
+              status: 'invited',
+              invited_at: new Date().toISOString(),
+            })
+            .eq('id', authData.user.id);
+        } catch (err) {
+          console.warn('Could not update profile:', err);
+        }
+
+        try {
+          await supabase.from('organization_members').insert({
+            organization_id: id,
+            user_id: authData.user.id,
+            role: inviteRole === 'client_admin' ? 'admin' : 'member',
+          });
+        } catch (err) {
+          console.warn('Could not create org membership:', err);
+        }
+
+        // Try to create an invitation record (table may not exist)
+        try {
+          await supabase.from('invitations').insert({
+            organization_id: id,
+            email: inviteEmail,
+            first_name: inviteFirstName,
+            last_name: inviteLastName,
+            role: inviteRole,
+            status: 'pending',
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+        } catch (err) {
+          console.warn('Could not create invitation record (table may not exist):', err);
+        }
       }
 
       toast({
@@ -395,8 +401,8 @@ export default function OrganizationManagement() {
       setInviteLastName('');
       setInviteRole('client_user');
       setShowInviteModal(false);
-      
-      // Refresh invitations
+
+      // Refresh data
       await fetchOrganizationData();
     } catch (error) {
       console.error('Error sending invitation:', error);
@@ -412,28 +418,51 @@ export default function OrganizationManagement() {
 
   const resendInvitation = async (invitationId: string) => {
     try {
-      const token = await getToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/invitations/${invitationId}/resend`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
+      // Get the invitation details to find the email
+      const { data: invitation, error: fetchError } = await supabase
+        .from('invitations')
+        .select('*')
+        .eq('id', invitationId)
+        .single();
+
+      if (fetchError || !invitation) {
+        throw new Error('Invitation not found');
+      }
+
+      // Re-invite via Supabase auth (resend confirmation)
+      const { error: authError } = await supabase.auth.signUp({
+        email: invitation.email,
+        password: crypto.randomUUID(),
+        options: {
+          data: {
+            full_name: `${invitation.first_name || ''} ${invitation.last_name || ''}`.trim(),
+            role: invitation.role,
+          },
+          emailRedirectTo: `${window.location.origin}/login`,
         },
       });
 
-      if (!response.ok) throw new Error('Failed to resend invitation');
+      // Update the invitation record
+      await supabase
+        .from('invitations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', invitationId);
+
+      if (authError && !authError.message.includes('already registered')) {
+        throw new Error(authError.message);
+      }
 
       toast({
         title: 'Success',
         description: 'Invitation resent successfully',
       });
-      
+
       await fetchOrganizationData();
     } catch (error) {
       console.error('Error resending invitation:', error);
       toast({
         title: 'Error',
-        description: 'Failed to resend invitation',
+        description: error instanceof Error ? error.message : 'Failed to resend invitation',
         variant: 'destructive',
       });
     }
@@ -443,28 +472,35 @@ export default function OrganizationManagement() {
     if (!confirm('Are you sure you want to cancel this invitation?')) return;
 
     try {
-      const token = await getToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/invitations/${invitationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
+      // Try to update the invitation status to cancelled
+      const { error: updateError } = await supabase
+        .from('invitations')
+        .update({ status: 'cancelled' })
+        .eq('id', invitationId);
 
-      if (!response.ok) throw new Error('Failed to cancel invitation');
+      if (updateError) {
+        // If update fails, try delete as fallback
+        const { error: deleteError } = await supabase
+          .from('invitations')
+          .delete()
+          .eq('id', invitationId);
+
+        if (deleteError) {
+          throw new Error('Failed to cancel invitation');
+        }
+      }
 
       toast({
         title: 'Success',
         description: 'Invitation cancelled',
       });
-      
+
       await fetchOrganizationData();
     } catch (error) {
       console.error('Error cancelling invitation:', error);
       toast({
         title: 'Error',
-        description: 'Failed to cancel invitation',
+        description: error instanceof Error ? error.message : 'Failed to cancel invitation',
         variant: 'destructive',
       });
     }
@@ -1066,53 +1102,44 @@ export default function OrganizationManagement() {
         }}
         onResendInvitation={async (userId) => {
           try {
-            const token = await getToken();
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/users/${userId}/resend-invitation`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { Authorization: `Bearer ${token}` }),
+            // Get the user's email from the profiles table
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('email, full_name, role')
+              .eq('id', userId)
+              .single();
+
+            if (profileError || !profile) {
+              throw new Error('User not found');
+            }
+
+            // Re-send invitation via Supabase auth signUp (resend confirmation)
+            const { error: authError } = await supabase.auth.signUp({
+              email: profile.email,
+              password: crypto.randomUUID(),
+              options: {
+                data: {
+                  full_name: profile.full_name,
+                  role: profile.role,
+                },
+                emailRedirectTo: `${window.location.origin}/login`,
               },
-              body: JSON.stringify({
-                inviterName: 'Admin', // You might want to get this from the current user context
-              }),
             });
 
-            if (!response.ok) {
-              const error = await response.json();
-              throw new Error(error.error || 'Failed to resend invitation');
+            if (authError && !authError.message.includes('already registered')) {
+              throw new Error(authError.message);
             }
 
-            const result = await response.json();
-            
-            // Show invitation link if email wasn't sent
-            if (result.inviteLink && result.warning) {
-              toast({
-                title: 'Invitation Link Generated',
-                description: (
-                  <div className="space-y-2">
-                    <p>{result.message}</p>
-                    <div className="mt-2 p-2 bg-gray-800 rounded text-xs break-all">
-                      {result.inviteLink}
-                    </div>
-                    <p className="text-xs text-gray-400">{result.warning}</p>
-                    <div className="mt-3 p-2 bg-blue-900/20 border border-blue-800 rounded text-xs">
-                      <p className="font-semibold text-blue-400 mb-1">To enable automatic email sending:</p>
-                      <p className="text-gray-300">1. Get a free Resend API key at resend.com</p>
-                      <p className="text-gray-300">2. Add to your /apps/backend/.env file:</p>
-                      <p className="text-gray-300 font-mono bg-gray-800 p-1 rounded mt-1">RESEND_API_KEY=re_your_api_key</p>
-                      <p className="text-gray-300">3. Restart the backend server</p>
-                    </div>
-                  </div>
-                ),
-                duration: 15000, // Show for 15 seconds
-              });
-            } else {
-              toast({
-                title: 'Success',
-                description: result.message,
-              });
-            }
+            // Update the profile invited_at timestamp
+            await supabase
+              .from('profiles')
+              .update({ invited_at: new Date().toISOString(), status: 'invited' })
+              .eq('id', userId);
+
+            toast({
+              title: 'Success',
+              description: 'Invitation resent successfully',
+            });
 
             // Refresh user data to show updated status
             await fetchOrganizationData();
@@ -1131,21 +1158,14 @@ export default function OrganizationManagement() {
           }
 
           try {
-            const token = await getToken();
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/users/${userId}/suspend`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { Authorization: `Bearer ${token}` }),
-              },
-              body: JSON.stringify({
-                reason: 'Suspended by administrator',
-              }),
-            });
+            // Update user status to suspended in profiles
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ status: 'suspended', updated_at: new Date().toISOString() })
+              .eq('id', userId);
 
-            if (!response.ok) {
-              const error = await response.json();
-              throw new Error(error.error || 'Failed to suspend user');
+            if (updateError) {
+              throw new Error(updateError.message || 'Failed to suspend user');
             }
 
             toast({
@@ -1167,25 +1187,19 @@ export default function OrganizationManagement() {
         }}
         onActivateUser={async (userId) => {
           try {
-            const token = await getToken();
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/users/${userId}/activate`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { Authorization: `Bearer ${token}` }),
-              },
-            });
+            // Update user status to active in profiles
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ status: 'active', updated_at: new Date().toISOString() })
+              .eq('id', userId);
 
-            if (!response.ok) {
-              const error = await response.json();
-              throw new Error(error.error || 'Failed to activate user');
+            if (updateError) {
+              throw new Error(updateError.message || 'Failed to activate user');
             }
-
-            const result = await response.json();
 
             toast({
               title: 'User Activated',
-              description: result.message,
+              description: 'The user has been activated and can now access the platform.',
             });
 
             // Refresh user data to show updated status

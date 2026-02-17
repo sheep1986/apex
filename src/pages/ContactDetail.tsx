@@ -167,7 +167,7 @@ export default function ContactDetail() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         <span className="ml-3 text-gray-400">Loading contact...</span>
       </div>
     );

@@ -88,6 +88,8 @@ export const handler: Handler = async (event) => {
               body: JSON.stringify({ error: `Assistant limit reached (${maxAssistants}). Upgrade your plan for more.` })
             };
           }
+        } else {
+          console.warn(`[voice-assistant] Failed to count assistants (status ${countResp.status}), skipping limit check`);
         }
       }
     }

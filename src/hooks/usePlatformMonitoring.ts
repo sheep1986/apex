@@ -88,7 +88,7 @@ export function usePlatformMonitoring() {
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const API_BASE_URL = ''; // All API calls go through Netlify Functions (relative paths)
 
   // Fetch metrics via REST API
   const fetchMetrics = useCallback(async () => {

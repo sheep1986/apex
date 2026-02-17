@@ -192,7 +192,7 @@ export default function KnowledgeBase() {
   if (!voiceReady || loading) {
     return (
       <div className="flex h-96 flex-col items-center justify-center">
-        <Loader2 className="mb-3 h-8 w-8 animate-spin text-blue-400" />
+        <Loader2 className="mb-3 h-8 w-8 animate-spin text-emerald-500" />
         <p className="text-gray-400">
           {!voiceReady ? 'Connecting to voice service...' : 'Loading knowledge base...'}
         </p>

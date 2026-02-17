@@ -42,7 +42,7 @@ export interface VoiceProvider {
   getAssistants(): Promise<VoiceAssistant[]>;
   getAssistant(id: string): Promise<VoiceAssistant>;
   createAssistant(config: Partial<VoiceAssistant> & { toolIds?: string[]; fileIds?: string[] }): Promise<VoiceAssistant>;
-  updateAssistant(id: string, updates: Partial<VoiceAssistant>): Promise<VoiceAssistant>;
+  updateAssistant(id: string, updates: Partial<VoiceAssistant> & { toolIds?: string[]; fileIds?: string[] }): Promise<VoiceAssistant>;
   deleteAssistant(id: string): Promise<void>;
 
   // ─── Calls ──────────────────────────────────────────────────────

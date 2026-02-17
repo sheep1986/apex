@@ -1,5 +1,6 @@
 // API Configuration Service - Frontend Client
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// All API calls go through Netlify Functions (relative paths)
+const API_BASE_URL = '';
 
 export interface ApiConfiguration {
   id?: string;

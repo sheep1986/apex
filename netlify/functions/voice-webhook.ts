@@ -266,7 +266,150 @@ async function handleEndOfCallReport(message: any, organizationId: string, trini
     });
   }
 
-  // 5. Record event
+  // 5. QA Auto-Scoring from Vapi analysis
+  try {
+    const qaUpdate: Record<string, any> = {};
+
+    // Extract success evaluation → map to qa_score (1-5)
+    if (call.analysis?.successEvaluation) {
+      const evalStr = String(call.analysis.successEvaluation).toLowerCase();
+      if (evalStr === 'true' || evalStr === 'success' || evalStr === 'yes') {
+        qaUpdate.qa_score = 5;
+      } else if (evalStr === 'false' || evalStr === 'failure' || evalStr === 'no') {
+        qaUpdate.qa_score = 2;
+      } else if (evalStr === 'partial') {
+        qaUpdate.qa_score = 3;
+      } else {
+        qaUpdate.qa_score = 3; // neutral default
+      }
+    } else if (call.analysis?.structuredData?.score) {
+      qaUpdate.qa_score = Math.min(5, Math.max(1, Math.round(Number(call.analysis.structuredData.score))));
+    }
+
+    // Extract sentiment
+    if (call.analysis?.structuredData?.sentiment) {
+      const sentiment = String(call.analysis.structuredData.sentiment).toLowerCase();
+      if (['positive', 'neutral', 'negative'].includes(sentiment)) {
+        qaUpdate.sentiment = sentiment;
+      }
+    } else if (call.transcript) {
+      // Simple heuristic if provider doesn't supply structured sentiment
+      const transcript = String(call.transcript).toLowerCase();
+      const positiveSignals = ['thank you', 'sounds great', 'interested', 'yes please', 'perfect', 'wonderful'];
+      const negativeSignals = ['not interested', 'stop calling', 'remove me', 'do not call', 'no thanks', 'hang up'];
+      const posScore = positiveSignals.filter(s => transcript.includes(s)).length;
+      const negScore = negativeSignals.filter(s => transcript.includes(s)).length;
+      if (posScore > negScore) qaUpdate.sentiment = 'positive';
+      else if (negScore > posScore) qaUpdate.sentiment = 'negative';
+      else qaUpdate.sentiment = 'neutral';
+    }
+
+    // Determine call outcome
+    const endedReason = call.endedReason || '';
+    if (endedReason === 'customer-ended-call' || endedReason === 'assistant-ended-call') {
+      // Check transcript for outcome signals
+      const t = String(call.transcript || '').toLowerCase();
+      if (t.includes('callback') || t.includes('call back') || t.includes('call me back')) {
+        qaUpdate.outcome = 'callback';
+      } else if (t.includes('interested') || t.includes('tell me more') || t.includes('sign up') || t.includes('sounds good')) {
+        qaUpdate.outcome = 'interested';
+      } else if (t.includes('not interested') || t.includes('no thank') || t.includes('don\'t need')) {
+        qaUpdate.outcome = 'not_interested';
+      } else {
+        qaUpdate.outcome = call.analysis?.successEvaluation === 'true' ? 'interested' : 'not_interested';
+      }
+    } else if (endedReason === 'voicemail') {
+      qaUpdate.outcome = 'voicemail';
+    } else if (endedReason === 'silence-timed-out' || endedReason === 'customer-did-not-answer') {
+      qaUpdate.outcome = 'no_answer';
+    } else {
+      qaUpdate.outcome = 'other';
+    }
+
+    if (Object.keys(qaUpdate).length > 0) {
+      await supabase.from('voice_calls')
+        .update(qaUpdate)
+        .eq('id', trinityCallId)
+        .catch(() => {}); // non-critical
+    }
+  } catch {
+    // Non-critical: QA scoring is best-effort
+  }
+
+  // 5b. Store recording policy on call record for GDPR audit trail
+  try {
+    const assistantId = call.assistantId || call.assistant?.id;
+    if (assistantId) {
+      const { data: assistantRow } = await supabase
+        .from('assistants')
+        .select('configuration, organization_id')
+        .eq('id', assistantId)
+        .single();
+
+      let recordingPolicy = 'always_announce'; // default
+      if (assistantRow?.configuration?.recording_policy) {
+        recordingPolicy = assistantRow.configuration.recording_policy;
+      } else if (assistantRow?.organization_id) {
+        const { data: orgRow } = await supabase
+          .from('organizations')
+          .select('settings')
+          .eq('id', assistantRow.organization_id)
+          .single();
+        recordingPolicy = orgRow?.settings?.default_recording_policy || 'always_announce';
+      }
+
+      await supabase.from('voice_calls')
+        .update({ recording_policy: recordingPolicy })
+        .eq('id', trinityCallId)
+        .catch(() => {}); // non-critical — don't fail the webhook
+    }
+  } catch {
+    // Non-critical: recording policy audit is best-effort
+  }
+
+  // 5c. First call tracking for onboarding activation
+  const durationForActivation = call.durationSeconds || 0;
+  if (durationForActivation > 30) {
+    try {
+      const { data: orgRow } = await supabase
+        .from('organizations')
+        .select('first_call_at')
+        .eq('id', organizationId)
+        .single();
+
+      if (orgRow && !orgRow.first_call_at) {
+        await supabase
+          .from('organizations')
+          .update({
+            first_call_at: new Date().toISOString(),
+            activation_checklist: supabase.rpc ? undefined : undefined, // handled below
+          })
+          .eq('id', organizationId);
+
+        // Update activation checklist
+        const { data: orgFull } = await supabase
+          .from('organizations')
+          .select('activation_checklist')
+          .eq('id', organizationId)
+          .single();
+
+        if (orgFull?.activation_checklist) {
+          await supabase
+            .from('organizations')
+            .update({
+              activation_checklist: { ...orgFull.activation_checklist, first_test_call: true },
+            })
+            .eq('id', organizationId);
+        }
+
+        console.log(`[voice-webhook] First call milestone for org ${organizationId}`);
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  // 6. Record event
   await recordEvent(organizationId, trinityCallId, 'end-of-call-report', {
     cost: call.cost || 0,
     duration: call.durationSeconds,
@@ -275,7 +418,7 @@ async function handleEndOfCallReport(message: any, organizationId: string, trini
     hasTranscript: !!call.transcript
   });
 
-  // 6. Dispatch webhook event to customer endpoints (fire-and-forget)
+  // 7. Dispatch webhook event to customer endpoints (fire-and-forget)
   const webhookEventType = (call.endedReason === 'assistant-error' || call.endedReason === 'system-error')
     ? 'call.failed' : 'call.completed';
   const siteUrl = process.env.URL || 'http://localhost:8888';

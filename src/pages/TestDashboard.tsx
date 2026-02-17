@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 export default function TestDashboard() {
   return (
-    <div className="min-h-screen bg-gray-900 p-8 text-white">
+    <div className="min-h-screen bg-black p-8 text-white">
       <h1 className="mb-6 text-4xl font-bold text-emerald-500">🚀 TRINITY LABS AI PLATFORM</h1>
       <div className="mb-6 rounded-lg bg-gray-800 p-6">
         <h2 className="mb-4 text-2xl font-semibold">System Status: WORKING! ✅</h2>

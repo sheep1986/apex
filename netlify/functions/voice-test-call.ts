@@ -23,11 +23,15 @@ export const handler: Handler = async (event) => {
 
   try {
     const authHeader = event.headers.authorization;
-    if (!authHeader) throw new Error("Missing Authorization header");
+    if (!authHeader) {
+      return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: "Missing Authorization header" }) };
+    }
     const token = authHeader.replace("Bearer ", "");
-    
+
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) throw new Error("Invalid User Token");
+    if (authError || !user) {
+      return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: "Invalid or expired token" }) };
+    }
 
     const { phoneNumberId, assistantId, customerNumber, customerName } = JSON.parse(event.body || "{}");
 

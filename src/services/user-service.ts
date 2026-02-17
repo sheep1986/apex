@@ -30,7 +30,8 @@ class UserService {
   private apiBaseUrl: string;
 
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    // All API calls go through Netlify Functions (relative paths)
+    this.apiBaseUrl = '/api';
   }
 
   // Get all users

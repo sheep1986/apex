@@ -38,6 +38,9 @@ interface Deal {
   contact_name?: string;
   contact_phone?: string;
   assignee_name?: string;
+  source_campaign_id?: string | null;
+  source_call_id?: string | null;
+  source_campaign_name?: string;
 }
 
 const STAGES = [
@@ -85,14 +88,43 @@ export default function SalesPipeline() {
     if (!newDeal.title.trim() || !organization?.id) return;
     setCreating(true);
     try {
+      // Auto-attribution: Try to find the most recent campaign that contacted leads
+      // matching the deal title (heuristic: search campaign_items for recent activity)
+      let sourceCampaignId: string | null = null;
+      let sourceCallId: string | null = null;
+
+      try {
+        // Look for recent campaign items with calls for this org
+        const { data: recentCampaignItem } = await supabase
+          .from('campaign_items')
+          .select('campaign_id, voice_call_id, campaigns(id, name)')
+          .eq('organization_id', organization.id)
+          .not('voice_call_id', 'is', null)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (recentCampaignItem) {
+          sourceCampaignId = recentCampaignItem.campaign_id;
+          sourceCallId = recentCampaignItem.voice_call_id;
+        }
+      } catch {
+        // Attribution is best-effort — don't block deal creation
+      }
+
       const { error } = await supabase.from('crm_deals').insert({
         organization_id: organization.id,
         title: newDeal.title.trim(),
         value: newDeal.value ? parseFloat(newDeal.value) : null,
         stage: newDeal.stage,
+        source_campaign_id: sourceCampaignId,
+        source_call_id: sourceCallId,
+        attributed_at: sourceCampaignId ? new Date().toISOString() : null,
       });
       if (error) throw error;
-      toast({ title: 'Deal Created', description: `"${newDeal.title}" added to pipeline.` });
+
+      const attribution = sourceCampaignId ? ' (attributed to campaign)' : '';
+      toast({ title: 'Deal Created', description: `"${newDeal.title}" added to pipeline.${attribution}` });
       setNewDeal({ title: '', value: '', stage: 'pipeline' });
       setShowCreate(false);
       fetchDeals();

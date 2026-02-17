@@ -117,7 +117,7 @@ export function Clients() {
     return (
       <div className="mx-auto w-full max-w-7xl px-4 py-12">
         <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
           <span className="ml-3 text-gray-400">Loading clients...</span>
         </div>
       </div>

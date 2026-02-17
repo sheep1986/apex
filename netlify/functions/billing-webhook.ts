@@ -152,6 +152,74 @@ export const handler: Handler = async (event) => {
   return { statusCode: 200, body: JSON.stringify({ received: true }) };
 };
 
+// ── Resume paused campaigns helper ──────────────────────────────────────────
+// Resumes campaigns paused for a specific reason (credit-gate, subscription lapse, etc.)
+async function resumePausedCampaigns(orgId: string, pausedReason: string, triggerReason: string) {
+  const { data: pausedCampaigns } = await supabase
+    .from('campaigns')
+    .select('id, name')
+    .eq('organization_id', orgId)
+    .eq('status', 'paused')
+    .eq('paused_reason', pausedReason);
+
+  if (pausedCampaigns && pausedCampaigns.length > 0) {
+    await supabase
+      .from('campaigns')
+      .update({ status: 'running', paused_reason: null, updated_at: new Date().toISOString() })
+      .eq('organization_id', orgId)
+      .eq('status', 'paused')
+      .eq('paused_reason', pausedReason);
+
+    for (const camp of pausedCampaigns) {
+      await supabase.from('notifications_server').insert({
+        organization_id: orgId,
+        type: 'campaign_alert',
+        title: 'Campaign Resumed',
+        message: `"${camp.name}" has been automatically resumed — ${triggerReason}.`,
+        severity: 'medium',
+        category: 'campaigns',
+        metadata: { campaign_id: camp.id, reason: triggerReason },
+      }).catch(() => {});
+    }
+    console.log(`[CampaignResume] Resumed ${pausedCampaigns.length} campaign(s) for org ${orgId} (${pausedReason} → ${triggerReason})`);
+  }
+}
+
+// Convenience aliases for backward compatibility
+async function resumeCreditGatedCampaigns(orgId: string, reason: string) {
+  return resumePausedCampaigns(orgId, 'insufficient_credits', reason);
+}
+
+// ── Pause running campaigns helper ──────────────────────────────────────────
+async function pauseRunningCampaigns(orgId: string, pausedReason: string, notificationMessage: string) {
+  const { data: runningCampaigns } = await supabase
+    .from('campaigns')
+    .select('id, name')
+    .eq('organization_id', orgId)
+    .eq('status', 'running');
+
+  if (runningCampaigns && runningCampaigns.length > 0) {
+    await supabase
+      .from('campaigns')
+      .update({ status: 'paused', paused_reason: pausedReason, updated_at: new Date().toISOString() })
+      .eq('organization_id', orgId)
+      .eq('status', 'running');
+
+    for (const camp of runningCampaigns) {
+      await supabase.from('notifications_server').insert({
+        organization_id: orgId,
+        type: 'campaign_alert',
+        title: 'Campaign Paused',
+        message: `"${camp.name}" — ${notificationMessage}`,
+        severity: 'high',
+        category: 'campaigns',
+        metadata: { campaign_id: camp.id, reason: pausedReason },
+      }).catch(() => {});
+    }
+    console.log(`[CampaignPause] Paused ${runningCampaigns.length} campaign(s) for org ${orgId} (${pausedReason})`);
+  }
+}
+
 // ── checkout.session.completed ──────────────────────────────────────────────
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const organizationId = session.metadata?.organizationId;
@@ -215,6 +283,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }, { onConflict: 'organization_id,period_start' });
 
     console.log(`Subscription activated for org ${organizationId}: ${planId}`);
+
+    // Resume any campaigns paused due to insufficient credits
+    await resumeCreditGatedCampaigns(organizationId, 'subscription_activated');
     return;
   }
 
@@ -237,6 +308,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         throw error;
       }
       console.log(`Credit top-up for org ${organizationId}: $${amount}`, data);
+
+      // Resume any campaigns paused due to insufficient credits
+      await resumeCreditGatedCampaigns(organizationId, 'credit_topup');
     }
   }
 }
@@ -325,6 +399,9 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   }
 
   console.log(`Invoice paid for org ${org.id}: $${amount}, new period ${periodStart} to ${periodEnd}`);
+
+  // Resume any campaigns paused due to insufficient credits (new billing period = fresh credits)
+  await resumeCreditGatedCampaigns(org.id, 'subscription_renewal');
 }
 
 // ── customer.subscription.updated ───────────────────────────────────────────
@@ -382,6 +459,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     .eq('id', orgId);
 
   console.log(`Subscription updated for org ${orgId}: status=${subscription.status}, plan=${planId || 'unchanged'}`);
+
+  // Resume paused campaigns when subscription returns to active
+  if (subscription.status === 'active') {
+    await resumeCreditGatedCampaigns(orgId, 'plan_upgrade');
+    await resumePausedCampaigns(orgId, 'subscription_lapsed', 'subscription reactivated');
+  }
 }
 
 // ── customer.subscription.deleted ───────────────────────────────────────────
@@ -408,7 +491,14 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     })
     .eq('id', orgId);
 
-  console.log(`Subscription canceled for org ${orgId}`);
+  // Pause all running campaigns — subscription is fully canceled
+  await pauseRunningCampaigns(
+    orgId,
+    'subscription_lapsed',
+    'Subscription canceled — campaign paused.'
+  );
+
+  console.log(`Subscription canceled for org ${orgId}, campaigns paused`);
 }
 
 // ── invoice.payment_failed ──────────────────────────────────────────────────
@@ -432,5 +522,12 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     .update({ subscription_status: 'past_due' })
     .eq('id', org.id);
 
-  console.log(`Payment failed for org ${org.id}, marked as past_due`);
+  // Pause all running campaigns — they can't run without active billing
+  await pauseRunningCampaigns(
+    org.id,
+    'subscription_lapsed',
+    'Payment failed — campaign paused until billing is resolved.'
+  );
+
+  console.log(`Payment failed for org ${org.id}, marked as past_due, campaigns paused`);
 }

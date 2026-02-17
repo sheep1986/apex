@@ -182,8 +182,8 @@ export default function Squads() {
         assistantId: m.assistantId || '',
         transferTo: m.assistantDestinations?.map(d => d.assistantName || '') || [],
         transferMessage: m.assistantDestinations?.[0]?.message || '',
-        transferMode: (m.assistantDestinations?.[0] as any)?.transferMode || 'blind-transfer',
-        assistantOverrides: (m as any).assistantOverrides ? JSON.stringify((m as any).assistantOverrides, null, 2) : '',
+        transferMode: m.assistantDestinations?.[0]?.transferMode || 'blind-transfer',
+        assistantOverrides: m.assistantOverrides ? JSON.stringify(m.assistantOverrides, null, 2) : '',
       }))
     );
     setShowCreateDialog(true);

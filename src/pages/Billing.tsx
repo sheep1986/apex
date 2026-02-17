@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PLAN_TIERS, getPlanById, type PlanTier } from '@/config/plans';
+import { VOICE_TIERS, ACTION_RATES, type VoiceTier } from '@/config/credit-rates';
 import { useAuth } from '@/hooks/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/services/MinimalUserProvider';
@@ -19,6 +20,9 @@ import {
   Crown,
   ExternalLink,
   Loader2,
+  Mail,
+  MessageSquare,
+  Mic,
   Phone,
   Plus,
   RefreshCw,
@@ -118,6 +122,17 @@ const Billing: React.FC = () => {
   });
   const [savingAutoRecharge, setSavingAutoRecharge] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
+  const [usageBreakdown, setUsageBreakdown] = useState({
+    voiceMinutes: 0,
+    voiceTier: 'standard' as VoiceTier,
+    voiceCredits: 0,
+    phoneNumbers: 0,
+    phoneCredits: 0,
+    smsCount: 0,
+    smsCredits: 0,
+    emailCount: 0,
+    emailCredits: 0,
+  });
 
   const currentPlan = orgSub ? getPlanById(orgSub.plan) : null;
 
@@ -167,6 +182,80 @@ const Billing: React.FC = () => {
         setLedgerEntries(ledgerResult.data);
       }
 
+      // Fetch usage breakdown data
+      try {
+        // Determine current billing period
+        const periodStart = orgResult.data?.subscription_period_start
+          ? new Date(orgResult.data.subscription_period_start).toISOString()
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        // Voice calls in current period
+        const { data: voiceCalls } = await supabase
+          .from('voice_calls')
+          .select('duration, cost')
+          .eq('organization_id', userContext!.organization_id)
+          .gte('created_at', periodStart);
+
+        const callsArr = Array.isArray(voiceCalls) ? voiceCalls : [];
+        const totalVoiceMinutes = callsArr.reduce(
+          (sum, c) => sum + (c.duration ? Math.ceil(c.duration / 60) : 0),
+          0
+        );
+
+        // Phone numbers count
+        const { count: phoneCount } = await supabase
+          .from('phone_numbers')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', userContext!.organization_id);
+
+        // SMS count in current period (if table exists)
+        let smsCount = 0;
+        try {
+          const { count } = await supabase
+            .from('sms_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', userContext!.organization_id)
+            .gte('created_at', periodStart);
+          smsCount = count || 0;
+        } catch {
+          // sms_messages table may not exist yet
+        }
+
+        // Email count in current period (if table exists)
+        let emailCount = 0;
+        try {
+          const { count } = await supabase
+            .from('email_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', userContext!.organization_id)
+            .gte('created_at', periodStart);
+          emailCount = count || 0;
+        } catch {
+          // email_messages table may not exist yet
+        }
+
+        // Get voice tier from org or default to standard
+        const voiceTier: VoiceTier = 'standard';
+        const creditsPerMinute = VOICE_TIERS[voiceTier].creditsPerMinute;
+        const phoneRate = ACTION_RATES.find(r => r.actionType === 'phone_number')?.credits || 200;
+        const smsRate = ACTION_RATES.find(r => r.actionType === 'sms')?.credits || 3;
+        const emailRate = ACTION_RATES.find(r => r.actionType === 'email')?.credits || 1;
+
+        setUsageBreakdown({
+          voiceMinutes: totalVoiceMinutes,
+          voiceTier,
+          voiceCredits: totalVoiceMinutes * creditsPerMinute,
+          phoneNumbers: phoneCount || 0,
+          phoneCredits: (phoneCount || 0) * phoneRate,
+          smsCount,
+          smsCredits: smsCount * smsRate,
+          emailCount,
+          emailCredits: emailCount * emailRate,
+        });
+      } catch {
+        // Usage breakdown fetch is non-critical
+      }
+
       // Fetch auto-recharge config
       try {
         const token = await getToken();
@@ -176,14 +265,16 @@ const Billing: React.FC = () => {
         );
         if (arResponse.ok) {
           const arData = await arResponse.json();
-          if (arData.config) {
+          // The auto-recharge endpoint returns the config directly (not wrapped in .config)
+          const arConfig = arData?.config || arData;
+          if (arConfig && arConfig.organization_id) {
             setAutoRecharge({
-              enabled: arData.config.enabled ?? false,
-              threshold: arData.config.threshold_usd ?? 10,
-              rechargeAmount: arData.config.recharge_amount_usd ?? 50,
-              maxMonthly: arData.config.max_monthly_recharges ?? 5,
-              rechargesThisMonth: arData.config.recharges_this_month ?? 0,
-              lastRechargeAt: arData.config.last_recharge_at ?? null,
+              enabled: arConfig.enabled ?? false,
+              threshold: arConfig.threshold_usd ?? 10,
+              rechargeAmount: arConfig.recharge_amount_usd ?? 50,
+              maxMonthly: arConfig.max_monthly_recharges ?? 5,
+              rechargesThisMonth: arConfig.recharges_this_month ?? 0,
+              lastRechargeAt: arConfig.last_recharge_at ?? null,
             });
           }
         }
@@ -590,6 +681,126 @@ const Billing: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Usage Breakdown */}
+        <Card className="border-gray-800 bg-gray-900">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-white">
+              <TrendingUp className="h-5 w-5 text-emerald-400" />
+              Usage Breakdown
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Credit consumption by category this billing period
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const totalBreakdownCredits =
+                usageBreakdown.voiceCredits +
+                usageBreakdown.phoneCredits +
+                usageBreakdown.smsCredits +
+                usageBreakdown.emailCredits;
+
+              const breakdownItems = [
+                {
+                  label: 'Voice Calls',
+                  icon: Mic,
+                  detail: `${usageBreakdown.voiceMinutes.toLocaleString()} min x ${VOICE_TIERS[usageBreakdown.voiceTier].creditsPerMinute} credits/min (${VOICE_TIERS[usageBreakdown.voiceTier].label})`,
+                  credits: usageBreakdown.voiceCredits,
+                  color: 'text-purple-400',
+                  bgColor: 'bg-purple-500/10',
+                  borderColor: 'border-purple-500/20',
+                  barColor: 'bg-purple-500',
+                },
+                {
+                  label: 'Phone Numbers',
+                  icon: Phone,
+                  detail: `${usageBreakdown.phoneNumbers} number${usageBreakdown.phoneNumbers !== 1 ? 's' : ''} x ${ACTION_RATES.find(r => r.actionType === 'phone_number')?.credits || 200} credits/month`,
+                  credits: usageBreakdown.phoneCredits,
+                  color: 'text-emerald-400',
+                  bgColor: 'bg-emerald-500/10',
+                  borderColor: 'border-emerald-500/20',
+                  barColor: 'bg-emerald-500',
+                },
+                {
+                  label: 'SMS Messages',
+                  icon: MessageSquare,
+                  detail: `${usageBreakdown.smsCount.toLocaleString()} message${usageBreakdown.smsCount !== 1 ? 's' : ''} x ${ACTION_RATES.find(r => r.actionType === 'sms')?.credits || 3} credits`,
+                  credits: usageBreakdown.smsCredits,
+                  color: 'text-blue-400',
+                  bgColor: 'bg-blue-500/10',
+                  borderColor: 'border-blue-500/20',
+                  barColor: 'bg-blue-500',
+                },
+                {
+                  label: 'Email',
+                  icon: Mail,
+                  detail: `${usageBreakdown.emailCount.toLocaleString()} message${usageBreakdown.emailCount !== 1 ? 's' : ''} x ${ACTION_RATES.find(r => r.actionType === 'email')?.credits || 1} credit`,
+                  credits: usageBreakdown.emailCredits,
+                  color: 'text-amber-400',
+                  bgColor: 'bg-amber-500/10',
+                  borderColor: 'border-amber-500/20',
+                  barColor: 'bg-amber-500',
+                },
+              ];
+
+              return (
+                <div className="space-y-3">
+                  {breakdownItems.map((item) => {
+                    const barPercent = totalBreakdownCredits > 0
+                      ? (item.credits / totalBreakdownCredits) * 100
+                      : 0;
+
+                    return (
+                      <div
+                        key={item.label}
+                        className="rounded-lg border border-gray-800 bg-gray-800/30 p-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`rounded-lg border ${item.borderColor} ${item.bgColor} p-2`}>
+                              <item.icon className={`h-4 w-4 ${item.color}`} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-white">{item.label}</p>
+                              <p className="text-xs text-gray-500">{item.detail}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-white">
+                              {item.credits.toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-500">credits</p>
+                          </div>
+                        </div>
+                        {/* Proportional bar */}
+                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-800">
+                          <div
+                            className={`h-full rounded-full ${item.barColor} transition-all duration-500`}
+                            style={{ width: `${Math.max(barPercent, 1)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Total */}
+                  <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <p className="text-sm font-medium text-gray-300">Total Credits Used</p>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-white">
+                        {totalBreakdownCredits.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        of {creditsIncluded.toLocaleString()} included
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
 
         {/* Resource Limits */}
         {currentPlan && (

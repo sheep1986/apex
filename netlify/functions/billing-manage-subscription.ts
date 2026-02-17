@@ -1,6 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { corsHeaders, handleCors } from './utils/cors';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16',
@@ -10,18 +11,21 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL ||
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Supports both new AI Employee plan IDs (employee_1/3/5) and legacy names (starter/growth/business)
 const PLAN_PRICES: Record<string, string> = {
-  starter: process.env.STRIPE_PRICE_STARTER || '',
-  growth: process.env.STRIPE_PRICE_GROWTH || '',
-  business: process.env.STRIPE_PRICE_BUSINESS || '',
+  employee_1: process.env.STRIPE_PRICE_EMPLOYEE_1 || process.env.STRIPE_PRICE_STARTER || '',
+  employee_3: process.env.STRIPE_PRICE_EMPLOYEE_3 || process.env.STRIPE_PRICE_GROWTH || '',
+  employee_5: process.env.STRIPE_PRICE_EMPLOYEE_5 || process.env.STRIPE_PRICE_BUSINESS || '',
+  // Legacy aliases
+  starter: process.env.STRIPE_PRICE_EMPLOYEE_1 || process.env.STRIPE_PRICE_STARTER || '',
+  growth: process.env.STRIPE_PRICE_EMPLOYEE_3 || process.env.STRIPE_PRICE_GROWTH || '',
+  business: process.env.STRIPE_PRICE_EMPLOYEE_5 || process.env.STRIPE_PRICE_BUSINESS || '',
 };
 
 export const handler: Handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    ...corsHeaders(),
   };
 
   if (event.httpMethod === 'OPTIONS') {

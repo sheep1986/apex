@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth, useUser } from '../hooks/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, UserPlus, Check, AlertCircle, Mail, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-// Use the API base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { supabase } from '@/services/supabase-client';
 
 interface CreateUserData {
   firstName: string;
@@ -32,14 +29,7 @@ interface CreateUserData {
 
 const AddUser: React.FC = () => {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
-  const { user } = useUser();
   const { toast } = useToast();
-
-  // Check if we're in development mode
-  // Mock data completely disabled - live data only
-  const isDevelopment = false;
-  const enableMockData = false;
 
   const [formData, setFormData] = useState<CreateUserData>({
     firstName: '',
@@ -99,39 +89,101 @@ const AddUser: React.FC = () => {
     setSubmitStatus('idle');
 
     try {
-      // Get authentication token
-      let token: string | null = null;
+      // 1. Create the auth user via Supabase Auth
+      const signUpOptions: any = {
+        email: formData.email,
+        password: formData.sendInvitation
+          ? crypto.randomUUID() // temporary password; user will set their own via invitation email
+          : formData.password!,
+        options: {
+          data: {
+            full_name: `${formData.firstName} ${formData.lastName}`.trim(),
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phoneNumber || null,
+            role: formData.role,
+          },
+          // When sendInvitation is true, Supabase sends a confirmation email
+          emailRedirectTo: formData.sendInvitation
+            ? `${window.location.origin}/login`
+            : undefined,
+        },
+      };
 
-      token = await getToken();
+      const { data: authData, error: authError } = await supabase.auth.signUp(signUpOptions);
 
-      if (!token) {
-        throw new Error('Authentication required');
+      if (authError) {
+        throw new Error(authError.message);
       }
 
-      // Submit to backend API with new structure
-      const response = await fetch(`${API_BASE_URL}/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phoneNumber: formData.phoneNumber || null,
-          role: formData.role,
-          organizationName: formData.organizationName,
-          createdBy: user?.id || 'dev-user',
-          sendInvitation: formData.sendInvitation,
-          password: !formData.sendInvitation ? formData.password : undefined,
-        }),
-      });
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
 
-      const result = await response.json();
+      const newUserId = authData.user.id;
 
-      if (!response.ok) {
-        throw new Error(result.error || `Failed to create user (${response.status})`);
+      // 2. Look up or create the organization by name
+      let organizationId: string | null = null;
+      try {
+        const { data: existingOrg } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('name', formData.organizationName)
+          .single();
+
+        if (existingOrg) {
+          organizationId = existingOrg.id;
+        } else {
+          // Create a new organization
+          const { data: newOrg, error: orgError } = await supabase
+            .from('organizations')
+            .insert({
+              name: formData.organizationName,
+              slug: formData.organizationName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+              status: 'active',
+              type: 'agency',
+              plan: 'starter',
+              monthly_cost: 0,
+              primary_color: '#10b981',
+              secondary_color: '#059669',
+            })
+            .select('id')
+            .single();
+
+          if (orgError) {
+            console.error('Error creating organization:', orgError);
+          } else if (newOrg) {
+            organizationId = newOrg.id;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not resolve organization:', err);
+      }
+
+      // 3. Update the profile with organization link
+      if (organizationId) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              organization_id: organizationId,
+              role: formData.role,
+            })
+            .eq('id', newUserId);
+        } catch (err) {
+          console.warn('Could not update profile with org:', err);
+        }
+
+        // 4. Insert into organization_members
+        try {
+          await supabase.from('organization_members').insert({
+            organization_id: organizationId,
+            user_id: newUserId,
+            role: formData.role === 'platform_owner' ? 'owner' : 'member',
+          });
+        } catch (err) {
+          console.warn('Could not create organization membership:', err);
+        }
       }
 
       setSubmitStatus('success');

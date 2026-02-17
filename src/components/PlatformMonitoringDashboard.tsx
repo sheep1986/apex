@@ -140,7 +140,7 @@ export default function PlatformMonitoringDashboard() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const API_BASE_URL = ''; // All API calls go through Netlify Functions (relative paths)
 
   // Restart Railway service
   const restartRailwayService = async (serviceId?: string) => {

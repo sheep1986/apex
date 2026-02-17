@@ -1,6 +1,7 @@
 import { Handler, HandlerEvent } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { corsHeaders } from './utils/cors';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -187,9 +188,7 @@ async function revokeKey(orgId: string, keyId: string) {
 export const handler: Handler = async (event: HandlerEvent) => {
   const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    ...corsHeaders(),
   };
 
   if (event.httpMethod === 'OPTIONS') {

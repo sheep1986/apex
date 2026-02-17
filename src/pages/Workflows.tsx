@@ -285,7 +285,7 @@ export default function Workflows() {
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         <span className="ml-3 text-gray-400">Loading workflows...</span>
       </div>
     );

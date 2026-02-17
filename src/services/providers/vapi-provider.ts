@@ -92,15 +92,40 @@ export class VapiProvider implements VoiceProvider {
 
     const universalWebhookUrl = `${window.location.origin}/api/vapi-router`;
 
+    // Look up recording policy from org default (assistant doesn't exist yet, so no per-assistant override)
+    let recordingPolicyResult: { systemMessage: string | undefined; recordingEnabled: boolean } | null = null;
+    if (this.organizationId) {
+      try {
+        // @ts-ignore
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('settings')
+          .eq('id', this.organizationId)
+          .single();
+
+        const orgPolicy = org?.settings?.default_recording_policy;
+        if (orgPolicy) {
+          recordingPolicyResult = this.applyRecordingPolicy(
+            assistant.model?.systemMessage,
+            orgPolicy
+          );
+        }
+      } catch {
+        // Non-critical — proceed without policy
+      }
+    }
+
     const enhancedAssistant = {
       ...assistant,
       serverUrl: universalWebhookUrl,
+      ...(recordingPolicyResult ? { recordingEnabled: recordingPolicyResult.recordingEnabled } : {}),
       model: {
         ...assistant.model,
         tools: providerTools.length > 0 ? providerTools : undefined,
         ...(assistant.fileIds && assistant.fileIds.length > 0 ? {
           knowledgeBase: { fileIds: assistant.fileIds }
         } : {}),
+        ...(recordingPolicyResult ? { systemMessage: recordingPolicyResult.systemMessage } : {}),
       },
     };
 
@@ -141,11 +166,201 @@ export class VapiProvider implements VoiceProvider {
     return createdAssistant;
   }
 
-  async updateAssistant(id: string, updates: Partial<VoiceAssistant>): Promise<VoiceAssistant> {
-    return this.request<VoiceAssistant>(`/assistant/${id}`, {
+  /**
+   * Recording policy announcement prefix constants.
+   * Used for idempotent prepend/strip on system messages.
+   */
+  private static readonly RECORDING_ANNOUNCEMENT_PREFIX =
+    '[RECORDING NOTICE] This call is being recorded for quality and training purposes. ';
+  private static readonly CONSENT_PROMPT_PREFIX =
+    '[RECORDING CONSENT] Before we begin, I need to let you know this call may be recorded. Do you consent to being recorded? If you do not consent, I will end the call politely. ';
+
+  /**
+   * Applies recording policy to a system message.
+   * Idempotent — strips any existing prefix before re-applying.
+   */
+  private applyRecordingPolicy(
+    systemMessage: string | undefined,
+    recordingPolicy: string | undefined
+  ): { systemMessage: string | undefined; recordingEnabled: boolean } {
+    // Strip any existing recording prefix for idempotency
+    let cleanMessage = systemMessage || '';
+    cleanMessage = cleanMessage
+      .replace(VapiProvider.RECORDING_ANNOUNCEMENT_PREFIX, '')
+      .replace(VapiProvider.CONSENT_PROMPT_PREFIX, '')
+      .trim();
+
+    switch (recordingPolicy) {
+      case 'always_announce':
+        return {
+          systemMessage: VapiProvider.RECORDING_ANNOUNCEMENT_PREFIX + cleanMessage,
+          recordingEnabled: true,
+        };
+      case 'consent_required':
+        return {
+          systemMessage: VapiProvider.CONSENT_PROMPT_PREFIX + cleanMessage,
+          recordingEnabled: true,
+        };
+      case 'none':
+        return {
+          systemMessage: cleanMessage || undefined,
+          recordingEnabled: false,
+        };
+      default:
+        // No policy set — preserve as-is
+        return {
+          systemMessage: cleanMessage || undefined,
+          recordingEnabled: true,
+        };
+    }
+  }
+
+  /**
+   * Looks up the effective recording policy for an assistant.
+   * Priority: assistant-level override → org default → null
+   */
+  private async getRecordingPolicy(vapiAssistantId: string): Promise<string | null> {
+    const supabase = getSupabase();
+    if (!supabase || !this.organizationId) return null;
+
+    try {
+      // Check assistant-level override
+      // @ts-ignore
+      const { data: assistantRow } = await supabase
+        .from('assistants')
+        .select('configuration')
+        .eq('vapi_assistant_id', vapiAssistantId)
+        .eq('organization_id', this.organizationId)
+        .single();
+
+      const assistantPolicy = assistantRow?.configuration?.recording_policy;
+      if (assistantPolicy) return assistantPolicy;
+
+      // Fall back to org default
+      // @ts-ignore
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('settings')
+        .eq('id', this.organizationId)
+        .single();
+
+      return org?.settings?.default_recording_policy || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async updateAssistant(id: string, updates: Partial<VoiceAssistant> & { toolIds?: string[]; fileIds?: string[] }): Promise<VoiceAssistant> {
+    const supabase = getSupabase();
+
+    // 1. Fetch existing assistant from Vapi to safely merge model fields
+    //    (Vapi PATCH may overwrite entire `model` if we send a partial model object)
+    let existingAssistant: any;
+    try {
+      existingAssistant = await this.request<any>(`/assistant/${id}`);
+    } catch {
+      // If we can't fetch, fall back to raw PATCH (best effort)
+      existingAssistant = {};
+    }
+
+    const existingModel = existingAssistant?.model || {};
+
+    // 2. Resolve tools if toolIds provided
+    let providerTools: any[] | undefined;
+    if (updates.toolIds && updates.toolIds.length > 0 && supabase) {
+      const toolBuilder = new ToolBuilder(supabase);
+      providerTools = await toolBuilder.resolveTools(updates.toolIds);
+    } else if (updates.toolIds && updates.toolIds.length === 0) {
+      // Explicitly clearing tools
+      providerTools = [];
+    }
+
+    // 3. Build knowledge base from fileIds
+    let knowledgeBase: { fileIds: string[] } | undefined;
+    if (updates.fileIds && updates.fileIds.length > 0) {
+      knowledgeBase = { fileIds: updates.fileIds };
+    } else if (updates.fileIds && updates.fileIds.length === 0) {
+      // Explicitly clearing knowledge base
+      knowledgeBase = { fileIds: [] };
+    }
+
+    // 4. Look up recording policy and apply to system message
+    const recordingPolicy = await this.getRecordingPolicy(id);
+    const incomingSystemMessage = updates.model?.systemMessage ?? existingModel.systemMessage;
+    let policyResult: { systemMessage: string | undefined; recordingEnabled: boolean } | null = null;
+
+    if (recordingPolicy) {
+      policyResult = this.applyRecordingPolicy(incomingSystemMessage, recordingPolicy);
+    }
+
+    // 5. Merge model fields: existing ← updates ← tools/kb/policy
+    const mergedModel = {
+      ...existingModel,
+      ...updates.model,
+      ...(providerTools !== undefined ? { tools: providerTools.length > 0 ? providerTools : undefined } : {}),
+      ...(knowledgeBase !== undefined ? { knowledgeBase } : {}),
+      ...(policyResult ? { systemMessage: policyResult.systemMessage } : {}),
+    };
+
+    // 6. Build final payload (strip toolIds/fileIds — Vapi doesn't know about them)
+    const { toolIds, fileIds, ...restUpdates } = updates;
+    const finalPayload = {
+      ...restUpdates,
+      model: mergedModel,
+      ...(policyResult ? { recordingEnabled: policyResult.recordingEnabled } : {}),
+    };
+
+    // 7. PATCH to Vapi
+    const updatedAssistant = await this.request<VoiceAssistant>(`/assistant/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(finalPayload),
     });
+
+    // 8. Sync tool links in Trinity DB (if toolIds were provided)
+    if (toolIds !== undefined && supabase && this.organizationId) {
+      try {
+        // @ts-ignore
+        const { data: dbAssistant } = await supabase
+          .from('assistants')
+          .select('id')
+          .eq('vapi_assistant_id', id)
+          .eq('organization_id', this.organizationId)
+          .single();
+
+        if (dbAssistant) {
+          // Delete old links, insert new ones
+          // @ts-ignore
+          await supabase.from('assistant_tools').delete().eq('assistant_id', dbAssistant.id);
+
+          if (toolIds.length > 0) {
+            const links = toolIds.map(tId => ({
+              assistant_id: dbAssistant.id,
+              tool_id: tId,
+            }));
+            // @ts-ignore
+            await supabase.from('assistant_tools').upsert(links);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to sync tool links in DB:', err);
+      }
+    }
+
+    // 9. Update assistant configuration in Trinity DB
+    if (supabase && this.organizationId) {
+      try {
+        // @ts-ignore
+        await supabase
+          .from('assistants')
+          .update({ configuration: finalPayload, updated_at: new Date().toISOString() })
+          .eq('vapi_assistant_id', id)
+          .eq('organization_id', this.organizationId);
+      } catch (err) {
+        console.warn('Failed to sync assistant config in DB:', err);
+      }
+    }
+
+    return updatedAssistant;
   }
 
   async deleteAssistant(id: string): Promise<void> {

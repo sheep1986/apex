@@ -136,7 +136,7 @@ export function UserDropdown() {
       case 'connected':
         return <CheckCircle className="h-3 w-3 text-gray-400" />;
       case 'syncing':
-        return <RefreshCw className="h-3 w-3 animate-spin text-blue-400" />;
+        return <RefreshCw className="h-3 w-3 animate-spin text-emerald-400" />;
       case 'error':
         return <AlertCircle className="h-3 w-3 text-red-400" />;
       default:

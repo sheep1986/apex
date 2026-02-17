@@ -37,7 +37,7 @@ export const RoleBasedRedirect: React.FC = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-900">
       <div className="text-center">
-        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-blue-500"></div>
+        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
         <p className="text-gray-400">Redirecting to your dashboard...</p>
       </div>
     </div>

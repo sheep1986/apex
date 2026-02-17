@@ -118,7 +118,7 @@ export default function ContactsPage() {
         {/* Loading */}
         {loading && contacts.length === 0 && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
             <span className="ml-3 text-gray-400">Loading contacts...</span>
           </div>
         )}

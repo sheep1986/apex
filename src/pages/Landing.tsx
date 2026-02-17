@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PLAN_TIERS } from '@/config/plans';
 import {
     Activity,
     ArrowRight,
@@ -9,9 +10,11 @@ import {
     Bot,
     Building,
     Calendar,
+    Check,
     CheckCircle,
     CheckSquare,
     Clock,
+    Crown,
     Database,
     DollarSign,
     Globe,
@@ -829,6 +832,89 @@ export function Landing() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="bg-slate-800/30 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <Badge className="mb-4 border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+              <Crown className="mr-1.5 h-3 w-3" /> AI Employee Pricing
+            </Badge>
+            <h2 className="mb-4 text-3xl font-bold md:text-4xl">
+              Hire AI Employees That Work 24/7
+            </h2>
+            <p className="mx-auto max-w-2xl text-lg text-slate-300">
+              Each AI Employee costs a fraction of a human agent, never calls in sick, and handles unlimited conversations simultaneously.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {PLAN_TIERS.filter((p) => !p.contactSales).map((plan) => (
+              <Card
+                key={plan.id}
+                className={`relative border transition-all ${
+                  plan.popular
+                    ? 'border-emerald-500/50 bg-gradient-to-b from-emerald-500/10 to-transparent scale-105'
+                    : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                }`}
+              >
+                {plan.popular && (
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 border-0 bg-emerald-600 text-white px-3">
+                    <Star className="mr-1 h-3 w-3" /> Most Popular
+                  </Badge>
+                )}
+                <CardHeader className="pb-2 pt-6">
+                  <CardTitle className="text-xl text-white">{plan.displayName}</CardTitle>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold text-white">
+                      £{plan.monthlyPriceGBP.toLocaleString()}
+                    </span>
+                    <span className="text-slate-400">/month</span>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    {plan.includedCredits.toLocaleString()} credits · ≈ {plan.equivalentStandardMinutes.toLocaleString()} min
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ul className="space-y-2.5">
+                    {plan.features.slice(0, 7).map((feat, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400" />
+                        {feat}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    onClick={() => navigate('/onboarding')}
+                    className={`w-full ${
+                      plan.popular
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-slate-700 text-white hover:bg-slate-600'
+                    }`}
+                  >
+                    Get Started
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Enterprise CTA */}
+          <div className="mt-8 rounded-xl border border-slate-700 bg-slate-800/50 p-6 text-center">
+            <p className="text-lg text-white">
+              Need 10+ AI Employees?{' '}
+              <span className="font-semibold text-emerald-400">Enterprise</span> with custom pricing, SLA guarantees, and white-label branding.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-4 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              Contact Sales
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 py-20">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
@@ -886,7 +972,7 @@ export function Landing() {
 
       {/* Video Modal */}
       {isVideoModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="relative aspect-video w-full max-w-4xl rounded-xl bg-slate-900">
             <button
               onClick={() => setIsVideoModalOpen(false)}

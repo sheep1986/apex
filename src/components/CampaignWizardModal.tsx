@@ -1,5 +1,6 @@
 import { useToast } from '@/hooks/use-toast';
 import { VoiceAssistant, VoicePhoneNumber, campaignOutboundService } from '@/services/campaign-outbound.service';
+import { supabase } from '@/services/supabase-client';
 import {
     AlertCircle,
     Bot,
@@ -68,46 +69,24 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
     try {
       setLoading(true);
 
-      // First, check if VAPI credentials are configured by checking user profile and org settings
+      // Get user profile from Supabase auth + profiles table
       try {
-        // Get user profile to get organization ID
-        const userResponse = await fetch('http://localhost:3001/api/user-profile', {
-          headers: {
-            Authorization: 'Bearer test-token',
-            'Content-Type': 'application/json',
-          },
-        });
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          // Query profiles table joined with organization_members to get org_id
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*, organization_members(organization_id)')
+            .eq('id', authUser.id)
+            .single();
 
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUser(userData);
-
-          if (userData.organization_id) {
-            // Check organization settings for VAPI credentials
-            const orgResponse = await fetch(
-              `http://localhost:3001/api/organizations/${userData.organization_id}/settings`,
-              {
-                headers: {
-                  Authorization: 'Bearer test-token',
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (orgResponse.ok) {
-              const orgData = await orgResponse.json();
-
-              if (orgData.settings?.vapi?.enabled && orgData.settings?.vapi?.apiKey) {
-                setHasVoiceCredentials(true);
-              } else {
-                setHasVoiceCredentials(false);
-              }
-            }
+          if (profileData) {
+            const orgId = profileData.organization_members?.[0]?.organization_id || profileData.organization_id;
+            setUser({ ...profileData, organization_id: orgId });
           }
         }
       } catch (err) {
-        console.error('❌ Failed to check Voice credentials:', err);
-        setHasVoiceCredentials(false);
+        console.error('Failed to load user profile:', err);
       }
 
       let assistantsData: VoiceAssistant[] = [];
@@ -117,6 +96,9 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
         console.error('❌ Campaign Modal: Failed to load assistants:', err);
         assistantsData = [];
       }
+
+      // If assistants loaded successfully, voice credentials are working
+      setHasVoiceCredentials(assistantsData.length > 0);
 
       let phoneNumbersData: VoicePhoneNumber[] = [];
       try {
@@ -270,23 +252,10 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
   const [duplicateInfo, setDuplicateInfo] = useState<any>(null);
   const [bypassDuplicates, setBypassDuplicates] = useState(false);
 
-  const checkForDuplicates = async (csvData: string) => {
-    try {
-      const response = await fetch('http://localhost:3002/api/check-duplicates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          csvData,
-          organizationId: user?.organizationId
-        })
-      });
-      
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error checking duplicates:', error);
-      return null;
-    }
+  const checkForDuplicates = async (_csvData: string) => {
+    // Duplicate checking is handled server-side by the campaign-import Netlify function.
+    // No client-side duplicate check endpoint available; return null to skip.
+    return null;
   };
 
   const handleCreateCampaign = async () => {
@@ -862,7 +831,7 @@ const CampaignWizardModal: React.FC<CampaignWizardModalProps> = ({
 
     {/* Duplicate Warning Modal */}
     {showDuplicateWarning && duplicateInfo && (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div className="mx-4 max-w-lg rounded-lg bg-gray-900 border border-yellow-600/30 p-6 shadow-2xl">
           <div className="mb-4">
             <h3 className="text-xl font-bold text-yellow-500">⚠️ Duplicate Leads Detected</h3>

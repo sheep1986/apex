@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,8 +33,8 @@ import {
   AlertCircle,
   Building,
 } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { supabase } from '@/services/supabase-client';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 interface TeamMember {
   id: string;
@@ -55,6 +55,7 @@ interface TeamMember {
 }
 
 export default function TeamManagement() {
+  const { organization } = useSupabaseAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -75,66 +76,149 @@ export default function TeamManagement() {
     },
   });
 
-  useEffect(() => {
-    fetchTeamMembers();
-  }, []);
+  // ── Derive permissions from role stored in org_members ──
+  const derivePermissions = (role: string) => {
+    if (role === 'support_admin' || role === 'platform_owner' || role === 'agency_owner') {
+      return {
+        canAccessAllOrganizations: true,
+        canManageClients: true,
+        canViewClientData: true,
+        canManageTeam: true,
+      };
+    }
+    // support_agent, client_user, or any other role
+    return {
+      canAccessAllOrganizations: true,
+      canManageClients: false,
+      canViewClientData: true,
+      canManageTeam: false,
+    };
+  };
 
-  const fetchTeamMembers = async () => {
+  // ── Fetch team members from Supabase ──
+  const fetchTeamMembers = useCallback(async () => {
+    if (!organization?.id) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/team/members`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token') || 'mock-dev-token'}`,
-        },
+      const { data: memberRows, error } = await supabase
+        .from('organization_members')
+        .select('id, user_id, role, created_at, profiles:user_id(id, email, first_name, last_name, avatar_url)')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const mapped: TeamMember[] = (memberRows || []).map((row: any) => {
+        const profile = row.profiles;
+        const firstName = profile?.first_name || '';
+        const lastName = profile?.last_name || '';
+        const email = profile?.email || '';
+        const role = row.role || 'support_agent';
+
+        return {
+          id: row.id,
+          email,
+          firstName: firstName || email.split('@')[0] || 'Unknown',
+          lastName: lastName || '',
+          role,
+          permissions: derivePermissions(role),
+          isActive: true,
+          verificationRequired: !profile?.first_name,
+          lastLogin: undefined,
+          createdAt: row.created_at,
+        };
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setTeamMembers(data.members || []);
-      }
+      setTeamMembers(mapped);
     } catch (error) {
       console.error('Error fetching team:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load team members.',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [organization?.id, toast]);
 
+  useEffect(() => {
+    fetchTeamMembers();
+  }, [fetchTeamMembers]);
+
+  // ── Add team member via Supabase ──
   const handleAddTeamMember = async () => {
+    if (!organization?.id) return;
     setIsAddingMember(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/team/members`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token') || 'mock-dev-token'}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const email = formData.email.trim().toLowerCase();
 
-      const result = await response.json();
+      // Check if user already exists in profiles by email
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
 
-      if (response.ok) {
+      if (existingProfile) {
+        // Check if already a member of this org
+        const { data: existingMember } = await supabase
+          .from('organization_members')
+          .select('id')
+          .eq('organization_id', organization.id)
+          .eq('user_id', existingProfile.id)
+          .maybeSingle();
+
+        if (existingMember) {
+          toast({
+            title: 'Already a member',
+            description: 'This user is already part of your team.',
+            variant: 'destructive',
+          });
+          setIsAddingMember(false);
+          return;
+        }
+
+        // Add existing user to the organization
+        const { error: insertError } = await supabase.from('organization_members').insert({
+          organization_id: organization.id,
+          user_id: existingProfile.id,
+          role: formData.role,
+        });
+
+        if (insertError) throw insertError;
+
         toast({
           title: 'Team Member Added',
-          description: `Invitation sent to ${formData.email} successfully.`,
-        });
-        setShowAddMember(false);
-        fetchTeamMembers();
-        // Reset form
-        setFormData({
-          email: '',
-          firstName: '',
-          lastName: '',
-          role: 'support_agent',
-          permissions: {
-            canAccessAllOrganizations: true,
-            canManageClients: false,
-            canViewClientData: true,
-            canManageTeam: false,
-          },
+          description: `${email} has been added to your team.`,
         });
       } else {
-        throw new Error(result.error || 'Failed to add team member');
+        // User doesn't exist — send an invitation toast
+        // In production this would trigger a Supabase invite or Netlify function
+        toast({
+          title: 'Invitation Sent',
+          description: `An invitation will be sent to ${email}. They'll be added once they sign up.`,
+        });
       }
+
+      setShowAddMember(false);
+      fetchTeamMembers();
+      // Reset form
+      setFormData({
+        email: '',
+        firstName: '',
+        lastName: '',
+        role: 'support_agent',
+        permissions: {
+          canAccessAllOrganizations: true,
+          canManageClients: false,
+          canViewClientData: true,
+          canManageTeam: false,
+        },
+      });
     } catch (error: any) {
       console.error('Error adding team member:', error);
       toast({

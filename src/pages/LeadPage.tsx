@@ -3380,7 +3380,7 @@ export default function LeadPage() {
 
       {/* Delete Note Confirmation Dialog */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="mx-4 max-w-md rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-xl">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-900/30">

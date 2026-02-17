@@ -37,7 +37,7 @@ export default function DebugAuth() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
+    <div className="min-h-screen bg-black text-white p-8">
       <h1 className="text-2xl font-bold mb-6">Auth Debug Information</h1>
       
       {error && (

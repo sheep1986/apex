@@ -39,6 +39,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/services/supabase-client";
 import CommandPalette from "./CommandPalette";
 import { NotificationBell } from "./NotificationBell";
+import { SubscriptionGuard } from "./SubscriptionGuard";
 import { UserDropdown } from "./UserDropdown";
 
 interface MenuItem {
@@ -203,6 +204,13 @@ const agencyMenuItems: MenuItem[] = [
     isActive: (path: string) => path === "/agent-dashboard",
   },
   {
+    title: "Call Quality",
+    titleKey: "call_quality",
+    url: "/call-quality-review",
+    icon: Activity,
+    isActive: (path: string) => path === "/call-quality-review",
+  },
+  {
     title: "Analytics",
     titleKey: "analytics",
     url: "/analytics",
@@ -236,6 +244,14 @@ const agencyMenuItems: MenuItem[] = [
     url: "/email-templates",
     icon: Mail,
     isActive: (path: string) => path === "/email-templates",
+  },
+  {
+    title: "GDPR & Compliance",
+    titleKey: "gdpr-compliance",
+    url: "/gdpr-compliance",
+    icon: Shield,
+    isActive: (path: string) => path === "/gdpr-compliance",
+    adminOnly: true,
   },
   {
     title: "Agency Branding",
@@ -358,6 +374,13 @@ const clientMenuItems: MenuItem[] = [
     isActive: (path: string) => path === "/agent-dashboard",
   },
   {
+    title: "Call Quality",
+    titleKey: "call_quality",
+    url: "/call-quality-review",
+    icon: Activity,
+    isActive: (path: string) => path === "/call-quality-review",
+  },
+  {
     title: "Analytics",
     titleKey: "analytics",
     url: "/analytics",
@@ -391,6 +414,14 @@ const clientMenuItems: MenuItem[] = [
     url: "/email-templates",
     icon: Mail,
     isActive: (path: string) => path === "/email-templates",
+  },
+  {
+    title: "GDPR & Compliance",
+    titleKey: "gdpr-compliance",
+    url: "/gdpr-compliance",
+    icon: Shield,
+    isActive: (path: string) => path === "/gdpr-compliance",
+    adminOnly: true,
   },
   {
     title: "Organization",
@@ -530,7 +561,7 @@ const Layout: React.FC = () => {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -554,9 +585,10 @@ const Layout: React.FC = () => {
             <nav className="flex flex-col space-y-1">
               {menuItems.map((item) => {
                 if (
-                  (item.adminOnly) &&
-                  userContext?.role !== "client_admin" &&
-                  userContext?.role !== "platform_owner"
+                  item.adminOnly &&
+                  !["client_admin", "platform_owner", "agency_admin", "agency_owner", "org_owner", "admin"].includes(
+                    userContext?.role || ""
+                  )
                 ) {
                   return null;
                 }
@@ -608,7 +640,9 @@ const Layout: React.FC = () => {
             </div>
         </header>
         <main className="flex-1 overflow-auto bg-black">
-            <Outlet />
+            <SubscriptionGuard>
+              <Outlet />
+            </SubscriptionGuard>
         </main>
       </div>
 

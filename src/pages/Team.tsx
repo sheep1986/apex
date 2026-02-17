@@ -694,7 +694,7 @@ export function Team() {
 
         {/* Invite Modal */}
         {showInviteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
             <div className="w-full max-w-md rounded-lg border border-gray-800 bg-gray-900 p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Invite Team Member</h3>

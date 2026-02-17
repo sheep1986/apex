@@ -142,6 +142,36 @@ async function processAutoRecharges(): Promise<{ processed: number; errors: stri
           metadata: { amount: config.recharge_amount_usd, previous_balance: orgData.credit_balance },
         }).then(() => {}).catch(() => {}); // Non-critical, don't fail on this
 
+        // Resume any credit-gated campaigns
+        const { data: pausedCampaigns } = await supabase
+          .from('campaigns')
+          .select('id, name')
+          .eq('organization_id', config.organization_id)
+          .eq('status', 'paused')
+          .eq('paused_reason', 'insufficient_credits');
+
+        if (pausedCampaigns && pausedCampaigns.length > 0) {
+          await supabase
+            .from('campaigns')
+            .update({ status: 'running', paused_reason: null, updated_at: new Date().toISOString() })
+            .eq('organization_id', config.organization_id)
+            .eq('status', 'paused')
+            .eq('paused_reason', 'insufficient_credits');
+
+          for (const camp of pausedCampaigns) {
+            await supabase.from('notifications_server').insert({
+              organization_id: config.organization_id,
+              type: 'campaign_alert',
+              title: 'Campaign Resumed',
+              message: `"${camp.name}" has been automatically resumed after credits were restored.`,
+              severity: 'medium',
+              category: 'campaigns',
+              metadata: { campaign_id: camp.id, reason: 'auto_recharge_restored_credits' },
+            }).catch(() => {});
+          }
+          console.log(`[CreditGate] Resumed ${pausedCampaigns.length} campaign(s) for org ${config.organization_id}`);
+        }
+
         processed++;
         console.log(`Auto-recharged org ${config.organization_id}: $${config.recharge_amount_usd}`);
       } else {

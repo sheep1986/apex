@@ -220,7 +220,7 @@ const CampaignCalls: React.FC = () => {
     if (!isOpen) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
         <div className="mx-4 max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg border border-gray-800 bg-gray-900 shadow-xl">
           <div className="border-b border-gray-800 p-6">
             <div className="flex items-center justify-between">

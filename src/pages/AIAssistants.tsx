@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import WebCallWidget from '@/components/WebCallWidget';
 import { useUserContext } from '@/services/MinimalUserProvider';
+import { supabase } from '@/services/supabase-client';
 import { voiceService, type VoiceAssistant } from '@/services/voice-service';
 import {
   Activity,
@@ -34,6 +35,7 @@ import {
   Brain,
   Copy,
   Edit,
+  FileUp,
   Loader2,
   MessageSquare,
   Mic,
@@ -48,6 +50,7 @@ import {
   Trash2,
   Volume2,
   Wand2,
+  Wrench,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -338,6 +341,13 @@ export default function AIAssistants() {
   // Web call state
   const [testCallAssistant, setTestCallAssistant] = useState<VoiceAssistant | null>(null);
 
+  // Tools & Knowledge Base state
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [availableTools, setAvailableTools] = useState<Array<{ id: string; name: string; description?: string; type: string }>>([]);
+  const [availableFiles, setAvailableFiles] = useState<Array<{ id: string; name: string; status?: string }>>([]);
+  const [toolsLoading, setToolsLoading] = useState(false);
+
   // ── Initialize Voice Service ──────────────────────────────────────────────
   useEffect(() => {
     let attempts = 0;
@@ -380,6 +390,71 @@ export default function AIAssistants() {
   useEffect(() => {
     fetchAssistants();
   }, [fetchAssistants]);
+
+  // ── Load Available Tools & Files ──────────────────────────────────────────
+  const loadToolsAndFiles = useCallback(async (editingVapiAssistantId?: string) => {
+    setToolsLoading(true);
+    try {
+      // Load available tools from Supabase
+      const orgId = userContext?.organization_id;
+      if (orgId) {
+        const { data: tools } = await supabase
+          .from('voice_tools')
+          .select('id, name, description, type')
+          .eq('organization_id', orgId)
+          .eq('is_active', true)
+          .order('name');
+        setAvailableTools(tools || []);
+
+        // If editing, load current tool links
+        if (editingVapiAssistantId) {
+          const { data: dbAssistant } = await supabase
+            .from('assistants')
+            .select('id')
+            .eq('vapi_assistant_id', editingVapiAssistantId)
+            .eq('organization_id', orgId)
+            .single();
+
+          if (dbAssistant) {
+            const { data: links } = await supabase
+              .from('assistant_tools')
+              .select('tool_id')
+              .eq('assistant_id', dbAssistant.id);
+            setSelectedToolIds((links || []).map((l: any) => l.tool_id));
+          } else {
+            setSelectedToolIds([]);
+          }
+        } else {
+          setSelectedToolIds([]);
+        }
+      }
+
+      // Load available files from Vapi
+      try {
+        const files = await voiceService.getFiles();
+        setAvailableFiles(files.map((f: any) => ({ id: f.id, name: f.name || f.originalName || f.id, status: f.status })));
+
+        // If editing, load current file IDs from the assistant's knowledgeBase
+        if (editingVapiAssistantId) {
+          try {
+            const assistantData = await voiceService.getAssistant(editingVapiAssistantId);
+            const kbFileIds = (assistantData as any)?.model?.knowledgeBase?.fileIds || [];
+            setSelectedFileIds(kbFileIds);
+          } catch {
+            setSelectedFileIds([]);
+          }
+        } else {
+          setSelectedFileIds([]);
+        }
+      } catch {
+        setAvailableFiles([]);
+        setSelectedFileIds([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load tools/files:', err);
+    }
+    setToolsLoading(false);
+  }, [userContext?.organization_id]);
 
   // ── Create / Update Assistant ─────────────────────────────────────────────
   const handleSaveAssistant = async () => {
@@ -505,10 +580,17 @@ export default function AIAssistants() {
         variableValues: Object.keys(parsedVariableValues).length > 0 ? parsedVariableValues : undefined,
       };
 
+      // Include toolIds and fileIds for Vapi sync
+      const payloadWithExtras = {
+        ...payload,
+        toolIds: selectedToolIds.length > 0 ? selectedToolIds : [],
+        fileIds: selectedFileIds.length > 0 ? selectedFileIds : [],
+      };
+
       if (editingAssistant) {
-        await voiceService.updateAssistant(editingAssistant.id, payload);
+        await voiceService.updateAssistant(editingAssistant.id, payloadWithExtras);
       } else {
-        await voiceService.createAssistant(payload);
+        await voiceService.createAssistant(payloadWithExtras);
       }
 
       setShowCreateDialog(false);
@@ -629,6 +711,7 @@ export default function AIAssistants() {
       videoRecordingEnabled: assistant.artifactPlan?.videoRecordingEnabled ?? false,
       transcriptSavingEnabled: assistant.artifactPlan?.transcriptPlan?.enabled ?? true,
     });
+    loadToolsAndFiles(assistant.id);
     setShowCreateDialog(true);
   };
 
@@ -703,6 +786,7 @@ export default function AIAssistants() {
               onClick={() => {
                 setEditingAssistant(null);
                 setFormState(defaultForm);
+                loadToolsAndFiles();
                 setShowCreateDialog(true);
               }}
               className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700"
@@ -826,6 +910,7 @@ export default function AIAssistants() {
                 onClick={() => {
                   setEditingAssistant(null);
                   setFormState(defaultForm);
+                  loadToolsAndFiles();
                   setShowCreateDialog(true);
                 }}
                 className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white"
@@ -990,6 +1075,9 @@ export default function AIAssistants() {
               </TabsTrigger>
               <TabsTrigger value="behavior" className="text-xs data-[state=active]:bg-gray-800">
                 <Brain className="mr-1 h-3 w-3" /> Behavior
+              </TabsTrigger>
+              <TabsTrigger value="tools-kb" className="text-xs data-[state=active]:bg-gray-800">
+                <Wrench className="mr-1 h-3 w-3" /> Tools & KB
               </TabsTrigger>
               <TabsTrigger value="advanced" className="text-xs data-[state=active]:bg-gray-800">
                 <Wand2 className="mr-1 h-3 w-3" /> Advanced
@@ -1707,6 +1795,126 @@ export default function AIAssistants() {
                     />
                   </div>
                 </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Tab: Tools & Knowledge Base ───────────────────────── */}
+            <TabsContent value="tools-kb" className="space-y-4 mt-4">
+              {/* Tools Section */}
+              <div className="rounded-lg border border-gray-800 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Wrench className="h-4 w-4 text-emerald-400" />
+                  <Label className="text-sm font-semibold">Tools</Label>
+                </div>
+                <p className="mb-3 text-xs text-gray-500">
+                  Select tools this assistant can use during calls (function calling, transfers, etc).
+                </p>
+                {toolsLoading ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                    <span className="text-sm text-gray-400">Loading tools...</span>
+                  </div>
+                ) : availableTools.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No tools available. Create tools in the Tools page first.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {availableTools.map((tool) => (
+                      <label
+                        key={tool.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+                          selectedToolIds.includes(tool.id)
+                            ? 'border-emerald-600 bg-emerald-500/10'
+                            : 'border-gray-700 bg-gray-900 hover:border-gray-600'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedToolIds.includes(tool.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedToolIds((prev) => [...prev, tool.id]);
+                            } else {
+                              setSelectedToolIds((prev) => prev.filter((id) => id !== tool.id));
+                            }
+                          }}
+                          className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-white">{tool.name}</span>
+                          <span className="ml-2 text-xs text-gray-500">({tool.type})</span>
+                          {tool.description && (
+                            <p className="mt-0.5 text-xs text-gray-400">{tool.description}</p>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {selectedToolIds.length > 0 && (
+                  <p className="mt-2 text-xs text-emerald-400">
+                    {selectedToolIds.length} tool{selectedToolIds.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </div>
+
+              {/* Knowledge Base Section */}
+              <div className="rounded-lg border border-gray-800 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <FileUp className="h-4 w-4 text-blue-400" />
+                  <Label className="text-sm font-semibold">Knowledge Base Files</Label>
+                </div>
+                <p className="mb-3 text-xs text-gray-500">
+                  Link uploaded files to this assistant for retrieval-augmented generation (RAG).
+                </p>
+                {toolsLoading ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                    <span className="text-sm text-gray-400">Loading files...</span>
+                  </div>
+                ) : availableFiles.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No files uploaded. Upload files via the Knowledge Base section to use them here.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {availableFiles.map((file) => (
+                      <label
+                        key={file.id}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
+                          selectedFileIds.includes(file.id)
+                            ? 'border-blue-600 bg-blue-500/10'
+                            : 'border-gray-700 bg-gray-900 hover:border-gray-600'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedFileIds.includes(file.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFileIds((prev) => [...prev, file.id]);
+                            } else {
+                              setSelectedFileIds((prev) => prev.filter((id) => id !== file.id));
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-white">{file.name}</span>
+                        {file.status && file.status !== 'indexed' && (
+                          <Badge variant="outline" className="text-xs">
+                            {file.status}
+                          </Badge>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {selectedFileIds.length > 0 && (
+                  <p className="mt-2 text-xs text-blue-400">
+                    {selectedFileIds.length} file{selectedFileIds.length !== 1 ? 's' : ''} linked
+                  </p>
+                )}
               </div>
             </TabsContent>
 

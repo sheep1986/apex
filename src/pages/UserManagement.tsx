@@ -63,7 +63,8 @@ interface Organization {
   updated_at: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// All API calls go through Netlify Functions (relative paths)
+const API_BASE_URL = '/api';
 
 // All data is fetched from Supabase - no mock data
 
@@ -311,7 +312,7 @@ export default function UserManagement() {
           <h1 className="text-3xl font-bold text-white">User Management</h1>
         </div>
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
           <span className="ml-3 text-gray-400">Loading users...</span>
         </div>
       </div>

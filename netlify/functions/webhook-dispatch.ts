@@ -1,6 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { corsHeaders } from './utils/cors';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -22,9 +23,8 @@ const DELIVERY_TIMEOUT_MS = 10_000; // 10-second timeout per delivery
  */
 export const handler: Handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json',
+    ...corsHeaders(),
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -32,6 +32,26 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // Authentication: require either an internal secret header or a valid Supabase JWT
+    const internalSecret = process.env.WEBHOOK_DISPATCH_SECRET || process.env.INTERNAL_API_SECRET;
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    const internalHeader = event.headers['x-internal-secret'];
+
+    const isInternalCall = internalSecret && internalHeader === internalSecret;
+    const isScheduledCall = event.headers?.['x-netlify-event'] === 'schedule';
+
+    if (!isInternalCall && !isScheduledCall) {
+      // Require valid Supabase auth for non-internal calls
+      if (!authHeader?.startsWith('Bearer ')) {
+        return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
+      }
+      const token = authHeader.split(' ')[1];
+      const { error: authError } = await supabase.auth.getUser(token);
+      if (authError) {
+        return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
+      }
+    }
+
     const body = event.body ? JSON.parse(event.body) : {};
     const { organizationId, eventType, payload, endpointId } = body;
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -58,6 +58,8 @@ import {
   Crown,
   ArrowRight,
   Loader2,
+  Wallet,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -75,9 +77,79 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUserContext } from '../services/MinimalUserProvider';
 import { useUser } from '../hooks/auth';
+import { getPlanById, getDefaultPlan } from '@/config/plans';
+import { useSubscriptionGate } from '@/components/SubscriptionGuard';
+import { ActivationChecklist } from '@/components/ActivationChecklist';
 
 // Import Supabase client
 import { supabase } from '../services/supabase-client';
+
+// ── Credit Usage Progress Ring ──────────────────────────────────────────────
+function CreditProgressRing({
+  percent,
+  size = 80,
+  strokeWidth = 7,
+}: {
+  percent: number;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clampedPercent = Math.min(Math.max(percent, 0), 100);
+  const offset = circumference - (clampedPercent / 100) * circumference;
+
+  // Color based on usage percentage
+  const getColor = (pct: number) => {
+    if (pct >= 80) return { stroke: '#ef4444', glow: 'rgba(239,68,68,0.3)' }; // red
+    if (pct >= 50) return { stroke: '#f59e0b', glow: 'rgba(245,158,11,0.3)' }; // amber
+    return { stroke: '#10b981', glow: 'rgba(16,185,129,0.3)' }; // green / emerald
+  };
+
+  const colors = getColor(clampedPercent);
+
+  return (
+    <svg width={size} height={size} className="flex-shrink-0">
+      {/* background track */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="rgba(55,65,81,0.4)"
+        strokeWidth={strokeWidth}
+      />
+      {/* progress arc */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={colors.stroke}
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{
+          transition: 'stroke-dashoffset 0.6s ease, stroke 0.4s ease',
+          filter: `drop-shadow(0 0 4px ${colors.glow})`,
+        }}
+      />
+      {/* center percentage text */}
+      <text
+        x="50%"
+        y="50%"
+        dominantBaseline="central"
+        textAnchor="middle"
+        className="text-xs font-bold"
+        fill={colors.stroke}
+      >
+        {Math.round(clampedPercent)}%
+      </text>
+    </svg>
+  );
+}
 
 
 // All data comes from Supabase — no hardcoded values
@@ -87,6 +159,7 @@ export default function Dashboard() {
   const { userContext } = useUserContext();
   const { user } = useUser();
   const { toast } = useToast();
+  const { isReadOnly, isSuspended } = useSubscriptionGate();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -118,6 +191,17 @@ export default function Dashboard() {
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Credit usage widget state
+  const [creditUsage, setCreditUsage] = useState({
+    creditsUsed: 0,
+    creditsIncluded: 200_000,
+    creditBalance: 0,
+    planId: 'employee_1' as string,
+    periodStart: null as string | null,
+    periodEnd: null as string | null,
+    dailyUsageHistory: [] as { date: string; credits: number }[],
+  });
+
   const orgId = userContext?.organization_id;
 
   useEffect(() => {
@@ -141,10 +225,10 @@ export default function Dashboard() {
         .eq('organization_id', orgId)
         .gte('created_at', ninetyDaysAgo.toISOString());
 
-      // Fetch org credit balance
+      // Fetch org credit balance + plan info
       const { data: org } = await supabase
         .from('organizations')
-        .select('credit_balance')
+        .select('credit_balance, plan, plan_tier_id, included_credits, credits_used_this_period, subscription_period_start, subscription_period_end')
         .eq('id', orgId)
         .single();
 
@@ -170,6 +254,33 @@ export default function Dashboard() {
         activeCampaigns,
         conversionRate: successRate,
         creditBalance: org?.credit_balance || 0,
+      });
+
+      // Populate credit usage widget data
+      const planId = org?.plan || org?.plan_tier_id || 'employee_1';
+      const plan = getPlanById(planId) || getDefaultPlan();
+      const creditsUsedThisPeriod = org?.credits_used_this_period || 0;
+      const includedCredits = org?.included_credits || plan.includedCredits;
+
+      // Calculate daily usage from call data (last 14 days for trend)
+      const dailyUsage = Array.from({ length: 14 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (13 - i));
+        const dayStr = date.toISOString().split('T')[0];
+        const dayCredits = allCallsArray
+          .filter(call => call.created_at?.startsWith(dayStr))
+          .reduce((sum, call) => sum + (call.duration ? Math.ceil((call.duration / 60) * 30) : 0), 0);
+        return { date: dayStr, credits: dayCredits };
+      });
+
+      setCreditUsage({
+        creditsUsed: creditsUsedThisPeriod,
+        creditsIncluded: includedCredits,
+        creditBalance: org?.credit_balance || 0,
+        planId,
+        periodStart: org?.subscription_period_start || null,
+        periodEnd: org?.subscription_period_end || null,
+        dailyUsageHistory: dailyUsage,
       });
 
       // Campaign performance for chart
@@ -240,14 +351,34 @@ export default function Dashboard() {
       icon: TrendingUp,
       color: 'pink',
     },
-    {
-      title: 'Credit Balance',
-      value: `$${realStats.creditBalance.toFixed(2)}`,
-      change: realStats.creditBalance > 10 ? 'Healthy' : 'Low balance',
-      icon: DollarSign,
-      color: 'blue',
-    },
   ];
+
+  // ── Credit Widget Computed Values ──────────────────────────────────────
+  const creditUsagePercent = creditUsage.creditsIncluded > 0
+    ? Math.min(100, (creditUsage.creditsUsed / creditUsage.creditsIncluded) * 100)
+    : 0;
+
+  const creditStatusColor = useMemo(() => {
+    if (creditUsagePercent >= 80) return 'red';
+    if (creditUsagePercent >= 50) return 'amber';
+    return 'green';
+  }, [creditUsagePercent]);
+
+  // Projected depletion date based on recent average daily usage
+  const projectedDepletionDate = useMemo(() => {
+    const history = creditUsage.dailyUsageHistory;
+    const recentDays = history.slice(-7); // last 7 days
+    const totalRecentCredits = recentDays.reduce((s, d) => s + d.credits, 0);
+    const avgDailyUsage = recentDays.length > 0 ? totalRecentCredits / recentDays.length : 0;
+
+    if (avgDailyUsage <= 0) return null;
+
+    const creditsRemaining = Math.max(0, creditUsage.creditsIncluded - creditUsage.creditsUsed);
+    const daysUntilDepletion = Math.ceil(creditsRemaining / avgDailyUsage);
+    const depletionDate = new Date();
+    depletionDate.setDate(depletionDate.getDate() + daysUntilDepletion);
+    return { date: depletionDate, days: daysUntilDepletion };
+  }, [creditUsage]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -260,7 +391,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen w-full bg-black">
         <div className="flex h-96 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
           <span className="ml-3 text-gray-400">Loading dashboard...</span>
         </div>
       </div>
@@ -285,9 +416,19 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
+          {/* Provider Health Indicator */}
+          <div className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5" title="Voice Provider Status">
+            <div className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+            </div>
+            <span className="text-xs text-gray-400">Voice</span>
+          </div>
           <Button
             onClick={() => navigate('/campaigns')}
-            className="bg-emerald-600 font-medium text-white transition-all duration-200 hover:bg-emerald-700"
+            disabled={isReadOnly || isSuspended}
+            className="bg-emerald-600 font-medium text-white transition-all duration-200 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={isReadOnly || isSuspended ? 'Resolve billing to create campaigns' : undefined}
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Campaign
@@ -295,8 +436,46 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Subscription Warning Card */}
+      {(isReadOnly || isSuspended) && (
+        <Card className={`mb-6 border ${isSuspended ? 'border-red-700/50 bg-red-950/30' : 'border-amber-700/50 bg-amber-950/30'}`}>
+          <CardContent className="p-5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`p-2.5 rounded-full ${isSuspended ? 'bg-red-900/50' : 'bg-amber-900/50'}`}>
+                <AlertCircle className={`h-5 w-5 ${isSuspended ? 'text-red-400' : 'text-amber-400'}`} />
+              </div>
+              <div className="min-w-0">
+                <p className={`text-sm font-semibold ${isSuspended ? 'text-red-200' : 'text-amber-200'}`}>
+                  {isSuspended ? 'Subscription Canceled' : 'Payment Issue Detected'}
+                </p>
+                <p className={`text-xs mt-0.5 ${isSuspended ? 'text-red-300/70' : 'text-amber-300/70'}`}>
+                  {isSuspended
+                    ? 'Your subscription is canceled. Active campaigns have been paused. Reactivate to restore full access.'
+                    : 'Your last payment failed. Active campaigns have been paused until billing is resolved. Features are in read-only mode.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate('/billing')}
+              className={`flex-shrink-0 ${isSuspended ? 'bg-red-600 hover:bg-red-500' : 'bg-amber-600 hover:bg-amber-500'} text-white`}
+            >
+              <Wallet className="h-4 w-4 mr-1.5" />
+              {isSuspended ? 'Reactivate Plan' : 'Fix Billing'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Activation Checklist — shown for new orgs within 14 days of onboarding */}
+      {orgId && (
+        <ActivationChecklist
+          orgId={orgId}
+          onboardedAt={null}
+        />
+      )}
+
       {/* Stats Grid */}
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
         {stats.map((stat) => (
           <Card
             key={stat.title}
@@ -318,7 +497,7 @@ export default function Dashboard() {
                     <span className="text-xs text-gray-500">Last 90 days</span>
                   </div>
                 </div>
-                <div className={`rounded-lg border p-3 ${ 
+                <div className={`rounded-lg border p-3 ${
                   stat.color === 'purple' ? 'border-purple-500/20 bg-purple-500/10' :
                   stat.color === 'emerald' ? 'border-emerald-500/20 bg-emerald-500/10' :
                   stat.color === 'pink' ? 'border-pink-500/20 bg-pink-500/10' :
@@ -338,6 +517,206 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Credit Usage Dashboard Widget */}
+      <Card className={`mb-8 border transition-all duration-200 ${
+        creditStatusColor === 'red'
+          ? 'border-red-500/30 bg-gray-900'
+          : creditStatusColor === 'amber'
+            ? 'border-amber-500/30 bg-gray-900'
+            : 'border-gray-800 bg-gray-900'
+      }`}>
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center">
+            {/* Left: Progress Ring + Balance */}
+            <div className="flex items-center gap-4">
+              <CreditProgressRing percent={creditUsagePercent} size={80} strokeWidth={7} />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-400">Credit Balance</p>
+                <p className="text-3xl font-bold text-white">
+                  {creditUsage.creditsUsed.toLocaleString()}
+                  <span className="text-base font-normal text-gray-500">
+                    {' '}/ {creditUsage.creditsIncluded.toLocaleString()}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500">
+                  {(creditUsage.creditsIncluded - creditUsage.creditsUsed).toLocaleString()} credits remaining
+                </p>
+              </div>
+            </div>
+
+            {/* Center: Usage Bar + Depletion Projection */}
+            <div className="flex-1 space-y-3">
+              {/* Usage bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Usage this period</span>
+                  <span className={`font-medium ${
+                    creditStatusColor === 'red' ? 'text-red-400'
+                    : creditStatusColor === 'amber' ? 'text-amber-400'
+                    : 'text-emerald-400'
+                  }`}>
+                    {Math.round(creditUsagePercent)}% used
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      creditStatusColor === 'red'
+                        ? 'bg-red-500'
+                        : creditStatusColor === 'amber'
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(creditUsagePercent, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Projected depletion */}
+              <div className="flex items-center gap-2 text-xs">
+                <Clock className="h-3.5 w-3.5 text-gray-500" />
+                {projectedDepletionDate ? (
+                  <span className={`${
+                    projectedDepletionDate.days <= 7 ? 'text-red-400'
+                    : projectedDepletionDate.days <= 14 ? 'text-amber-400'
+                    : 'text-gray-400'
+                  }`}>
+                    Projected depletion:{' '}
+                    {projectedDepletionDate.date.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}{' '}
+                    ({projectedDepletionDate.days} day{projectedDepletionDate.days !== 1 ? 's' : ''})
+                  </span>
+                ) : (
+                  <span className="text-gray-500">No usage trend data yet</span>
+                )}
+              </div>
+
+              {/* Overage balance */}
+              <div className="flex items-center gap-2 text-xs">
+                <Wallet className="h-3.5 w-3.5 text-gray-500" />
+                <span className={creditUsage.creditBalance < 2 ? 'text-red-400' : 'text-gray-400'}>
+                  Overage balance: ${creditUsage.creditBalance.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Quick Actions */}
+            <div className="flex flex-row gap-2 md:flex-col">
+              <Button
+                size="sm"
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={() => navigate('/billing')}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Top Up
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                onClick={() => navigate('/billing')}
+              >
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Auto-Recharge
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* QA Quality Widget */}
+      <Card className="mb-6 border-gray-800 bg-gray-900">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-amber-400" />
+              <h3 className="text-sm font-semibold text-white">Call Quality Overview</h3>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white text-xs"
+              onClick={() => navigate('/call-quality-review')}
+            >
+              <Eye className="mr-1.5 h-3 w-3" />
+              Review Queue
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-gray-400">Avg QA Score</p>
+              <div className="mt-1 flex items-center gap-1">
+                <span className="text-lg font-bold text-white">
+                  {realStats.totalCalls > 0 ? '—' : '—'}
+                </span>
+                <span className="text-xs text-gray-500">/ 5</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">7-day rolling</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Positive Sentiment</p>
+              <p className="mt-1 text-lg font-bold text-emerald-400">—</p>
+              <p className="text-xs text-gray-500 mt-0.5">of scored calls</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Awaiting Review</p>
+              <p className="mt-1 text-lg font-bold text-amber-400">—</p>
+              <p className="text-xs text-gray-500 mt-0.5">unreviewed calls</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Interested Rate</p>
+              <p className="mt-1 text-lg font-bold text-white">—</p>
+              <p className="text-xs text-gray-500 mt-0.5">outcome breakdown</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Revenue Attribution Widget */}
+      <Card className="mb-8 border-gray-800 bg-gray-900">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-emerald-400" />
+              <h3 className="text-sm font-semibold text-white">Revenue Attribution</h3>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white text-xs"
+              onClick={() => navigate('/pipeline')}
+            >
+              <Eye className="mr-1.5 h-3 w-3" />
+              Pipeline
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-gray-400">Pipeline Value</p>
+              <p className="mt-1 text-lg font-bold text-white">—</p>
+              <p className="text-xs text-gray-500 mt-0.5">open deals</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Closed Won</p>
+              <p className="mt-1 text-lg font-bold text-emerald-400">—</p>
+              <p className="text-xs text-gray-500 mt-0.5">this month</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Top Campaign</p>
+              <p className="mt-1 text-lg font-bold text-white">—</p>
+              <p className="text-xs text-gray-500 mt-0.5">by revenue</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Conversion</p>
+              <p className="mt-1 text-lg font-bold text-white">—</p>
+              <p className="text-xs text-gray-500 mt-0.5">calls → deals</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Divider */}
       <div className="mb-8 border-b border-gray-700"></div>
