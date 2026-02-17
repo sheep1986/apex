@@ -21,6 +21,7 @@ const LazyFallback = (
 // Auth (small, kept eager for fast first paint)
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
 // Core pages (lazy-loaded)
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -91,6 +92,7 @@ function App() {
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Onboarding — protected but full-screen (no sidebar/Layout) */}
             <Route
