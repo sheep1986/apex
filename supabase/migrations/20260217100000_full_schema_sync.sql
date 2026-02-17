@@ -296,7 +296,15 @@ ALTER TABLE phone_numbers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forwarding_targets ENABLE ROW LEVEL SECURITY;
 
 -- View: voice_phone_numbers → phone_numbers (code queries this view)
-CREATE OR REPLACE VIEW voice_phone_numbers AS SELECT * FROM phone_numbers;
+-- Only create if it doesn't already exist as a table
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'voice_phone_numbers' AND n.nspname = 'public' AND c.relkind = 'r'
+    ) THEN
+        EXECUTE 'CREATE OR REPLACE VIEW voice_phone_numbers AS SELECT * FROM phone_numbers';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- SECTION 9: VOICE CALLS
@@ -1212,8 +1220,15 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- Also create a "notifications" view pointing to notifications_server (frontend queries this)
-CREATE OR REPLACE VIEW notifications AS SELECT * FROM notifications_server;
+-- Create "notifications" view only if it doesn't already exist as a table
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'notifications' AND n.nspname = 'public' AND c.relkind = 'r'
+    ) THEN
+        EXECUTE 'CREATE OR REPLACE VIEW notifications AS SELECT * FROM notifications_server';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- SECTION 23: COMMUNICATION — SMS, EMAIL, TEMPLATES
