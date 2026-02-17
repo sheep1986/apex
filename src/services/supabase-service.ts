@@ -344,13 +344,7 @@ class SupabaseService {
   async getUserById(id: string) {
     const { data, error } = await supabase
       .from('profiles')
-      .select(`
-        *,
-        organizations(
-          id,
-          name
-        )
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -366,11 +360,22 @@ class SupabaseService {
     const profile = data as any;
     const nameParts = (profile.full_name || '').split(' ');
 
+    // Fetch organization separately (avoids 500 when organization_id is null)
+    let organizationName: string | undefined;
+    if (profile.organization_id) {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .eq('id', profile.organization_id)
+        .single();
+      organizationName = org?.name;
+    }
+
     return {
       ...profile,
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
-      organizationName: data.organizations?.name
+      organizationName
     } as DatabaseUser;
   }
 
