@@ -29,24 +29,28 @@ export const Login = () => {
       const { error, data } = await signIn(email, password);
       if (error) throw error;
 
-      // Call bootstrap to ensure profile + org exist, then navigate
+      // Call bootstrap to ensure profile + org exist (with timeout so login never hangs)
       const token = data?.session?.access_token;
       if (token) {
         try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
           await fetch('/.netlify/functions/bootstrap', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
+            signal: controller.signal,
           });
-        } catch (bootstrapErr) {
-          console.warn('Bootstrap call failed (non-blocking):', bootstrapErr);
+          clearTimeout(timeout);
+        } catch (bootstrapErr: any) {
+          // Don't block login if bootstrap fails or times out
+          if (bootstrapErr?.name !== 'AbortError') {
+            console.warn('Bootstrap call failed (non-blocking):', bootstrapErr);
+          }
         }
       }
-
-      // Small delay to let auth context process the session before redirecting
-      await new Promise(r => setTimeout(r, 300));
 
       // RoleBasedRedirect will route to the correct dashboard for the user's role
       navigate('/role-redirect');
