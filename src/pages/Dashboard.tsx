@@ -162,6 +162,13 @@ export default function Dashboard() {
   const { isReadOnly, isSuspended } = useSubscriptionGate();
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Platform owners should use /platform, not the client dashboard
+  useEffect(() => {
+    if (userContext?.role === 'platform_owner') {
+      navigate('/platform', { replace: true });
+    }
+  }, [userContext?.role, navigate]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());

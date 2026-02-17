@@ -45,9 +45,19 @@ export const handler: Handler = async (event) => {
     // 1. Check if profile exists (profiles.id references auth.users.id)
     let { data: profile } = await supabase
       .from('profiles')
-      .select('id, organization_id')
+      .select('id, organization_id, role')
       .eq('id', user.id)
       .single();
+
+    // Platform owners are super-admins who manage all orgs — skip bootstrap entirely
+    if (profile && profile.role === 'platform_owner') {
+      console.log('Platform owner detected, skipping bootstrap');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, role: 'platform_owner', skipped: true })
+      };
+    }
 
     if (!profile) {
       console.log('Creating new profile...');

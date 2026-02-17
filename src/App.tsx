@@ -7,6 +7,7 @@ import './App.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RoleBasedRedirect } from './components/RoleBasedRedirect';
 import { ContactsProvider } from './contexts/ContactsContext';
 
 // ─── Route-level code splitting ─────────────────────────────────
@@ -104,6 +105,16 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Role-based redirect — sends each role to their correct dashboard */}
+            <Route
+              path="/role-redirect"
+              element={
+                <ProtectedRoute>
+                  <RoleBasedRedirect />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Onboarding — protected but full-screen (no sidebar/Layout) */}
             <Route

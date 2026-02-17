@@ -45,8 +45,8 @@ export const Login = () => {
         console.warn('Bootstrap call failed (non-blocking):', bootstrapErr);
       }
 
-      // ProtectedRoute will redirect to /onboarding if needed
-      navigate('/dashboard');
+      // RoleBasedRedirect will route to the correct dashboard for the user's role
+      navigate('/role-redirect');
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
     } finally {
