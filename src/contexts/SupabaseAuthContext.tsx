@@ -27,11 +27,14 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const supabase = getSupabase();
 
   useEffect(() => {
+    let loadingUserId: string | null = null;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        loadingUserId = session.user.id;
         loadDbUser(session.user);
       }
       setLoading(false);
@@ -49,8 +52,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setUser(session?.user ?? null);
 
       if (session?.user) {
+        // Skip if we're already loading this user's profile (avoids duplicate fetches)
+        if (loadingUserId === session.user.id) return;
+        loadingUserId = session.user.id;
         await loadDbUser(session.user);
       } else {
+        loadingUserId = null;
         setDbUser(null);
       }
 
@@ -62,16 +69,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
   const loadDbUser = async (authUser: User) => {
     try {
-      // First try to get user by email (more reliable for existing users)
-      let dbUser = await supabaseService.getUserByEmail(authUser.email!);
-
-      // Fallback to auth ID if not found by email
-      if (!dbUser) {
-        dbUser = await supabaseService.getUserById(authUser.id);
-      }
-
+      // Use auth ID directly (profiles table doesn't have an email column)
+      const dbUser = await supabaseService.getUserById(authUser.id);
       setDbUser(dbUser);
-    } catch (error) {
+    } catch (error: any) {
+      // Ignore AbortErrors — these happen when auth state changes rapidly
+      if (error?.name === 'AbortError') return;
       console.error('❌ Error loading database user:', error);
       setDbUser(null);
     }
