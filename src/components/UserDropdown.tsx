@@ -171,7 +171,7 @@ export function UserDropdown() {
                 {user?.firstName?.[0] || 'U'}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden flex-col items-start lg:flex min-w-0 flex-1">
+            <div className="hidden flex-col items-start sm:flex min-w-0 flex-1">
               <span className="text-sm font-medium text-white truncate max-w-[100px]">{user?.firstName || 'User'}</span>
               <span className="text-xs text-gray-400 truncate max-w-[100px]">{userContext?.role || 'User'}</span>
             </div>

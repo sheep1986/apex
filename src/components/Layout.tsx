@@ -1,4 +1,5 @@
 
+import trinitySidebarFull from "@/assets/trinity-sidebar-full.png";
 import trinitySidebarIcon from "@/assets/trinity-sidebar-icon.png";
 import { useUser } from "@/hooks/auth";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
@@ -574,10 +575,28 @@ const Layout: React.FC = () => {
             : "hidden md:block md:w-16 md:hover:w-64"}
       `}>
         <div className="absolute inset-0 bg-black/95 backdrop-blur-xl border-r border-white/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
         <div className="relative h-full flex flex-col">
-            {/* Header / Logo */}
-            <div className="p-4 border-b border-white/10 h-16 flex items-center justify-center overflow-hidden">
-                <img src={trinitySidebarIcon} alt="Logo" className="h-8 w-8 object-contain" />
+            {/* Header / Logo — animated: icon collapses out, full logo slides in */}
+            <div className="p-4 border-b border-white/10">
+              <div className="relative flex items-center h-12 w-full">
+                {/* Collapsed: icon centered, fades/slides out on hover */}
+                <div className={`absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-in-out ${
+                  isMobileMenuOpen
+                    ? "left-0 translate-x-0 opacity-0 pointer-events-none"
+                    : "left-1/2 -translate-x-1/2 opacity-100 group-hover:left-0 group-hover:translate-x-0 group-hover:opacity-0"
+                }`}>
+                  <img src={trinitySidebarIcon} alt="Trinity" className="h-9 w-9 object-contain max-w-none" />
+                </div>
+                {/* Expanded: full logo slides in */}
+                <div className={`absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-in-out flex items-center ${
+                  isMobileMenuOpen
+                    ? "left-0 translate-x-0 opacity-100"
+                    : "left-0 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+                }`}>
+                  <img src={trinitySidebarFull} alt="Trinity Labs AI" className="h-9 w-auto object-contain" />
+                </div>
+              </div>
             </div>
 
              {/* Navigation */}
@@ -601,11 +620,11 @@ const Layout: React.FC = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`
                       nav-item flex items-center px-4 py-3.5 text-sm font-medium transition-all duration-300
-                      relative mx-2 rounded-lg group/nav
-                      ${isActive ? "bg-transparent text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}
+                      relative mx-2 rounded-lg
+                      ${isActive ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"}
                     `}
                   >
-                    <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${isActive ? "text-green-500 scale-110" : "text-white/60 group-hover/nav:text-white"}`} />
+                    <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${isActive ? "text-white" : "text-white/60 group-hover:text-white"}`} />
                     <span className={`ml-3 tracking-wide whitespace-nowrap overflow-hidden transition-opacity duration-300 absolute left-12 ${
                       isMobileMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                     }`}>
