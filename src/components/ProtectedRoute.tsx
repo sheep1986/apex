@@ -13,19 +13,27 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user } = useUser();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+
+  // Timeout: if isLoaded never becomes true (dbUser stuck null), proceed after 8s
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
+    const ready = isLoaded || timedOut;
     // Only check onboarding status if user is signed in and we're not already on the onboarding page
-    if (isLoaded && isSignedIn && user?.id && location.pathname !== '/onboarding') {
+    if (ready && isSignedIn && user?.id && location.pathname !== '/onboarding') {
       checkOnboarding(user.id);
-    } else if (isLoaded && isSignedIn && location.pathname === '/onboarding') {
+    } else if (ready && isSignedIn && location.pathname === '/onboarding') {
       // If we're already on onboarding, skip the check
       setOnboardingChecked(true);
       setNeedsOnboarding(false);
-    } else {
+    } else if (ready) {
       setOnboardingChecked(true);
     }
-  }, [isLoaded, isSignedIn, user?.id, location.pathname]);
+  }, [isLoaded, isSignedIn, user?.id, location.pathname, timedOut]);
 
   const checkOnboarding = async (userId: string) => {
     try {
@@ -50,10 +58,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }
   };
 
-  // Show loading spinner while checking auth
-  if (!isLoaded || !onboardingChecked) {
+  const ready = isLoaded || timedOut;
+
+  // Show loading spinner while checking auth (max 8 seconds)
+  if (!ready || !onboardingChecked) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-black to-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600"></div>
           <p className="text-gray-400">Loading...</p>
