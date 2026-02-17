@@ -29,10 +29,10 @@ export const Login = () => {
       const { error, data } = await signIn(email, password);
       if (error) throw error;
 
-      // Call bootstrap to ensure profile + org exist (non-blocking)
-      try {
-        const token = data?.session?.access_token;
-        if (token) {
+      // Call bootstrap to ensure profile + org exist, then navigate
+      const token = data?.session?.access_token;
+      if (token) {
+        try {
           await fetch('/.netlify/functions/bootstrap', {
             method: 'POST',
             headers: {
@@ -40,10 +40,13 @@ export const Login = () => {
               Authorization: `Bearer ${token}`,
             },
           });
+        } catch (bootstrapErr) {
+          console.warn('Bootstrap call failed (non-blocking):', bootstrapErr);
         }
-      } catch (bootstrapErr) {
-        console.warn('Bootstrap call failed (non-blocking):', bootstrapErr);
       }
+
+      // Small delay to let auth context process the session before redirecting
+      await new Promise(r => setTimeout(r, 300));
 
       // RoleBasedRedirect will route to the correct dashboard for the user's role
       navigate('/role-redirect');

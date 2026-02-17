@@ -341,7 +341,7 @@ class SupabaseService {
     return data as DatabaseUser[];
   }
 
-  async getUserById(id: string) {
+  async getUserById(id: string, retries = 2): Promise<DatabaseUser | null> {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -349,7 +349,12 @@ class SupabaseService {
       .single();
 
     if (error) {
-      console.error('❌ getUserById error:', error);
+      // Retry on transient errors (network, timeout, RLS race with bootstrap)
+      if (retries > 0 && (error.code === 'PGRST116' || error.message?.includes('fetch') || error.code === '408')) {
+        await new Promise(r => setTimeout(r, 500));
+        return this.getUserById(id, retries - 1);
+      }
+      console.error('❌ getUserById error:', error.message || error.code || error);
       return null;
     }
 
