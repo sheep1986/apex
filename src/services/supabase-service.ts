@@ -342,46 +342,64 @@ class SupabaseService {
   }
 
   async getUserById(id: string, retries = 2): Promise<DatabaseUser | null> {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-    if (error) {
-      // Retry on transient errors (network, timeout, RLS race with bootstrap)
-      if (retries > 0 && (error.code === 'PGRST116' || error.message?.includes('fetch') || error.code === '408')) {
+      if (error) {
+        // Retry on transient errors (network, timeout, RLS race with bootstrap)
+        if (retries > 0 && (error.code === 'PGRST116' || error.message?.includes('fetch') || error.code === '408')) {
+          await new Promise(r => setTimeout(r, 500));
+          return this.getUserById(id, retries - 1);
+        }
+        console.error('❌ getUserById error:', error.message || error.code || error);
+        return null;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      const profile = data as any;
+      const nameParts = (profile.full_name || '').split(' ');
+
+      // Fetch organization separately (avoids 500 when organization_id is null)
+      let organizationName: string | undefined;
+      if (profile.organization_id) {
+        try {
+          const { data: org } = await supabase
+            .from('organizations')
+            .select('id, name')
+            .eq('id', profile.organization_id)
+            .single();
+          organizationName = org?.name;
+        } catch {
+          // Ignore org fetch failures — profile still usable without org name
+        }
+      }
+
+      return {
+        ...profile,
+        first_name: nameParts[0] || '',
+        last_name: nameParts.slice(1).join(' ') || '',
+        organizationName
+      } as DatabaseUser;
+    } catch (err: any) {
+      // AbortError is thrown by Supabase client when auth state changes mid-request — safe to ignore
+      if (err?.name === 'AbortError') {
+        return null;
+      }
+      // Retry on network errors
+      if (retries > 0) {
         await new Promise(r => setTimeout(r, 500));
         return this.getUserById(id, retries - 1);
       }
-      console.error('❌ getUserById error:', error.message || error.code || error);
+      console.error('❌ getUserById error:', err?.message || err);
       return null;
     }
-
-    if (!data) {
-      return null;
-    }
-
-    const profile = data as any;
-    const nameParts = (profile.full_name || '').split(' ');
-
-    // Fetch organization separately (avoids 500 when organization_id is null)
-    let organizationName: string | undefined;
-    if (profile.organization_id) {
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('id, name')
-        .eq('id', profile.organization_id)
-        .single();
-      organizationName = org?.name;
-    }
-
-    return {
-      ...profile,
-      first_name: nameParts[0] || '',
-      last_name: nameParts.slice(1).join(' ') || '',
-      organizationName
-    } as DatabaseUser;
   }
 
   async getUserByEmail(email: string) {

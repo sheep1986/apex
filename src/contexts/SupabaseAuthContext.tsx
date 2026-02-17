@@ -29,18 +29,30 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     let loadedUserId: string | null = null;
     let loadVersion = 0; // Prevents stale responses from overwriting fresh ones
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const loadDbUser = async (authUser: User) => {
+    const loadDbUser = async (authUser: User, isRetry = false) => {
       const thisVersion = ++loadVersion;
       try {
         const result = await supabaseService.getUserById(authUser.id);
         // Only apply if this is still the latest request
-        if (thisVersion === loadVersion) {
+        if (thisVersion !== loadVersion) return;
+
+        if (result) {
           setDbUser(result);
           loadedUserId = authUser.id;
+        } else if (!isRetry) {
+          // Profile came back null (AbortError or not found yet) — retry once after delay
+          retryTimer = setTimeout(() => {
+            if (loadVersion === thisVersion) {
+              loadDbUser(authUser, true);
+            }
+          }, 1000);
+        } else {
+          // Retry also returned null — set it and move on
+          setDbUser(null);
         }
       } catch (error: any) {
-        // Ignore AbortErrors — these happen when auth state changes rapidly
         if (error?.name === 'AbortError') return;
         console.error('❌ Error loading database user:', error);
         if (thisVersion === loadVersion) {
@@ -85,6 +97,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     return () => {
       loadVersion++; // Cancel any in-flight requests on cleanup
+      if (retryTimer) clearTimeout(retryTimer);
       subscription.unsubscribe();
     };
   }, []);

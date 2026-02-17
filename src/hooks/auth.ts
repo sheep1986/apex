@@ -4,10 +4,14 @@
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 
 export function useUser() {
-  const { user, dbUser } = useSupabaseAuth();
+  const { user, dbUser, loading } = useSupabaseAuth();
 
+  // Still loading auth state
+  if (loading) return { isSignedIn: false, isLoaded: false, user: null };
+  // No auth user at all
   if (!user) return { isSignedIn: false, isLoaded: true, user: null };
-  if (!dbUser) return { isSignedIn: false, isLoaded: false, user: null };
+  // Auth user exists but dbUser still loading — signed in but not fully loaded
+  if (!dbUser) return { isSignedIn: true, isLoaded: false, user: { id: user.id, email: user.email } as any };
 
   return {
     isSignedIn: true,
@@ -30,11 +34,16 @@ export function useUser() {
 }
 
 export function useAuth() {
-  const { user, dbUser, signOut, session } = useSupabaseAuth();
+  const { user, dbUser, signOut, session, loading } = useSupabaseAuth();
+
+  // isSignedIn = true as long as Supabase auth user exists (don't require dbUser)
+  // isLoaded = false while auth is loading OR while dbUser hasn't loaded yet
+  const isSignedIn = !!user;
+  const isLoaded = !loading && (!!dbUser || !user); // loaded if: not loading AND (dbUser exists OR no user at all)
 
   return {
-    isLoaded: true,
-    isSignedIn: !!user && !!dbUser,
+    isLoaded,
+    isSignedIn,
     user:
       user && dbUser
         ? {
@@ -51,6 +60,8 @@ export function useAuth() {
             organizationName: dbUser.organizationName || dbUser.organizations?.name,
             ...dbUser,
           }
+        : user
+        ? { id: user.id, email: user.email } as any
         : null,
     signOut,
     getToken: async () => session?.access_token || null,
