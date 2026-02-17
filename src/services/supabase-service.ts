@@ -348,8 +348,7 @@ class SupabaseService {
         *,
         organizations(
           id,
-          name,
-          slug
+          name
         )
       `)
       .eq('id', id)
@@ -359,14 +358,14 @@ class SupabaseService {
       console.error('❌ getUserById error:', error);
       return null;
     }
-    
+
     if (!data) {
       return null;
     }
 
     const profile = data as any;
     const nameParts = (profile.full_name || '').split(' ');
-    
+
     return {
       ...profile,
       first_name: nameParts[0] || '',
@@ -377,33 +376,36 @@ class SupabaseService {
 
   async getUserByEmail(email: string) {
     try {
+      // Note: profiles table may not have an email column.
+      // This is a best-effort lookup; callers should fall back to getUserById.
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('email', email)
         .single();
-      
+
       if (error) {
-        if (error.code === 'PGRST116') {
+        // PGRST116 = no rows, 42703 = column doesn't exist — both are expected
+        if (error.code === 'PGRST116' || error.code === '42703') {
           return null;
         }
-        
-        throw error;
+        console.warn('getUserByEmail query issue:', error.code, error.message);
+        return null;
       }
-      
+
       if (!data) {
         return null;
       }
-      
+
       // Try to fetch organization if exists
       if (data.organization_id) {
         try {
           const { data: org } = await supabase
             .from('organizations')
-            .select('id, name, slug')
+            .select('id, name')
             .eq('id', data.organization_id)
             .single();
-          
+
           if (org) {
             data.organizations = org;
             data.organizationName = org.name;
@@ -412,10 +414,10 @@ class SupabaseService {
           console.warn('Could not fetch organization:', orgError);
         }
       }
-      
+
       const profile = data as any;
       const nameParts = (profile.full_name || '').split(' ');
-      
+
       return {
         ...profile,
         first_name: nameParts[0] || '',
@@ -423,7 +425,7 @@ class SupabaseService {
       } as DatabaseUser | null;
     } catch (error) {
       console.error('❌ getUserByEmail failed:', error);
-      throw error;
+      return null;  // Return null instead of throwing so fallback to getUserById works
     }
   }
 
@@ -434,24 +436,24 @@ class SupabaseService {
         .select('*')
         .eq('email', email)
         .single();
-      
+
       if (error) {
-        console.error('❌ Fallback query error:', error);
-        throw error;
+        // Return null instead of throwing — column may not exist
+        return null;
       }
-      
+
       if (!data) {
         return null;
       }
-      
+
       // Try to fetch organization separately if user has one
       if (data.organization_id) {
         const { data: org } = await supabase
           .from('organizations')
-          .select('id, name, slug')
+          .select('id, name')
           .eq('id', data.organization_id)
           .single();
-        
+
         if (org) {
           data.organizations = org;
           data.organizationName = org.name;
