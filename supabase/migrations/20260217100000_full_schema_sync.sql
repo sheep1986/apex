@@ -113,9 +113,19 @@ CREATE TABLE IF NOT EXISTS organization_members (
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     role TEXT DEFAULT 'member',
-    created_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE(organization_id, user_id)
+    created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Ensure columns exist if table was partially created
+ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
+ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+
+-- Unique constraint
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'organization_members_organization_id_user_id_key') THEN
+        ALTER TABLE organization_members ADD CONSTRAINT organization_members_organization_id_user_id_key UNIQUE (organization_id, user_id);
+    END IF;
+END $$;
 
 ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
 
@@ -322,7 +332,29 @@ CREATE TABLE IF NOT EXISTS voice_calls (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Add columns that Phase 2 added (QA scoring, etc.)
+-- Ensure all columns exist if table was created by earlier partial migration
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS assistant_id UUID;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS provider_call_id TEXT;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'voice_engine';
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'initiating';
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS customer_number TEXT;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'outbound';
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS cost NUMERIC DEFAULT 0;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS duration_seconds INTEGER DEFAULT 0;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS outcome TEXT;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS disposition TEXT;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS recording_path TEXT;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS transcript_summary TEXT;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS transcript_path TEXT;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS phone_number_id UUID;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS inbound_route_id UUID;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS forwarding_target_id UUID;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS contact_id UUID;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS campaign_id UUID;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS provider_metadata JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+-- Phase 2 QA columns
 ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS qa_score SMALLINT;
 ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS sentiment TEXT;
 ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS qa_notes TEXT;
@@ -331,8 +363,6 @@ ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
 ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS recording_policy TEXT DEFAULT 'none';
 ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS ended_reason TEXT;
 ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS phone_number TEXT;
-
--- duration alias column (some code references 'duration' instead of duration_seconds)
 ALTER TABLE voice_calls ADD COLUMN IF NOT EXISTS duration INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_voice_calls_provider_id ON voice_calls(provider_call_id);
@@ -379,9 +409,14 @@ CREATE TABLE IF NOT EXISTS contacts (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Ensure all columns exist if table was created by earlier partial migration
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS phone_e164 TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS name TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS first_name TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_name TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS company TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS attributes JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS source TEXT;
@@ -419,8 +454,8 @@ END $$;
 CREATE TABLE IF NOT EXISTS crm_deals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    contact_id UUID REFERENCES contacts(id),
-    title TEXT NOT NULL,
+    contact_id UUID,
+    title TEXT NOT NULL DEFAULT '',
     value NUMERIC DEFAULT 0,
     currency TEXT DEFAULT 'GBP',
     stage TEXT DEFAULT 'lead',
@@ -436,9 +471,20 @@ CREATE TABLE IF NOT EXISTS crm_deals (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Ensure all columns exist if table was created by earlier partial migration
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS contact_id UUID;
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS title TEXT DEFAULT '';
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS value NUMERIC DEFAULT 0;
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'GBP';
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS stage TEXT DEFAULT 'lead';
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS assigned_to UUID;
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS source_campaign_id UUID;
 ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS source_call_id UUID;
 ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS attributed_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS expected_close_date DATE;
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_crm_deals_org ON crm_deals(organization_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(contact_id);
@@ -483,6 +529,15 @@ CREATE TABLE IF NOT EXISTS campaigns (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Ensure all columns exist if table was created by earlier partial migration
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'voice_broadcast';
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS script_config JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS schedule_config JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS concurrency_limit INTEGER DEFAULT 1;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS created_by UUID;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS total_calls INTEGER DEFAULT 0;
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS successful_calls INTEGER DEFAULT 0;
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS paused_reason TEXT;
@@ -513,7 +568,7 @@ CREATE TABLE IF NOT EXISTS campaign_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id),
     campaign_id UUID NOT NULL REFERENCES campaigns(id),
-    contact_id UUID REFERENCES contacts(id),
+    contact_id UUID,
     status TEXT DEFAULT 'pending',
     attempt_count INTEGER DEFAULT 0,
     next_try_at TIMESTAMPTZ DEFAULT now(),
@@ -524,6 +579,17 @@ CREATE TABLE IF NOT EXISTS campaign_items (
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Ensure all columns exist if table was created by earlier partial migration
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS contact_id UUID;
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS attempt_count INTEGER DEFAULT 0;
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS next_try_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS last_error TEXT;
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS reserved_at TIMESTAMPTZ;
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS reserved_by TEXT;
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS voice_call_id UUID;
+ALTER TABLE campaign_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_campaign_id_contact_id') THEN
@@ -558,8 +624,8 @@ END $$;
 CREATE TABLE IF NOT EXISTS tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id),
-    contact_id UUID REFERENCES contacts(id),
-    source TEXT NOT NULL,
+    contact_id UUID,
+    source TEXT DEFAULT 'system',
     status TEXT DEFAULT 'open',
     priority TEXT DEFAULT 'medium',
     description TEXT,
@@ -568,6 +634,14 @@ CREATE TABLE IF NOT EXISTS tickets (
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS contact_id UUID;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'system';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'open';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS assignment_id UUID;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS reference_call_id UUID;
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_tickets_org_ref_source') THEN
@@ -624,13 +698,20 @@ CREATE TABLE IF NOT EXISTS voice_call_events (
     organization_id UUID NOT NULL REFERENCES organizations(id),
     call_id UUID,
     provider_call_id TEXT,
-    type TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'unknown',
     status TEXT,
     payload JSONB DEFAULT '{}'::jsonb,
     reference_id TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE voice_call_events ADD COLUMN IF NOT EXISTS call_id UUID;
+ALTER TABLE voice_call_events ADD COLUMN IF NOT EXISTS provider_call_id TEXT;
+ALTER TABLE voice_call_events ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE voice_call_events ADD COLUMN IF NOT EXISTS payload JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE voice_call_events ADD COLUMN IF NOT EXISTS reference_id TEXT;
+ALTER TABLE voice_call_events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS idx_voice_call_events_org ON voice_call_events(organization_id);
 CREATE INDEX IF NOT EXISTS idx_voice_call_events_call ON voice_call_events(call_id);
@@ -645,10 +726,14 @@ ALTER TABLE voice_call_events ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS voice_call_finalisations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id),
-    provider_call_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
+    provider_call_id TEXT NOT NULL DEFAULT '',
+    event_type TEXT NOT NULL DEFAULT '',
     processed_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE voice_call_finalisations ADD COLUMN IF NOT EXISTS provider_call_id TEXT DEFAULT '';
+ALTER TABLE voice_call_finalisations ADD COLUMN IF NOT EXISTS event_type TEXT DEFAULT '';
+ALTER TABLE voice_call_finalisations ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ DEFAULT now();
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_finalisation_idempotency') THEN
