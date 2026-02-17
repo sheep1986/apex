@@ -83,13 +83,24 @@ const PlatformAnalytics = lazy(() => import('./pages/PlatformAnalytics'));
 const SupportTicketingSystem = lazy(() => import('./pages/SupportTicketingSystem'));
 const SystemHealth = lazy(() => import('./pages/SystemHealth'));
 
+// Root redirect that preserves Supabase auth hash tokens (password recovery, OAuth)
+function RootRedirect() {
+  const hash = window.location.hash;
+  // If the URL has Supabase auth tokens (recovery, signup confirmation, etc.),
+  // redirect to /reset-password so the Supabase client can process them
+  if (hash && (hash.includes('type=recovery') || hash.includes('type=signup'))) {
+    return <Navigate to={`/reset-password${hash}`} replace />;
+  }
+  return <Navigate to="/login" replace />;
+}
+
 function App() {
   return (
     <ContactsProvider>
       <ErrorBoundary>
         <Suspense fallback={LazyFallback}>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/reset-password" element={<ResetPassword />} />

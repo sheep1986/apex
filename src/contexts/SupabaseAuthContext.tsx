@@ -39,15 +39,21 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Handle password recovery — redirect to reset page
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.href = '/reset-password';
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         await loadDbUser(session.user);
       } else {
         setDbUser(null);
       }
-      
+
       setLoading(false);
     });
 
