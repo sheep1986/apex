@@ -283,7 +283,7 @@ export function Organizations() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-black to-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         <span className="ml-3 text-lg text-gray-400">Loading organizations...</span>
       </div>
@@ -291,13 +291,18 @@ export function Organizations() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950">
+    <div className="min-h-screen bg-black">
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-white">Organizations</h1>
-            <p className="mt-1 text-gray-400">Manage client organizations and their subscriptions</p>
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-purple-500/20 rounded-lg">
+              <Building className="h-8 w-8 text-purple-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold text-white">Organizations</h1>
+              <p className="mt-1 text-gray-400">Manage client organizations and their subscriptions</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button
@@ -319,8 +324,8 @@ export function Organizations() {
                   <p className="text-sm font-medium text-gray-400">Total Organizations</p>
                   <p className="text-2xl font-semibold text-white">{totalStats.totalOrgs}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <Building className="h-6 w-6 text-emerald-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10">
+                  <Building className="h-6 w-6 text-purple-400" />
                 </div>
               </div>
             </CardContent>
@@ -347,8 +352,8 @@ export function Organizations() {
                   <p className="text-sm font-medium text-gray-400">Monthly Revenue</p>
                   <p className="text-2xl font-semibold text-white">{formatCurrency(totalStats.totalRevenue)}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-500/10">
-                  <DollarSign className="h-6 w-6 text-yellow-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-500/10">
+                  <DollarSign className="h-6 w-6 text-pink-400" />
                 </div>
               </div>
             </CardContent>
@@ -361,8 +366,8 @@ export function Organizations() {
                   <p className="text-sm font-medium text-gray-400">Total Calls</p>
                   <p className="text-2xl font-semibold text-white">{totalStats.totalCalls.toLocaleString()}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <PhoneCall className="h-6 w-6 text-emerald-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10">
+                  <PhoneCall className="h-6 w-6 text-purple-400" />
                 </div>
               </div>
             </CardContent>

@@ -220,14 +220,14 @@ export default function OutboundCalls() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="flex h-screen items-center justify-center bg-black">
         <div className="text-lg text-white">Loading campaign calls...</div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="h-screen overflow-hidden bg-black">
       <div className="flex h-full flex-col">
         <div className="flex-shrink-0 p-6">
           {/* Header */}

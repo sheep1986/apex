@@ -179,7 +179,7 @@ export default function WebCallWidget({ assistantId, assistantName, onClose }: W
       {/* Controls */}
       <div className="flex items-center justify-center gap-3 border-t border-gray-800 px-4 py-4">
         {status === 'connecting' && (
-          <Loader2 className="h-6 w-6 animate-spin text-yellow-500" />
+          <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
         )}
 
         {status === 'active' && (

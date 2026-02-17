@@ -307,7 +307,7 @@ export default function UserManagement() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="min-h-screen bg-black space-y-6 p-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-white">User Management</h1>
         </div>
@@ -320,14 +320,19 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-black space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">User Management</h1>
-          <p className="mt-1 text-zinc-400">
-            Manage users and their permissions across your organization
-          </p>
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-blue-500/20 rounded-lg">
+            <Users className="h-8 w-8 text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-white">User Management</h1>
+            <p className="mt-1 text-zinc-400">
+              Manage users and their permissions across your organization
+            </p>
+          </div>
         </div>
         <Button
           onClick={() => {
@@ -349,7 +354,9 @@ export default function UserManagement() {
                 <p className="text-sm font-medium text-zinc-400">Total Users</p>
                 <p className="text-2xl font-bold text-white">{users.length}</p>
               </div>
-              <Users className="h-8 w-8 text-emerald-500" />
+              <div className="rounded-lg p-3 border border-blue-500/20 bg-blue-500/10">
+                <Users className="h-5 w-5 text-blue-400" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -363,7 +370,9 @@ export default function UserManagement() {
                   {users.filter((u) => u.is_active).length}
                 </p>
               </div>
-              <UserCheck className="h-8 w-8 text-green-500" />
+              <div className="rounded-lg p-3 border border-emerald-500/20 bg-emerald-500/10">
+                <UserCheck className="h-5 w-5 text-emerald-400" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -375,7 +384,9 @@ export default function UserManagement() {
                 <p className="text-sm font-medium text-zinc-400">Organizations</p>
                 <p className="text-2xl font-bold text-white">{organizations.length}</p>
               </div>
-              <Building className="h-8 w-8 text-blue-500" />
+              <div className="rounded-lg p-3 border border-purple-500/20 bg-purple-500/10">
+                <Building className="h-5 w-5 text-purple-400" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -393,7 +404,9 @@ export default function UserManagement() {
                   }
                 </p>
               </div>
-              <Shield className="h-8 w-8 text-purple-500" />
+              <div className="rounded-lg p-3 border border-amber-500/20 bg-amber-500/10">
+                <Shield className="h-5 w-5 text-amber-400" />
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -1172,7 +1172,7 @@ export default function OrganizationSetupWizard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6">
+    <div className="min-h-screen bg-black p-6">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-8">

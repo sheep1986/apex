@@ -487,7 +487,7 @@ export default function LeadDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-black">
       {/* Enhanced Header */}
       <div className="relative border-b border-gray-800/50 bg-gradient-to-r from-gray-900 via-black to-gray-900">
         {/* Background pattern */}

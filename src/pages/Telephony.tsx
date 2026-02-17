@@ -597,7 +597,9 @@ export default function Telephony() {
                   <p className="text-sm text-gray-400">Total Numbers</p>
                   <p className="text-2xl font-bold text-white">{totalNumbers}</p>
                 </div>
-                <Phone className="h-8 w-8 text-purple-500" />
+                <div className="rounded-lg p-3 border border-purple-500/20 bg-purple-500/10">
+                  <Phone className="h-5 w-5 text-purple-400" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -609,7 +611,9 @@ export default function Telephony() {
                   <p className="text-sm text-gray-400">Assigned</p>
                   <p className="text-2xl font-bold text-emerald-400">{assignedNumbers}</p>
                 </div>
-                <PhoneCall className="h-8 w-8 text-emerald-500" />
+                <div className="rounded-lg p-3 border border-emerald-500/20 bg-emerald-500/10">
+                  <PhoneCall className="h-5 w-5 text-emerald-400" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -619,9 +623,11 @@ export default function Telephony() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-400">Unassigned</p>
-                  <p className="text-2xl font-bold text-yellow-400">{unassignedNumbers}</p>
+                  <p className="text-2xl font-bold text-amber-400">{unassignedNumbers}</p>
                 </div>
-                <PhoneIncoming className="h-8 w-8 text-yellow-500" />
+                <div className="rounded-lg p-3 border border-amber-500/20 bg-amber-500/10">
+                  <PhoneIncoming className="h-5 w-5 text-amber-400" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -633,7 +639,9 @@ export default function Telephony() {
                   <p className="text-sm text-gray-400">Providers</p>
                   <p className="text-2xl font-bold text-white">{providers.size}</p>
                 </div>
-                <Globe className="h-8 w-8 text-blue-500" />
+                <div className="rounded-lg p-3 border border-blue-500/20 bg-blue-500/10">
+                  <Globe className="h-5 w-5 text-blue-400" />
+                </div>
               </div>
             </CardContent>
           </Card>

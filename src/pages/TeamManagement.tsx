@@ -257,21 +257,29 @@ export default function TeamManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-black">
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="mb-8">
-          <p className="text-gray-400">Manage your support team members and their permissions</p>
+        <div className="mb-8 flex items-center space-x-4">
+          <div className="p-3 bg-blue-500/20 rounded-lg">
+            <Users className="h-8 w-8 text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Team Management</h1>
+            <p className="text-gray-400">Manage your support team members and their permissions</p>
+          </div>
         </div>
 
         {/* Stats Cards */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          <Card className="border-gray-700 bg-gray-800/50">
+          <Card className="border-gray-800 bg-gray-900">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">
                 Total Members
               </CardTitle>
-              <Users className="h-4 w-4 text-gray-400" />
+              <div className="rounded-lg p-2 border border-blue-500/20 bg-blue-500/10">
+                <Users className="h-4 w-4 text-blue-400" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">{teamMembers.length}</div>
@@ -279,10 +287,12 @@ export default function TeamManagement() {
             </CardContent>
           </Card>
 
-          <Card className="border-gray-700 bg-gray-800/50">
+          <Card className="border-gray-800 bg-gray-900">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Support Admins</CardTitle>
-              <Shield className="h-4 w-4 text-gray-400" />
+              <div className="rounded-lg p-2 border border-purple-500/20 bg-purple-500/10">
+                <Shield className="h-4 w-4 text-purple-400" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
@@ -292,12 +302,14 @@ export default function TeamManagement() {
             </CardContent>
           </Card>
 
-          <Card className="border-gray-700 bg-gray-800/50">
+          <Card className="border-gray-800 bg-gray-900">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">
                 Pending Verification
               </CardTitle>
-              <Mail className="h-4 w-4 text-gray-400" />
+              <div className="rounded-lg p-2 border border-amber-500/20 bg-amber-500/10">
+                <Mail className="h-4 w-4 text-amber-400" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
@@ -320,7 +332,7 @@ export default function TeamManagement() {
         </div>
 
         {/* Team Members List */}
-        <Card className="border-gray-700 bg-gray-800/50">
+        <Card className="border-gray-800 bg-gray-900">
           <CardHeader>
             <CardTitle className="text-white">Support Team Members</CardTitle>
             <CardDescription className="text-gray-400">
@@ -477,7 +489,7 @@ export default function TeamManagement() {
               {/* Permissions */}
               <div className="space-y-3">
                 <Label>Permissions</Label>
-                <div className="space-y-3 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Eye className="h-4 w-4 text-gray-400" />

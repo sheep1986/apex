@@ -15,7 +15,7 @@ import { ContactsProvider } from './contexts/ContactsContext';
 
 const LazyFallback = (
   <div className="flex h-screen items-center justify-center bg-black">
-    <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+    <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
   </div>
 );
 

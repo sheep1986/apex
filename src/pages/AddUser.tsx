@@ -225,7 +225,7 @@ const AddUser: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6 text-white">
+    <div className="min-h-screen bg-black p-6 text-white">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-8 flex items-center gap-4">

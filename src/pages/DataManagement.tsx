@@ -484,9 +484,14 @@ export default function DataManagement() {
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Data Management</h1>
-            <p className="text-gray-400">View, export, and manage your platform data</p>
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-500/20 rounded-lg">
+              <Database className="h-8 w-8 text-blue-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white">Data Management</h1>
+              <p className="text-gray-400">View, export, and manage your platform data</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -511,7 +516,9 @@ export default function DataManagement() {
           <Card className="border-gray-800 bg-gray-900">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Total Records</CardTitle>
-              <Database className="h-4 w-4 text-gray-400" />
+              <div className="rounded-lg p-2 border border-blue-500/20 bg-blue-500/10">
+                <Database className="h-4 w-4 text-blue-400" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
@@ -524,7 +531,9 @@ export default function DataManagement() {
           <Card className="border-gray-800 bg-gray-900">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Storage Used</CardTitle>
-              <HardDrive className="h-4 w-4 text-gray-400" />
+              <div className="rounded-lg p-2 border border-purple-500/20 bg-purple-500/10">
+                <HardDrive className="h-4 w-4 text-purple-400" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">7.2 GB</div>
@@ -535,7 +544,9 @@ export default function DataManagement() {
           <Card className="border-gray-800 bg-gray-900">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Active Tables</CardTitle>
-              <CheckCircle className="h-4 w-4 text-emerald-400" />
+              <div className="rounded-lg p-2 border border-emerald-500/20 bg-emerald-500/10">
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
@@ -550,7 +561,9 @@ export default function DataManagement() {
           <Card className="border-gray-800 bg-gray-900">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Running Operations</CardTitle>
-              <Activity className="h-4 w-4 text-blue-400" />
+              <div className="rounded-lg p-2 border border-amber-500/20 bg-amber-500/10">
+                <Activity className="h-4 w-4 text-amber-400" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">

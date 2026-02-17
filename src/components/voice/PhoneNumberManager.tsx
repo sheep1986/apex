@@ -125,7 +125,7 @@ export function PhoneNumberManager() {
             </CardHeader>
             <CardContent>
                 {isLoading && ownedNumbers.length === 0 ? (
-                     <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-[#00FF94]" /></div>
+                     <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-emerald-500" /></div>
                 ) : ownedNumbers.length > 0 ? (
                     <Table>
                         <TableHeader>

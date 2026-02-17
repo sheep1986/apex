@@ -86,7 +86,7 @@ export default function SupportTicketingSystem() {
 
   const departments: Department[] = [
     { id: 'technical', name: 'Technical Support', color: 'text-blue-400', icon: Zap },
-    { id: 'billing', name: 'Billing & Payments', color: 'text-green-400', icon: CreditCard },
+    { id: 'billing', name: 'Billing & Payments', color: 'text-pink-400', icon: CreditCard },
     { id: 'onboarding', name: 'Onboarding', color: 'text-emerald-400', icon: Users },
     { id: 'feature', name: 'Feature Requests', color: 'text-yellow-400', icon: Star },
     { id: 'emergency', name: 'Emergency', color: 'text-red-400', icon: AlertTriangle },
@@ -281,7 +281,7 @@ export default function SupportTicketingSystem() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-black">
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex items-center justify-between">

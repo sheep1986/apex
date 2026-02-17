@@ -180,11 +180,17 @@ const NotificationsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-h-screen bg-black space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Bell className="h-8 w-8 text-emerald-400" />
+          <div className="p-3 bg-amber-500/20 rounded-lg">
+            <Bell className="h-8 w-8 text-amber-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Notifications</h1>
+            <p className="text-gray-400">View and manage your notifications</p>
+          </div>
         </div>
         <div className="flex gap-2">
           {stats.unread > 0 && (
@@ -205,57 +211,65 @@ const NotificationsPage: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card className="border-gray-700 bg-gray-800/50">
+        <Card className="border-gray-800 bg-gray-900">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Total</p>
                 <p className="text-2xl font-bold text-white">{stats.total}</p>
               </div>
-              <Bell className="h-8 w-8 text-gray-600" />
+              <div className="rounded-lg p-3 border border-blue-500/20 bg-blue-500/10">
+                <Bell className="h-5 w-5 text-blue-400" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-gray-700 bg-gray-800/50">
+        <Card className="border-gray-800 bg-gray-900">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Unread</p>
-                <p className="text-2xl font-bold text-emerald-400">{stats.unread}</p>
+                <p className="text-2xl font-bold text-amber-400">{stats.unread}</p>
               </div>
-              <Clock className="h-8 w-8 text-emerald-600" />
+              <div className="rounded-lg p-3 border border-amber-500/20 bg-amber-500/10">
+                <Clock className="h-5 w-5 text-amber-400" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-gray-700 bg-gray-800/50">
+        <Card className="border-gray-800 bg-gray-900">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Success</p>
                 <p className="text-2xl font-bold text-emerald-400">{stats.byType.success || 0}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-emerald-600" />
+              <div className="rounded-lg p-3 border border-emerald-500/20 bg-emerald-500/10">
+                <CheckCircle className="h-5 w-5 text-emerald-400" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-gray-700 bg-gray-800/50">
+        <Card className="border-gray-800 bg-gray-900">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Warnings</p>
-                <p className="text-2xl font-bold text-yellow-400">{stats.byType.warning || 0}</p>
+                <p className="text-2xl font-bold text-amber-400">{stats.byType.warning || 0}</p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-yellow-600" />
+              <div className="rounded-lg p-3 border border-red-500/20 bg-red-500/10">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters and Search */}
-      <Card className="border-gray-700 bg-gray-800/50">
+      <Card className="border-gray-800 bg-gray-900">
         <CardContent className="p-4">
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="flex-1">
@@ -333,7 +347,7 @@ const NotificationsPage: React.FC = () => {
       </Card>
 
       {/* Notifications List */}
-      <Card className="border-gray-700 bg-gray-800/50">
+      <Card className="border-gray-800 bg-gray-900">
         <CardContent className="p-0">
           {filteredNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">

@@ -567,7 +567,7 @@ export default function OrganizationManagement() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-black to-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto mb-4" />
           <p className="text-gray-400">Loading organization...</p>
@@ -578,7 +578,7 @@ export default function OrganizationManagement() {
 
   if (!organization) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-black to-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <Card className="w-full max-w-md bg-gray-900 border-gray-800">
           <CardContent className="pt-6">
             <div className="text-center">
@@ -599,7 +599,7 @@ export default function OrganizationManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950">
+    <div className="min-h-screen bg-black">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8 mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-8">

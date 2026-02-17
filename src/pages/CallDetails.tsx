@@ -340,7 +340,7 @@ export default function CallDetailsPage() {
           <Card className="border-gray-700 bg-gray-800/50">
             <CardHeader>
               <CardTitle className="flex items-center text-white">
-                <User className="mr-2 h-5 w-5 text-emerald-400" />
+                <User className="mr-2 h-5 w-5 text-blue-400" />
                 Customer Information
               </CardTitle>
             </CardHeader>
@@ -390,7 +390,7 @@ export default function CallDetailsPage() {
           <Card className="border-gray-700 bg-gray-800/50">
             <CardHeader>
               <CardTitle className="flex items-center text-white">
-                <Phone className="mr-2 h-5 w-5 text-emerald-400" />
+                <Phone className="mr-2 h-5 w-5 text-purple-400" />
                 Call Information
               </CardTitle>
             </CardHeader>
@@ -426,7 +426,7 @@ export default function CallDetailsPage() {
           <Card className="border-gray-700 bg-gray-800/50">
             <CardHeader>
               <CardTitle className="flex items-center text-white">
-                <DollarSign className="mr-2 h-5 w-5 text-emerald-400" />
+                <DollarSign className="mr-2 h-5 w-5 text-pink-400" />
                 Call Metrics
               </CardTitle>
             </CardHeader>

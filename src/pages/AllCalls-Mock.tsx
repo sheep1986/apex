@@ -454,7 +454,7 @@ export default function AllCalls() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950">
+      <div className="min-h-screen bg-black">
         <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex h-96 items-center justify-center">
             <div className="text-center">

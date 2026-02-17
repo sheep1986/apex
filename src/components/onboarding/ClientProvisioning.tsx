@@ -146,7 +146,7 @@ const ClientProvisioning: React.FC<ClientProvisioningProps> = ({
                   {step.status === 'done' ? (
                     <CheckCircle2 className="h-6 w-6 text-emerald-400" />
                   ) : step.status === 'running' ? (
-                    <Loader2 className="h-6 w-6 text-blue-400 animate-spin" />
+                    <Loader2 className="h-6 w-6 text-emerald-500 animate-spin" />
                   ) : step.status === 'error' ? (
                     <Circle className="h-6 w-6 text-red-400" />
                   ) : (

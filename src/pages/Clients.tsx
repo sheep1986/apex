@@ -125,7 +125,7 @@ export function Clients() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4">
+    <div className="min-h-screen bg-black mx-auto w-full max-w-7xl px-4 py-6">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col justify-between space-y-4 md:flex-row md:items-center md:space-y-0">

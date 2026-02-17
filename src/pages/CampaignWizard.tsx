@@ -161,7 +161,7 @@ export const CampaignWizard = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-6 space-y-8">
+        <div className="min-h-screen bg-black max-w-4xl mx-auto p-6 space-y-8">
             <div>
                 <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
                     New Campaign

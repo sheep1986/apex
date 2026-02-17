@@ -64,9 +64,14 @@ export default function SystemHealth() {
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">System Health</h1>
-            <p className="mt-1 text-gray-400">Monitor system status and performance metrics</p>
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-emerald-500/20 rounded-lg">
+              <Activity className="h-8 w-8 text-emerald-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white">System Health</h1>
+              <p className="mt-1 text-gray-400">Monitor system status and performance metrics</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -104,19 +109,19 @@ export default function SystemHealth() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">99.9%</div>
+                <div className="text-2xl font-bold text-emerald-400">99.9%</div>
                 <div className="text-sm text-gray-400">Uptime</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">12ms</div>
+                <div className="text-2xl font-bold text-blue-400">12ms</div>
                 <div className="text-sm text-gray-400">Response Time</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">0</div>
+                <div className="text-2xl font-bold text-amber-400">0</div>
                 <div className="text-sm text-gray-400">Active Issues</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">47</div>
+                <div className="text-2xl font-bold text-purple-400">47</div>
                 <div className="text-sm text-gray-400">Services</div>
               </div>
             </div>

@@ -179,7 +179,7 @@ export default function ScaleArchitecture() {
   ];
 
   return (
-    <div className="bg-gray-950 p-4 lg:p-8">
+    <div className="min-h-screen bg-black p-4 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

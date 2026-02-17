@@ -202,7 +202,7 @@ export default function PlatformMonitoringDashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-black p-6">
         <div className="text-center text-white">
           <div className="mx-auto mb-4 h-32 w-32 animate-spin rounded-full border-b-2 border-emerald-500"></div>
           <p className="text-xl">Loading platform monitoring...</p>
@@ -212,7 +212,7 @@ export default function PlatformMonitoringDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-black">
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex items-center justify-between">

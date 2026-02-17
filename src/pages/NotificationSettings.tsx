@@ -279,7 +279,11 @@ export default function NotificationSettings() {
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
-          <div>
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-amber-500/20 rounded-lg">
+              <Bell className="h-8 w-8 text-amber-400" />
+            </div>
+            <div>
             <h1 className="text-3xl font-bold text-white">Notification Settings</h1>
             <p className="text-gray-400">Configure how and when you receive notifications</p>
             <div className="mt-2 flex items-center gap-2">
@@ -296,6 +300,7 @@ export default function NotificationSettings() {
                 Quiet Hours {settings.quietHoursEnabled ? 'On' : 'Off'}
               </Badge>
             </div>
+          </div>
           </div>
           <Button
             onClick={saveSettings}
@@ -353,20 +358,20 @@ export default function NotificationSettings() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { key: 'callAlerts', label: 'Call Alerts', description: 'New calls and call status updates', icon: Phone },
-                  { key: 'campaignUpdates', label: 'Campaign Updates', description: 'Campaign progress and completion', icon: Target },
-                  { key: 'systemUpdates', label: 'System Updates', description: 'Platform updates and maintenance', icon: Zap },
-                  { key: 'securityAlerts', label: 'Security Alerts', description: 'Login attempts and security events', icon: AlertTriangle },
-                  { key: 'billingNotifications', label: 'Billing Notifications', description: 'Invoices and payment alerts', icon: CreditCard },
-                  { key: 'performanceAlerts', label: 'Performance Alerts', description: 'System performance and metrics', icon: BarChart3 },
-                  { key: 'teamActivity', label: 'Team Activity', description: 'Team member actions and updates', icon: Users },
-                  { key: 'leadNotifications', label: 'Lead Notifications', description: 'New leads and lead updates', icon: Users },
+                  { key: 'callAlerts', label: 'Call Alerts', description: 'New calls and call status updates', icon: Phone, color: 'text-purple-400' },
+                  { key: 'campaignUpdates', label: 'Campaign Updates', description: 'Campaign progress and completion', icon: Target, color: 'text-blue-400' },
+                  { key: 'systemUpdates', label: 'System Updates', description: 'Platform updates and maintenance', icon: Zap, color: 'text-amber-400' },
+                  { key: 'securityAlerts', label: 'Security Alerts', description: 'Login attempts and security events', icon: AlertTriangle, color: 'text-red-400' },
+                  { key: 'billingNotifications', label: 'Billing Notifications', description: 'Invoices and payment alerts', icon: CreditCard, color: 'text-pink-400' },
+                  { key: 'performanceAlerts', label: 'Performance Alerts', description: 'System performance and metrics', icon: BarChart3, color: 'text-emerald-400' },
+                  { key: 'teamActivity', label: 'Team Activity', description: 'Team member actions and updates', icon: Users, color: 'text-blue-400' },
+                  { key: 'leadNotifications', label: 'Lead Notifications', description: 'New leads and lead updates', icon: Users, color: 'text-purple-400' },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
                     <div key={item.key} className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
                       <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-gray-400" />
+                        <Icon className={`h-4 w-4 ${item.color}`} />
                         <div>
                           <span className="font-medium text-white">{item.label}</span>
                           <p className="text-sm text-gray-400">{item.description}</p>

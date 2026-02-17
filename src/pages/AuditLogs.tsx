@@ -144,8 +144,8 @@ export default function AuditLogs() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 bg-emerald-500/20 rounded-lg">
-                            <Shield className="h-8 w-8 text-emerald-400" />
+                        <div className="p-3 bg-blue-500/20 rounded-lg">
+                            <Shield className="h-8 w-8 text-blue-400" />
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold text-white">Audit Logs</h1>

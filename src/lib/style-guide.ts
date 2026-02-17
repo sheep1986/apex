@@ -71,7 +71,7 @@ export const styleGuide = {
   // Component Styles - Based on CRM Page Perfection
   components: {
     // Page container
-    pageContainer: 'min-h-screen bg-gray-900 p-6',
+    pageContainer: 'min-h-screen bg-black p-6',
     pageWrapper: 'max-w-7xl mx-auto',
 
     // Headers

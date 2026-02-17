@@ -74,7 +74,7 @@ export default function LeadImport() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-black space-y-6 p-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">Import Leads</h1>

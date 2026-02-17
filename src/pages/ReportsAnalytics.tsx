@@ -233,9 +233,14 @@ export default function ReportsAnalytics() {
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Reports & Analytics</h1>
-            <p className="text-gray-400">Comprehensive insights into your calling campaigns and performance</p>
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-pink-500/20 rounded-lg">
+              <BarChart3 className="h-8 w-8 text-pink-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white">Reports & Analytics</h1>
+              <p className="text-gray-400">Comprehensive insights into your calling campaigns and performance</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -305,7 +310,9 @@ export default function ReportsAnalytics() {
               <Card className="border-gray-800 bg-gray-900">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-gray-400">Total Calls</CardTitle>
-                  <Phone className="h-4 w-4 text-gray-400" />
+                  <div className="rounded-lg p-2 border border-purple-500/20 bg-purple-500/10">
+                    <Phone className="h-4 w-4 text-purple-400" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-white">{analyticsData.totalCalls.toLocaleString()}</div>
@@ -319,7 +326,9 @@ export default function ReportsAnalytics() {
               <Card className="border-gray-800 bg-gray-900">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-gray-400">Success Rate</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-gray-400" />
+                  <div className="rounded-lg p-2 border border-emerald-500/20 bg-emerald-500/10">
+                    <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-white">{analyticsData.successRate}%</div>
@@ -333,7 +342,9 @@ export default function ReportsAnalytics() {
               <Card className="border-gray-800 bg-gray-900">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-gray-400">Total Cost</CardTitle>
-                  <DollarSign className="h-4 w-4 text-gray-400" />
+                  <div className="rounded-lg p-2 border border-pink-500/20 bg-pink-500/10">
+                    <DollarSign className="h-4 w-4 text-pink-400" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-white">${analyticsData.totalCost.toLocaleString()}</div>
@@ -347,7 +358,9 @@ export default function ReportsAnalytics() {
               <Card className="border-gray-800 bg-gray-900">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-gray-400">Leads Generated</CardTitle>
-                  <Users className="h-4 w-4 text-gray-400" />
+                  <div className="rounded-lg p-2 border border-blue-500/20 bg-blue-500/10">
+                    <Users className="h-4 w-4 text-blue-400" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-white">{analyticsData.leadsGenerated.toLocaleString()}</div>

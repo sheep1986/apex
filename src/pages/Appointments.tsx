@@ -67,12 +67,17 @@ export default function Appointments() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-h-screen bg-black space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-2">Appointments</h1>
-          <p className="text-gray-400">Manage your scheduled appointments and meetings</p>
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-blue-500/20 rounded-lg">
+            <Calendar className="h-8 w-8 text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white mb-2">Appointments</h1>
+            <p className="text-gray-400">Manage your scheduled appointments and meetings</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -150,8 +155,8 @@ export default function Appointments() {
                 <p className="text-sm text-gray-400">Completed</p>
                 <p className="text-2xl font-bold text-white mt-1">{stats.completed}</p>
               </div>
-              <div className="p-3 bg-gray-500/10 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-gray-400" />
+              <div className="p-3 bg-pink-500/10 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-pink-400" />
               </div>
             </div>
           </CardContent>

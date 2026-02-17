@@ -1103,7 +1103,7 @@ export default function LeadPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent mx-auto"></div>
           <p className="text-gray-400">Loading lead data...</p>
@@ -1113,7 +1113,7 @@ export default function LeadPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="flex min-h-screen flex-col bg-black">
       {/* Header */}
       <div className="sticky top-0 z-30 flex-shrink-0 border-b border-gray-800 bg-gray-900/90">
         <div className="px-6 py-4">

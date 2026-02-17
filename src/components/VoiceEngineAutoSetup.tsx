@@ -110,7 +110,7 @@ export const VoiceEngineAutoSetup: React.FC<VoiceEngineAutoSetupProps> = ({
 
         {status === 'configuring' && (
           <div className="text-center py-8 space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-emerald-500" />
             <p className="text-sm text-muted-foreground">
               Configuring your Voice Engine assistants...
             </p>

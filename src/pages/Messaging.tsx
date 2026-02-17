@@ -8,7 +8,7 @@ import { MessageSquare, Send, Phone, User, Clock, Search, Filter } from 'lucide-
 
 const Messaging: React.FC = () => {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  
+
   // Mock conversation data
   const conversations = [
     {
@@ -39,7 +39,7 @@ const Messaging: React.FC = () => {
       status: 'completed'
     }
   ];
-  
+
   const messages = selectedConversation ? [
     {
       id: '1',
@@ -66,61 +66,68 @@ const Messaging: React.FC = () => {
       timestamp: '10:42 AM'
     }
   ] : [];
-  
+
   return (
-    <div className="p-6 h-full">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Messaging</h1>
-        <p className="text-gray-600">Manage conversations and follow-ups with leads</p>
+    <div className="min-h-screen bg-black p-6">
+      <div className="mb-6 flex items-center space-x-4">
+        <div className="p-3 bg-pink-500/20 rounded-lg">
+          <MessageSquare className="h-8 w-8 text-pink-400" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Messaging</h1>
+          <p className="text-gray-400">Manage conversations and follow-ups with leads</p>
+        </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
         {/* Conversations List */}
-        <Card className="lg:col-span-1">
+        <Card className="lg:col-span-1 border-gray-800 bg-gray-900">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <MessageSquare className="h-5 w-5 text-pink-400" />
               Conversations
             </CardTitle>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input placeholder="Search conversations..." className="pl-10" />
+                <Input placeholder="Search conversations..." className="pl-10 border-gray-700 bg-gray-800 text-white placeholder-gray-500" />
               </div>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" className="border-gray-700 text-gray-300 hover:bg-gray-800">
                 <Filter className="h-4 w-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y">
+            <div className="divide-y divide-gray-800">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedConversation === conversation.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''
+                  className={`p-4 cursor-pointer hover:bg-gray-800 transition-colors ${
+                    selectedConversation === conversation.id ? 'bg-purple-500/10 border-r-2 border-purple-500' : ''
                   }`}
                   onClick={() => setSelectedConversation(conversation.id)}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium">{conversation.contact}</span>
+                      <User className="h-4 w-4 text-blue-400" />
+                      <span className="font-medium text-white">{conversation.contact}</span>
                     </div>
                     {conversation.unread > 0 && (
-                      <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+                      <Badge className="h-5 w-5 p-0 flex items-center justify-center text-xs bg-pink-500 text-white">
                         {conversation.unread}
                       </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mb-1">{conversation.phone}</p>
+                  <p className="text-sm text-gray-400 mb-1">{conversation.phone}</p>
                   <p className="text-sm text-gray-500 truncate mb-2">{conversation.lastMessage}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">{conversation.timestamp}</span>
-                    <Badge 
-                      variant={conversation.status === 'active' ? 'default' : 
-                               conversation.status === 'pending' ? 'secondary' : 'outline'}
-                      className="text-xs"
+                    <span className="text-xs text-gray-500">{conversation.timestamp}</span>
+                    <Badge
+                      className={`text-xs ${
+                        conversation.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                        conversation.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                        'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                      }`}
                     >
                       {conversation.status}
                     </Badge>
@@ -130,25 +137,25 @@ const Messaging: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         {/* Chat Area */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border-gray-800 bg-gray-900">
           {selectedConversation ? (
             <>
-              <CardHeader className="border-b">
+              <CardHeader className="border-b border-gray-800">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <User className="h-5 w-5 text-blue-400" />
                       {conversations.find(c => c.id === selectedConversation)?.contact}
                     </CardTitle>
-                    <CardDescription className="flex items-center gap-2 mt-1">
-                      <Phone className="h-4 w-4" />
+                    <CardDescription className="flex items-center gap-2 mt-1 text-gray-400">
+                      <Phone className="h-4 w-4 text-purple-400" />
                       {conversations.find(c => c.id === selectedConversation)?.phone}
                     </CardDescription>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Phone className="h-4 w-4 mr-2" />
+                  <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:bg-gray-800">
+                    <Phone className="h-4 w-4 mr-2 text-purple-400" />
                     Call
                   </Button>
                 </div>
@@ -164,8 +171,8 @@ const Messaging: React.FC = () => {
                       <div
                         className={`max-w-[70%] p-3 rounded-lg ${
                           message.sender === 'agent'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-900'
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-800 text-gray-200'
                         }`}
                       >
                         <p className="text-sm">{message.text}</p>
@@ -177,15 +184,15 @@ const Messaging: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                
+
                 {/* Message Input */}
-                <div className="border-t p-4">
+                <div className="border-t border-gray-800 p-4">
                   <div className="flex gap-2">
-                    <Textarea 
-                      placeholder="Type your message..." 
-                      className="resize-none min-h-[60px]"
+                    <Textarea
+                      placeholder="Type your message..."
+                      className="resize-none min-h-[60px] border-gray-700 bg-gray-800 text-white placeholder-gray-500"
                     />
-                    <Button size="icon" className="self-end">
+                    <Button size="icon" className="self-end bg-emerald-600 hover:bg-emerald-700">
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
@@ -195,8 +202,8 @@ const Messaging: React.FC = () => {
           ) : (
             <CardContent className="flex items-center justify-center h-full">
               <div className="text-center">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">Select a Conversation</h3>
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-pink-400" />
+                <h3 className="text-lg font-medium mb-2 text-white">Select a Conversation</h3>
                 <p className="text-gray-500">Choose a conversation from the list to start messaging</p>
               </div>
             </CardContent>

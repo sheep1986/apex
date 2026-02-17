@@ -287,7 +287,7 @@ export default function KnowledgeBase() {
           <input {...getInputProps()} />
           {uploading ? (
             <>
-              <Loader2 className="h-10 w-10 text-blue-400 animate-spin mb-3" />
+              <Loader2 className="h-10 w-10 text-emerald-500 animate-spin mb-3" />
               <p className="text-gray-300">Uploading...</p>
             </>
           ) : (

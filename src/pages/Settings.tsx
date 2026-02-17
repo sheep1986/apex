@@ -203,11 +203,16 @@ export default function Settings() {
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Settings</h1>
-            <p className="text-gray-400">
-              Manage your account settings and preferences
-            </p>
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gray-500/20 rounded-lg">
+              <SettingsIcon className="h-8 w-8 text-gray-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white">Settings</h1>
+              <p className="text-gray-400">
+                Manage your account settings and preferences
+              </p>
+            </div>
           </div>
           <Button
             onClick={handleSaveChanges}
@@ -228,28 +233,28 @@ export default function Settings() {
           <TabsList className="grid w-full grid-cols-4 border-gray-800 bg-gray-900">
             <TabsTrigger
               value="profile"
-              className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400"
+              className="data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-400"
             >
               <User className="mr-2 h-4 w-4" />
               Profile
             </TabsTrigger>
             <TabsTrigger
               value="notifications"
-              className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400"
+              className="data-[state=active]:bg-amber-600/20 data-[state=active]:text-amber-400"
             >
               <Bell className="mr-2 h-4 w-4" />
               Notifications
             </TabsTrigger>
             <TabsTrigger
               value="appearance"
-              className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400"
+              className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400"
             >
               <SettingsIcon className="mr-2 h-4 w-4" />
               Appearance
             </TabsTrigger>
             <TabsTrigger
               value="data-privacy"
-              className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400"
+              className="data-[state=active]:bg-red-600/20 data-[state=active]:text-red-400"
             >
               <Shield className="mr-2 h-4 w-4" />
               Data & Privacy
@@ -263,7 +268,7 @@ export default function Settings() {
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                    <User className="h-5 w-5 text-emerald-400" />
+                    <User className="h-5 w-5 text-blue-400" />
                     Profile Information
                   </h3>
                   <p className="text-gray-400">
