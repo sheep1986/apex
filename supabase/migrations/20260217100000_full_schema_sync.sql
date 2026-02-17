@@ -160,11 +160,11 @@ CREATE TABLE IF NOT EXISTS credits_ledger (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Idempotency constraint (safe — ON CONFLICT DO NOTHING won't fail)
+-- Idempotency constraint
 DO $$ BEGIN
-    ALTER TABLE credits_ledger
-        ADD CONSTRAINT unique_ledger_entry UNIQUE (organization_id, reference_id, type);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_ledger_entry') THEN
+        ALTER TABLE credits_ledger ADD CONSTRAINT unique_ledger_entry UNIQUE (organization_id, reference_id, type);
+    END IF;
 END $$;
 
 -- Credit-based pricing columns on ledger
@@ -389,8 +389,9 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 
 -- Unique constraint
 DO $$ BEGIN
-    ALTER TABLE contacts ADD CONSTRAINT uq_contacts_org_phone UNIQUE (organization_id, phone_e164);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_contacts_org_phone') THEN
+        ALTER TABLE contacts ADD CONSTRAINT uq_contacts_org_phone UNIQUE (organization_id, phone_e164);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_contacts_org_phone ON contacts(organization_id, phone_e164);
@@ -525,8 +526,9 @@ CREATE TABLE IF NOT EXISTS campaign_items (
 );
 
 DO $$ BEGIN
-    ALTER TABLE campaign_items ADD CONSTRAINT uq_campaign_id_contact_id UNIQUE (campaign_id, contact_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_campaign_id_contact_id') THEN
+        ALTER TABLE campaign_items ADD CONSTRAINT uq_campaign_id_contact_id UNIQUE (campaign_id, contact_id);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_campaign_items_runner ON campaign_items(status, next_try_at) WHERE status = 'pending';
@@ -568,8 +570,9 @@ CREATE TABLE IF NOT EXISTS tickets (
 );
 
 DO $$ BEGIN
-    ALTER TABLE tickets ADD CONSTRAINT uq_tickets_org_ref_source UNIQUE (organization_id, reference_call_id, source);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_tickets_org_ref_source') THEN
+        ALTER TABLE tickets ADD CONSTRAINT uq_tickets_org_ref_source UNIQUE (organization_id, reference_call_id, source);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_tickets_org_contact ON tickets(organization_id, contact_id);
@@ -601,8 +604,9 @@ CREATE TABLE IF NOT EXISTS activities (
 );
 
 DO $$ BEGIN
-    ALTER TABLE activities ADD CONSTRAINT uq_activities_org_type_ref UNIQUE (organization_id, type, reference_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_activities_org_type_ref') THEN
+        ALTER TABLE activities ADD CONSTRAINT uq_activities_org_type_ref UNIQUE (organization_id, type, reference_id);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_activities_timeline ON activities(organization_id, contact_id, occurred_at DESC);
@@ -647,9 +651,9 @@ CREATE TABLE IF NOT EXISTS voice_call_finalisations (
 );
 
 DO $$ BEGIN
-    ALTER TABLE voice_call_finalisations
-        ADD CONSTRAINT uq_finalisation_idempotency UNIQUE (organization_id, provider_call_id, event_type);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_finalisation_idempotency') THEN
+        ALTER TABLE voice_call_finalisations ADD CONSTRAINT uq_finalisation_idempotency UNIQUE (organization_id, provider_call_id, event_type);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_voice_call_finalisations_lookup ON voice_call_finalisations(provider_call_id);
@@ -772,8 +776,9 @@ CREATE TABLE IF NOT EXISTS voice_tool_executions (
 );
 
 DO $$ BEGIN
-    ALTER TABLE voice_tool_executions ADD CONSTRAINT uq_tool_execution UNIQUE (voice_call_id, tool_call_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_tool_execution') THEN
+        ALTER TABLE voice_tool_executions ADD CONSTRAINT uq_tool_execution UNIQUE (voice_call_id, tool_call_id);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_voice_tool_executions_org ON voice_tool_executions(organization_id);
@@ -811,8 +816,9 @@ ALTER TABLE subscription_usage ADD COLUMN IF NOT EXISTS credits_included INTEGER
 ALTER TABLE subscription_usage ADD COLUMN IF NOT EXISTS overage_credits_used INTEGER DEFAULT 0;
 
 DO $$ BEGIN
-    ALTER TABLE subscription_usage ADD CONSTRAINT unique_usage_period UNIQUE (organization_id, period_start);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_usage_period') THEN
+        ALTER TABLE subscription_usage ADD CONSTRAINT unique_usage_period UNIQUE (organization_id, period_start);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_subscription_usage_org_period ON subscription_usage (organization_id, period_start);
@@ -960,8 +966,9 @@ CREATE TABLE IF NOT EXISTS agency_credit_markup (
 );
 
 DO $$ BEGIN
-    ALTER TABLE agency_credit_markup ADD CONSTRAINT unique_agency_action UNIQUE (agency_organization_id, action_type);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_agency_action') THEN
+        ALTER TABLE agency_credit_markup ADD CONSTRAINT unique_agency_action UNIQUE (agency_organization_id, action_type);
+    END IF;
 END $$;
 
 ALTER TABLE agency_credit_markup ENABLE ROW LEVEL SECURITY;
@@ -1246,8 +1253,9 @@ CREATE TABLE IF NOT EXISTS campaign_sequence_progress (
 );
 
 DO $$ BEGIN
-    ALTER TABLE campaign_sequence_progress ADD CONSTRAINT uq_seq_contact UNIQUE (sequence_id, contact_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_seq_contact') THEN
+        ALTER TABLE campaign_sequence_progress ADD CONSTRAINT uq_seq_contact UNIQUE (sequence_id, contact_id);
+    END IF;
 END $$;
 
 ALTER TABLE campaign_sequences ENABLE ROW LEVEL SECURITY;
@@ -1458,8 +1466,9 @@ CREATE TABLE IF NOT EXISTS usage_alerts_sent (
 );
 
 DO $$ BEGIN
-    ALTER TABLE usage_alerts_sent ADD CONSTRAINT uq_usage_alert UNIQUE (organization_id, alert_type, period_start);
-EXCEPTION WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_usage_alert') THEN
+        ALTER TABLE usage_alerts_sent ADD CONSTRAINT uq_usage_alert UNIQUE (organization_id, alert_type, period_start);
+    END IF;
 END $$;
 
 ALTER TABLE usage_alerts_sent ENABLE ROW LEVEL SECURITY;
