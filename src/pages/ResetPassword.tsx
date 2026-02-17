@@ -19,23 +19,43 @@ export default function ResetPassword() {
   const supabase = getSupabase();
 
   useEffect(() => {
-    // Supabase sends the user here with an access token in the URL hash.
-    // The Supabase client auto-detects this and establishes a session.
-    // We wait for the auth state change to confirm the session is ready.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+    // The SupabaseAuthContext handles the PASSWORD_RECOVERY event and redirects here.
+    // By the time this component mounts, the recovery session is already established.
+    // We also handle the case where the user arrives directly with hash tokens.
+
+    let mounted = true;
+
+    const checkSession = async () => {
+      // Listen for auth state changes (handles direct arrival with hash tokens)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (mounted && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN')) {
+          setSessionReady(true);
+        }
+      });
+
+      // Check if session already exists (handles redirect from SupabaseAuthContext)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted && session) {
         setSessionReady(true);
       }
-    });
 
-    // Also check if we already have a session (e.g., page refresh)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setSessionReady(true);
-      }
-    });
+      // If no session after 3 seconds, the link likely expired
+      setTimeout(() => {
+        if (mounted && !sessionReady) {
+          setError('Reset link expired or invalid. Please request a new one.');
+        }
+      }, 3000);
 
-    return () => subscription.unsubscribe();
+      return subscription;
+    };
+
+    let sub: any;
+    checkSession().then(s => { sub = s; });
+
+    return () => {
+      mounted = false;
+      sub?.unsubscribe();
+    };
   }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
