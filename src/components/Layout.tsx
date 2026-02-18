@@ -10,9 +10,6 @@ import {
     BarChart3,
     BookOpen,
     Building,
-    DollarSign,
-    FlaskConical,
-    GitBranch,
     Headset,
     HeadphonesIcon,
     Home,
@@ -21,15 +18,12 @@ import {
     Phone,
     PhoneCall,
     Settings,
-    Share2,
     Shield,
     Target,
     TrendingUp,
     UserCheck,
     Users,
     Wallet,
-    FileBarChart,
-    Mail,
     Palette,
     Webhook,
     Wrench,
@@ -109,10 +103,10 @@ const platformOwnerMenuItems: MenuItem[] = [
     isActive: (path: string) => path === "/audit-logs",
   },
   {
-    title: "Intelligent Routing",
+    title: "AI Teams",
     titleKey: "squads",
     url: "/squads",
-    icon: Share2,
+    icon: Users,
     isActive: (path: string) => path === "/squads",
   },
 ];
@@ -127,27 +121,21 @@ const agencyMenuItems: MenuItem[] = [
     isActive: (path: string) =>
       path === "/clients" || path.startsWith("/client/"),
   },
-  {
-    title: "Campaigns",
-    titleKey: "campaigns",
-    url: "/campaigns",
-    icon: Target,
-    isActive: (path: string) =>
-      path === "/campaigns" || path.startsWith("/campaigns/"),
-  },
+  // ── Build ──────────────────────────────────────────────
   {
     title: "Assistants",
     titleKey: "assistants",
     url: "/ai-assistants",
     icon: HeadphonesIcon,
     isActive: (path: string) => path === "/ai-assistants",
+    sectionStart: "Build",
   },
   {
-    title: "Telephony",
-    titleKey: "telephony",
-    url: "/telephony",
-    icon: Phone,
-    isActive: (path: string) => path === "/telephony",
+    title: "AI Teams",
+    titleKey: "squads",
+    url: "/squads",
+    icon: Users,
+    isActive: (path: string) => path === "/squads",
   },
   {
     title: "Tools",
@@ -163,26 +151,22 @@ const agencyMenuItems: MenuItem[] = [
     icon: BookOpen,
     isActive: (path: string) => path === "/knowledge",
   },
+  // ── Run ────────────────────────────────────────────────
   {
-    title: "Intelligent Routing",
-    titleKey: "squads",
-    url: "/squads",
-    icon: Share2,
-    isActive: (path: string) => path === "/squads",
+    title: "Campaigns",
+    titleKey: "campaigns",
+    url: "/campaigns",
+    icon: Target,
+    isActive: (path: string) =>
+      path === "/campaigns" || path.startsWith("/campaigns/"),
+    sectionStart: "Run",
   },
   {
-    title: "Workflows",
-    titleKey: "workflows",
-    url: "/workflows",
-    icon: GitBranch,
-    isActive: (path: string) => path === "/workflows",
-  },
-  {
-    title: "Test Suites",
-    titleKey: "test_suites",
-    url: "/test-suites",
-    icon: FlaskConical,
-    isActive: (path: string) => path === "/test-suites",
+    title: "Telephony",
+    titleKey: "telephony",
+    url: "/telephony",
+    icon: Phone,
+    isActive: (path: string) => path === "/telephony",
   },
   {
     title: "Contacts",
@@ -199,12 +183,14 @@ const agencyMenuItems: MenuItem[] = [
     icon: TrendingUp,
     isActive: (path: string) => path === "/pipeline",
   },
+  // ── Monitor ────────────────────────────────────────────
   {
     title: "Agent Dashboard",
     titleKey: "agent_dashboard",
     url: "/agent-dashboard",
     icon: Headset,
     isActive: (path: string) => path === "/agent-dashboard",
+    sectionStart: "Monitor",
   },
   {
     title: "Call Quality",
@@ -220,12 +206,14 @@ const agencyMenuItems: MenuItem[] = [
     icon: BarChart3,
     isActive: (path: string) => path === "/analytics",
   },
+  // ── Admin ──────────────────────────────────────────────
   {
     title: "Billing",
     titleKey: "billing",
     url: "/billing",
     icon: Wallet,
     isActive: (path: string) => path === "/billing",
+    sectionStart: "Admin",
   },
   {
     title: "Integrations",
@@ -233,20 +221,6 @@ const agencyMenuItems: MenuItem[] = [
     url: "/integrations",
     icon: Webhook,
     isActive: (path: string) => path === "/integrations",
-  },
-  {
-    title: "Scheduled Reports",
-    titleKey: "scheduled-reports",
-    url: "/scheduled-reports",
-    icon: FileBarChart,
-    isActive: (path: string) => path === "/scheduled-reports",
-  },
-  {
-    title: "Email Templates",
-    titleKey: "email-templates",
-    url: "/email-templates",
-    icon: Mail,
-    isActive: (path: string) => path === "/email-templates",
   },
   {
     title: "GDPR & Compliance",
@@ -283,28 +257,21 @@ const clientMenuItems: MenuItem[] = [
     icon: Home,
     isActive: (path: string) => path === "/dashboard",
   },
+  // ── Build ──────────────────────────────────────────────
   {
-    title: "Campaigns",
-    titleKey: "campaigns",
-    url: "/campaigns",
-    icon: Target,
-    isActive: (path: string) =>
-      path === "/campaigns" || path.startsWith("/campaigns/"),
-  },
-  {
-    title: "Assistants",
+    title: "AI Assistants",
     titleKey: "assistants",
     url: "/ai-assistants",
     icon: HeadphonesIcon,
     isActive: (path: string) => path === "/ai-assistants",
-    sectionStart: "Voice",
+    sectionStart: "Build",
   },
   {
-    title: "Telephony",
-    titleKey: "telephony",
-    url: "/telephony",
-    icon: Phone,
-    isActive: (path: string) => path === "/telephony",
+    title: "AI Teams",
+    titleKey: "squads",
+    url: "/squads",
+    icon: Users,
+    isActive: (path: string) => path === "/squads",
   },
   {
     title: "Tools",
@@ -320,26 +287,22 @@ const clientMenuItems: MenuItem[] = [
     icon: BookOpen,
     isActive: (path: string) => path === "/knowledge",
   },
+  // ── Run ────────────────────────────────────────────────
   {
-    title: "Intelligent Routing",
-    titleKey: "squads",
-    url: "/squads",
-    icon: Share2,
-    isActive: (path: string) => path === "/squads",
+    title: "Campaigns",
+    titleKey: "campaigns",
+    url: "/campaigns",
+    icon: Target,
+    isActive: (path: string) =>
+      path === "/campaigns" || path.startsWith("/campaigns/"),
+    sectionStart: "Run",
   },
   {
-    title: "Workflows",
-    titleKey: "workflows",
-    url: "/workflows",
-    icon: GitBranch,
-    isActive: (path: string) => path === "/workflows",
-  },
-  {
-    title: "Test Suites",
-    titleKey: "test_suites",
-    url: "/test-suites",
-    icon: FlaskConical,
-    isActive: (path: string) => path === "/test-suites",
+    title: "Telephony",
+    titleKey: "telephony",
+    url: "/telephony",
+    icon: Phone,
+    isActive: (path: string) => path === "/telephony",
   },
   {
     title: "Contacts",
@@ -348,7 +311,6 @@ const clientMenuItems: MenuItem[] = [
     icon: Users,
     isActive: (path: string) =>
       path === "/contacts" || path.startsWith("/contacts/"),
-    sectionStart: "CRM",
   },
   {
     title: "Sales Pipeline",
@@ -357,6 +319,7 @@ const clientMenuItems: MenuItem[] = [
     icon: TrendingUp,
     isActive: (path: string) => path === "/pipeline",
   },
+  // ── Monitor ────────────────────────────────────────────
   {
     title: "All Calls",
     titleKey: "all_calls",
@@ -393,6 +356,7 @@ const clientMenuItems: MenuItem[] = [
     icon: BarChart3,
     isActive: (path: string) => path === "/analytics",
   },
+  // ── Admin ──────────────────────────────────────────────
   {
     title: "Billing",
     titleKey: "billing",
@@ -407,20 +371,6 @@ const clientMenuItems: MenuItem[] = [
     url: "/integrations",
     icon: Webhook,
     isActive: (path: string) => path === "/integrations",
-  },
-  {
-    title: "Scheduled Reports",
-    titleKey: "scheduled-reports",
-    url: "/scheduled-reports",
-    icon: FileBarChart,
-    isActive: (path: string) => path === "/scheduled-reports",
-  },
-  {
-    title: "Email Templates",
-    titleKey: "email-templates",
-    url: "/email-templates",
-    icon: Mail,
-    isActive: (path: string) => path === "/email-templates",
   },
   {
     title: "GDPR & Compliance",

@@ -13,6 +13,7 @@ interface CommandItem {
 const QUICK_ACTIONS: CommandItem[] = [
   { id: 'create-campaign', label: 'Create Campaign', path: '/campaigns/new', section: 'actions' },
   { id: 'new-assistant', label: 'New Assistant', path: '/assistants/new', section: 'actions' },
+  { id: 'ai-teams', label: 'AI Teams', path: '/squads', section: 'actions' },
   { id: 'view-all-calls', label: 'View All Calls', path: '/all-calls', section: 'actions' },
   { id: 'sales-pipeline', label: 'Sales Pipeline', path: '/pipeline', section: 'actions' },
   { id: 'go-to-settings', label: 'Go to Settings', path: '/settings', section: 'actions' },

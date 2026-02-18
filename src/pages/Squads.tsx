@@ -210,7 +210,7 @@ export default function Squads() {
       <div className="flex h-96 flex-col items-center justify-center">
         <Loader2 className="mb-3 h-8 w-8 animate-spin text-emerald-400" />
         <p className="text-gray-400">
-          {!voiceReady ? 'Connecting to voice service...' : 'Loading squads...'}
+          {!voiceReady ? 'Connecting to voice service...' : 'Loading AI Teams...'}
         </p>
       </div>
     );
@@ -223,13 +223,13 @@ export default function Squads() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Squads</h1>
+            <h1 className="text-2xl font-bold text-white">AI Teams</h1>
             <p className="text-gray-400">
               Create multi-agent teams that can transfer callers between specialists
             </p>
           </div>
           <Button onClick={openCreate} className="bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="mr-2 h-4 w-4" /> Create Squad
+            <Plus className="mr-2 h-4 w-4" /> Create AI Team
           </Button>
         </div>
 
@@ -244,7 +244,7 @@ export default function Squads() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <Input
-            placeholder="Search squads..."
+            placeholder="Search AI Teams..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="border-gray-800 bg-gray-900 pl-10 text-white placeholder:text-gray-500"
@@ -255,7 +255,7 @@ export default function Squads() {
         <div className="grid grid-cols-3 gap-4">
           <Card className="border-gray-800 bg-gray-900">
             <CardContent className="p-4">
-              <p className="text-sm text-gray-400">Total Squads</p>
+              <p className="text-sm text-gray-400">Total AI Teams</p>
               <p className="text-2xl font-bold text-white">{squads.length}</p>
             </CardContent>
           </Card>
@@ -332,13 +332,13 @@ export default function Squads() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5">
                 <Users className="h-8 w-8 text-gray-500" />
               </div>
-              <h3 className="mb-1 text-lg font-medium text-white">No Squads Yet</h3>
+              <h3 className="mb-1 text-lg font-medium text-white">No AI Teams Yet</h3>
               <p className="mx-auto max-w-sm text-sm text-gray-400">
-                Squads let you create multi-agent teams. For example, a receptionist can transfer callers to
+                AI Teams let you create multi-agent routing groups. For example, a receptionist can transfer callers to
                 billing support or technical support based on the conversation.
               </p>
               <Button onClick={openCreate} className="mt-4 bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="mr-2 h-4 w-4" /> Create Your First Squad
+                <Plus className="mr-2 h-4 w-4" /> Create Your First AI Team
               </Button>
             </CardContent>
           </Card>
@@ -348,7 +348,7 @@ export default function Squads() {
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent className="max-w-2xl border-gray-800 bg-gray-950 text-white">
             <DialogHeader>
-              <DialogTitle>{editingSquad ? 'Edit Squad' : 'Create Squad'}</DialogTitle>
+              <DialogTitle>{editingSquad ? 'Edit AI Team' : 'Create AI Team'}</DialogTitle>
               <DialogDescription className="text-gray-400">
                 Build a multi-agent team. Each member can transfer callers to other members.
               </DialogDescription>
@@ -356,7 +356,7 @@ export default function Squads() {
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
               <div>
-                <Label className="text-gray-400">Squad Name</Label>
+                <Label className="text-gray-400">Team Name</Label>
                 <Input
                   value={squadName}
                   onChange={(e) => setSquadName(e.target.value)}
@@ -474,7 +474,7 @@ export default function Squads() {
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingSquad ? 'Update Squad' : 'Create Squad'}
+                {editingSquad ? 'Update AI Team' : 'Create AI Team'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -484,10 +484,10 @@ export default function Squads() {
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <DialogContent className="border-gray-800 bg-gray-950 text-white">
             <DialogHeader>
-              <DialogTitle>Delete Squad</DialogTitle>
+              <DialogTitle>Delete AI Team</DialogTitle>
               <DialogDescription className="text-gray-400">
                 Are you sure you want to delete &quot;{deletingSquad?.name}&quot;?
-                Phone numbers assigned to this squad will need to be reconfigured.
+                Phone numbers assigned to this AI Team will need to be reconfigured.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -496,7 +496,7 @@ export default function Squads() {
               </Button>
               <Button onClick={handleDelete} disabled={isSaving} className="bg-red-600 hover:bg-red-700">
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Delete Squad
+                Delete AI Team
               </Button>
             </DialogFooter>
           </DialogContent>

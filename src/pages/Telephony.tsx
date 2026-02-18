@@ -264,7 +264,7 @@ export default function Telephony() {
   const getSquadName = (squadId?: string) => {
     if (!squadId) return null;
     const squad = squads.find(s => s.id === squadId);
-    return squad?.name || 'Unknown Squad';
+    return squad?.name || 'Unknown AI Team';
   };
 
   // ── Configure Number (assign assistant + rename) ──────────────────────────
@@ -927,7 +927,7 @@ export default function Telephony() {
                       : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600'
                   }`}
                 >
-                  <Users className="h-4 w-4" /> Squad
+                  <Users className="h-4 w-4" /> AI Team
                 </button>
               </div>
             </div>
@@ -950,13 +950,13 @@ export default function Telephony() {
               </div>
             )}
 
-            {/* Squad Selection */}
+            {/* AI Team Selection */}
             {assignmentType === 'squad' && (
               <div className="grid gap-2">
-                <Label className="text-gray-300">Assigned Squad</Label>
+                <Label className="text-gray-300">Assigned AI Team</Label>
                 <Select value={selectedSquadId} onValueChange={setSelectedSquadId}>
                   <SelectTrigger className="border-gray-700 bg-gray-900 text-white">
-                    <SelectValue placeholder="Select a squad..." />
+                    <SelectValue placeholder="Select an AI Team..." />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-950 border-gray-700">
                     <SelectItem value="none">None (Unassigned)</SelectItem>
