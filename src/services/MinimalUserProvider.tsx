@@ -25,13 +25,13 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [userContext, setUserContext] = useState(null);
   const [lastUserId, setLastUserId] = useState<string | null>(null);
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
 
   useEffect(() => {
     // Only update if user ID changes to prevent infinite loops
     const currentUserId = user?.id || user?.email || null;
 
-    if (isLoaded && user && currentUserId !== lastUserId) {
+    if (user && currentUserId !== lastUserId) {
       setLastUserId(currentUserId);
 
       const resolveAndSetContext = async () => {
@@ -51,7 +51,36 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
           role: user.role || 'client_user', // Use role from Supabase database
         };
 
-        // Fallback: if profile has no organization_id, check organization_members table
+        // Fallback: if useUser() returned incomplete data (dbUser failed to load due to
+        // AbortError during navigation), query the profile directly to get org + role
+        if (!userInfo.organization_id && user.id) {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('organization_id, role, full_name')
+              .eq('id', user.id)
+              .single();
+
+            if (profile) {
+              if (profile.organization_id) {
+                userInfo.organization_id = profile.organization_id;
+              }
+              if (profile.role) {
+                userInfo.role = profile.role;
+              }
+              if (profile.full_name) {
+                const parts = profile.full_name.split(' ');
+                userInfo.firstName = parts[0] || userInfo.firstName;
+                userInfo.lastName = parts.slice(1).join(' ') || userInfo.lastName;
+              }
+              console.log('✅ Resolved user context from direct profile query fallback');
+            }
+          } catch {
+            console.warn('⚠️ Direct profile query fallback failed');
+          }
+        }
+
+        // Fallback 2: if STILL no organization_id, check organization_members table
         if (!userInfo.organization_id && user.id) {
           try {
             const { data: membership } = await supabase
@@ -104,11 +133,11 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
       };
 
       resolveAndSetContext();
-    } else if (isLoaded && !user && lastUserId !== null) {
+    } else if (!user && lastUserId !== null) {
       setLastUserId(null);
       setUserContext(null);
     }
-  }, [user?.id, user?.email, isLoaded, lastUserId]);
+  }, [user?.id, user?.email, lastUserId]);
 
   return (
     <UserContext.Provider value={{ userContext, setUserContext }}>{children}</UserContext.Provider>
