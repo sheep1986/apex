@@ -38,13 +38,13 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       loadingUserId = authUser.id;
       const thisVersion = ++loadVersion;
       try {
-        // getUserById has its own 8s per-query timeout — give it 12s total (covers retries)
+        // getUserById retries up to 2x with 1.5s delays — give it 6s total then fall back
         const result = await Promise.race([
           supabaseService.getUserById(authUser.id),
           new Promise<null>((resolve) => setTimeout(() => {
-            console.warn('⚠️ loadDbUser timed out after 12s — proceeding without profile');
+            console.warn('⚠️ loadDbUser timed out after 6s — proceeding without profile');
             resolve(null);
-          }, 12000)),
+          }, 6000)),
         ]);
         if (thisVersion !== loadVersion) return;
 

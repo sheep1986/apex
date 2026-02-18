@@ -54,12 +54,19 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
         // Fallback: if useUser() returned incomplete data (dbUser failed to load due to
         // AbortError during navigation), query the profile directly to get org + role
         if (!userInfo.organization_id && user.id) {
+          // Brief delay to let Supabase session fully establish in the client
+          await new Promise(r => setTimeout(r, 500));
+
           try {
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
               .from('profiles')
               .select('organization_id, role, full_name')
               .eq('id', user.id)
               .single();
+
+            if (profileError) {
+              console.warn('⚠️ Profile fallback query error:', profileError.message || profileError.code);
+            }
 
             if (profile) {
               if (profile.organization_id) {
@@ -96,7 +103,32 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
             }
           } catch {
             // No membership found — user genuinely has no org yet
-            console.warn('⚠️ No organization found for user via fallback');
+          }
+        }
+
+        // Fallback 3: if STILL no organization_id, retry profile query after delay
+        // (session may need more time to propagate to Supabase client headers)
+        if (!userInfo.organization_id && user.id) {
+          await new Promise(r => setTimeout(r, 2000));
+          try {
+            const { data: retryProfile } = await supabase
+              .from('profiles')
+              .select('organization_id, role, full_name')
+              .eq('id', user.id)
+              .single();
+
+            if (retryProfile?.organization_id) {
+              userInfo.organization_id = retryProfile.organization_id;
+              if (retryProfile.role) userInfo.role = retryProfile.role;
+              if (retryProfile.full_name) {
+                const parts = retryProfile.full_name.split(' ');
+                userInfo.firstName = parts[0] || userInfo.firstName;
+                userInfo.lastName = parts.slice(1).join(' ') || userInfo.lastName;
+              }
+              console.log('✅ Resolved user context from profile retry (2s delay)');
+            }
+          } catch {
+            console.warn('⚠️ Profile retry fallback also failed');
           }
         }
 

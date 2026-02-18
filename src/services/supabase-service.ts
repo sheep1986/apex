@@ -341,7 +341,7 @@ class SupabaseService {
     return data as DatabaseUser[];
   }
 
-  async getUserById(id: string, retries = 1): Promise<DatabaseUser | null> {
+  async getUserById(id: string, retries = 2): Promise<DatabaseUser | null> {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -350,9 +350,14 @@ class SupabaseService {
         .single();
 
       if (error) {
-        // Retry on transient errors (network, timeout, RLS race with bootstrap)
-        if (retries > 0 && (error.code === 'PGRST116' || error.message?.includes('fetch') || error.code === '408')) {
-          await new Promise(r => setTimeout(r, 1000));
+        // Retry on transient errors (network, timeout, AbortError, RLS race with bootstrap)
+        const isRetryable = error.code === 'PGRST116'
+          || error.message?.includes('fetch')
+          || error.message?.includes('AbortError')
+          || error.message?.includes('aborted')
+          || error.code === '408';
+        if (retries > 0 && isRetryable) {
+          await new Promise(r => setTimeout(r, 1500));
           return this.getUserById(id, retries - 1);
         }
         console.error('❌ getUserById error:', error.message || error.code || error);
@@ -388,16 +393,15 @@ class SupabaseService {
         organizationName
       } as DatabaseUser;
     } catch (err: any) {
-      // AbortError from timeout signal or auth state change — return null quietly
-      if (err?.name === 'AbortError') {
-        return null;
-      }
-      // Retry once on network errors
+      // AbortError or network error — retry if we have retries left
       if (retries > 0) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 1500));
         return this.getUserById(id, retries - 1);
       }
-      console.error('❌ getUserById error:', err?.message || err);
+      // Out of retries — log and return null
+      if (err?.name !== 'AbortError') {
+        console.error('❌ getUserById error:', err?.message || err);
+      }
       return null;
     }
   }
