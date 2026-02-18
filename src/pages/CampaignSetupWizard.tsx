@@ -135,8 +135,10 @@ const VOICE_AGENTS: { id: string; name: string; description: string; avatar: str
 const TEAM_MEMBERS: { id: string; name: string; role: string; avatar: string }[] = [];
 
 export default function CampaignSetupWizard() {
+  console.log('🔧 CampaignSetupWizard render start');
   const navigate = useNavigate();
   const { user, dbUser: profile, organization } = useSupabaseAuth();
+  console.log('🔧 CampaignSetupWizard auth context:', { user: !!user, profile: !!profile, organization: !!organization });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);

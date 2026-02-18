@@ -158,9 +158,9 @@ class CampaignOutboundService {
   private baseURL = ''; // All API calls go through Netlify Functions (relative paths)
   private apiClient: any;
 
-  constructor(apiClient?: any) {
-    // Use provided apiClient or fall back to default
-    this.apiClient = apiClient || require('../lib/api-client').apiClient;
+  constructor(apiClientInstance?: any) {
+    // Use provided apiClient or fall back to the imported default
+    this.apiClient = apiClientInstance || apiClient;
   }
 
   // Campaign Management
