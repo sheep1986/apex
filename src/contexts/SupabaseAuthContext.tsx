@@ -34,7 +34,14 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     const loadDbUser = async (authUser: User, isRetry = false) => {
       const thisVersion = ++loadVersion;
       try {
-        const result = await supabaseService.getUserById(authUser.id);
+        // 5s timeout — if profile load hangs, proceed without it
+        const result = await Promise.race([
+          supabaseService.getUserById(authUser.id),
+          new Promise<null>((resolve) => setTimeout(() => {
+            console.warn('⚠️ loadDbUser timed out after 5s — proceeding without profile');
+            resolve(null);
+          }, 5000)),
+        ]);
         // Only apply if this is still the latest request
         if (thisVersion !== loadVersion) return;
 
@@ -42,7 +49,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           setDbUser(result);
           loadedUserId = authUser.id;
         } else if (!isRetry) {
-          // Profile came back null (AbortError or not found yet) — retry once after delay
+          // Profile came back null (AbortError, timeout, or not found yet) — retry once after delay
           retryTimer = setTimeout(() => {
             if (loadVersion === thisVersion) {
               loadDbUser(authUser, true);
@@ -85,7 +92,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       if (session?.user) {
         // Skip if we already loaded this user's profile successfully
         if (loadedUserId === session.user.id) return;
-        await loadDbUser(session.user);
+        // Fire-and-forget — don't block setLoading(false) on profile load
+        loadDbUser(session.user);
       } else {
         loadVersion++; // Cancel any in-flight requests
         loadedUserId = null;

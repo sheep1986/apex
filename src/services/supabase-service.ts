@@ -347,7 +347,8 @@ class SupabaseService {
         .from('profiles')
         .select('*')
         .eq('id', id)
-        .single();
+        .single()
+        .abortSignal(AbortSignal.timeout(4000));
 
       if (error) {
         // Retry on transient errors (network, timeout, RLS race with bootstrap)
@@ -374,7 +375,8 @@ class SupabaseService {
             .from('organizations')
             .select('id, name')
             .eq('id', profile.organization_id)
-            .single();
+            .single()
+            .abortSignal(AbortSignal.timeout(4000));
           organizationName = org?.name;
         } catch {
           // Ignore org fetch failures — profile still usable without org name
