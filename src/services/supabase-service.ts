@@ -373,14 +373,18 @@ class SupabaseService {
 
       // Fetch organization separately (avoids 500 when organization_id is null)
       let organizationName: string | undefined;
+      let organizations: { id: string; name: string; slug: string } | undefined;
       if (profile.organization_id) {
         try {
           const { data: org } = await supabase
             .from('organizations')
-            .select('id, name')
+            .select('id, name, slug')
             .eq('id', profile.organization_id)
             .single();
-          organizationName = org?.name;
+          if (org) {
+            organizationName = org.name;
+            organizations = { id: org.id, name: org.name || '', slug: org.slug || '' };
+          }
         } catch {
           // Ignore org fetch failures — profile still usable without org name
         }
@@ -390,7 +394,8 @@ class SupabaseService {
         ...profile,
         first_name: nameParts[0] || '',
         last_name: nameParts.slice(1).join(' ') || '',
-        organizationName
+        organizationName,
+        organizations,
       } as DatabaseUser;
     } catch (err: any) {
       // AbortError or network error — retry if we have retries left

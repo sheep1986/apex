@@ -51,7 +51,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
         if (result) {
           setDbUser(result);
-          setOrgFallback(null); // dbUser loaded — clear fallback
+          if (result.organizations) setOrgFallback(null); // only clear fallback if org is populated
           loadedUserId = authUser.id;
         } else if (!isRetry) {
           // Profile came back null — retry once after 2s delay
