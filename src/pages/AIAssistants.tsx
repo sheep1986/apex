@@ -52,6 +52,7 @@ import {
   Wand2,
   Wrench,
   X,
+  Info,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -720,45 +721,44 @@ export default function AIAssistants() {
     a.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // ── Loading / Error States ────────────────────────────────────────────────
-  if (initStatus === 'loading') {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-emerald-500 mx-auto" />
-          <p className="text-gray-400">Connecting to Voice Network...</p>
+  // ── Voice Service Status Banner (non-blocking) ───────────────────────────
+  const voiceServiceReady = initStatus === 'ready';
+
+  const renderStatusBanner = () => {
+    if (initStatus === 'loading') {
+      return (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-500/20 bg-blue-500/10 px-4 py-3">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-400 flex-shrink-0" />
+          <p className="text-sm text-blue-200">Connecting to Voice Network...</p>
         </div>
-      </div>
-    );
-  }
-
-  if (initStatus === 'unconfigured') {
-    return (
-      <div className="min-h-screen bg-black p-8">
-        <Alert variant="destructive" className="border-red-900 bg-red-950/20 text-red-200">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Voice Not Configured</AlertTitle>
-          <AlertDescription>
-            This organization does not have a Voice Provider configuration. Please contact your platform administrator.
+      );
+    }
+    if (initStatus === 'unconfigured') {
+      return (
+        <Alert className="border-amber-500/20 bg-amber-500/10 text-amber-200">
+          <Info className="h-4 w-4 text-amber-400" />
+          <AlertTitle className="text-amber-200">Voice Service Not Configured</AlertTitle>
+          <AlertDescription className="text-amber-200/80">
+            Your organization doesn't have a Voice Provider set up yet. To create and manage AI assistants,
+            ask your platform administrator to configure the Vapi API key in the Netlify environment variables.
           </AlertDescription>
         </Alert>
-      </div>
-    );
-  }
-
-  if (initStatus === 'error') {
-    return (
-      <div className="min-h-screen bg-black p-8">
-        <Alert variant="destructive" className="border-yellow-900 bg-yellow-950/20 text-yellow-200">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Connection Failed</AlertTitle>
-          <AlertDescription>
-            Could not initialize Voice Service. Please check your network connection or permissions.
+      );
+    }
+    if (initStatus === 'error') {
+      return (
+        <Alert className="border-yellow-500/20 bg-yellow-500/10 text-yellow-200">
+          <AlertCircle className="h-4 w-4 text-yellow-400" />
+          <AlertTitle className="text-yellow-200">Voice Service Unavailable</AlertTitle>
+          <AlertDescription className="text-yellow-200/80">
+            Could not connect to the Voice Service. Assistants are displayed in read-only mode.
+            Check your network connection or contact your administrator to verify the Voice Provider configuration.
           </AlertDescription>
         </Alert>
-      </div>
-    );
-  }
+      );
+    }
+    return null;
+  };
 
   // ── Available models for selected provider ────────────────────────────────
   const selectedModelProvider = MODEL_OPTIONS.find(m => m.provider === formState.modelProvider);
@@ -767,6 +767,9 @@ export default function AIAssistants() {
   return (
     <div className="min-h-screen bg-black">
       <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6">
+        {/* Voice Service Status Banner */}
+        {renderStatusBanner()}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -776,7 +779,7 @@ export default function AIAssistants() {
             <Button
               variant="outline"
               onClick={fetchAssistants}
-              disabled={isLoading}
+              disabled={isLoading || !voiceServiceReady}
               className="border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -789,7 +792,8 @@ export default function AIAssistants() {
                 loadToolsAndFiles();
                 setShowCreateDialog(true);
               }}
-              className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700"
+              disabled={!voiceServiceReady}
+              className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50"
             >
               <Plus className="mr-2 h-4 w-4" />
               Create Assistant
@@ -898,14 +902,20 @@ export default function AIAssistants() {
           <div className="flex flex-col items-center justify-center py-16 space-y-4">
             <Bot className="h-16 w-16 text-gray-600" />
             <h3 className="text-lg font-medium text-gray-300">
-              {searchQuery ? 'No assistants match your search' : 'No assistants yet'}
+              {searchQuery
+                ? 'No assistants match your search'
+                : !voiceServiceReady
+                  ? 'Voice Service setup required'
+                  : 'No assistants yet'}
             </h3>
             <p className="text-sm text-gray-500 text-center max-w-md">
               {searchQuery
                 ? 'Try a different search term.'
-                : 'Create your first AI voice assistant to start making calls, handling inbound enquiries, and automating conversations.'}
+                : !voiceServiceReady
+                  ? 'Configure your Voice Provider (Vapi API key) to start creating and managing AI assistants.'
+                  : 'Create your first AI voice assistant to start making calls, handling inbound enquiries, and automating conversations.'}
             </p>
-            {!searchQuery && (
+            {!searchQuery && voiceServiceReady && (
               <Button
                 onClick={() => {
                   setEditingAssistant(null);

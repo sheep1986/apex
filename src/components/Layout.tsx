@@ -51,6 +51,8 @@ interface MenuItem {
   isActive: (path: string) => boolean;
   badge?: string;
   adminOnly?: boolean;
+  /** First item in a new visual section (renders a separator above) */
+  sectionStart?: string;
 }
 
 // Platform Owner Menu Items
@@ -295,6 +297,7 @@ const clientMenuItems: MenuItem[] = [
     url: "/ai-assistants",
     icon: HeadphonesIcon,
     isActive: (path: string) => path === "/ai-assistants",
+    sectionStart: "Voice",
   },
   {
     title: "Telephony",
@@ -345,6 +348,7 @@ const clientMenuItems: MenuItem[] = [
     icon: Users,
     isActive: (path: string) =>
       path === "/contacts" || path.startsWith("/contacts/"),
+    sectionStart: "CRM",
   },
   {
     title: "Sales Pipeline",
@@ -359,6 +363,7 @@ const clientMenuItems: MenuItem[] = [
     url: "/all-calls",
     icon: PhoneCall,
     isActive: (path: string) => path === "/all-calls",
+    sectionStart: "Monitor",
   },
   {
     title: "Live Monitor",
@@ -394,6 +399,7 @@ const clientMenuItems: MenuItem[] = [
     url: "/billing",
     icon: Wallet,
     isActive: (path: string) => path === "/billing",
+    sectionStart: "Admin",
   },
   {
     title: "Integrations",
@@ -550,6 +556,7 @@ const Layout: React.FC = () => {
       case "agency_admin":
       case "agency_user":
         return agencyMenuItems;
+      case "org_owner":
       case "client_admin":
       case "client_user":
       default:
@@ -614,23 +621,33 @@ const Layout: React.FC = () => {
 
                 const isActive = item.isActive(location.pathname);
                 return (
-                  <Link
-                    key={item.title}
-                    to={item.url}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`
-                      nav-item flex items-center px-4 py-3.5 text-sm font-medium transition-all duration-300
-                      relative mx-2 rounded-lg
-                      ${isActive ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"}
-                    `}
-                  >
-                    <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${isActive ? "text-white" : "text-white/60 group-hover:text-white"}`} />
-                    <span className={`ml-3 tracking-wide whitespace-nowrap overflow-hidden transition-opacity duration-300 absolute left-12 ${
-                      isMobileMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                    }`}>
-                      {item.title}
-                    </span>
-                  </Link>
+                  <React.Fragment key={item.title}>
+                    {item.sectionStart && (
+                      <div className="mx-4 mt-3 mb-1 border-t border-white/10 pt-2">
+                        <span className={`text-[10px] font-semibold uppercase tracking-widest text-white/30 transition-opacity duration-300 ${
+                          isMobileMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        }`}>
+                          {item.sectionStart}
+                        </span>
+                      </div>
+                    )}
+                    <Link
+                      to={item.url}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`
+                        nav-item flex items-center px-4 py-3.5 text-sm font-medium transition-all duration-300
+                        relative mx-2 rounded-lg
+                        ${isActive ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"}
+                      `}
+                    >
+                      <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${isActive ? "text-white" : "text-white/60 group-hover:text-white"}`} />
+                      <span className={`ml-3 tracking-wide whitespace-nowrap overflow-hidden transition-opacity duration-300 absolute left-12 ${
+                        isMobileMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      }`}>
+                        {item.title}
+                      </span>
+                    </Link>
+                  </React.Fragment>
                 );
               })}
             </nav>
