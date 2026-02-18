@@ -1,2 +1,3 @@
-/api/*  https://apex-backend-vercel-alh0xjd6q-seans-projects-aabd20b2.vercel.app/api/:splat  200
+# All API routing is handled by netlify.toml redirects → Netlify Functions
+# SPA fallback
 /*    /index.html   200
