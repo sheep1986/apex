@@ -1,11 +1,11 @@
 [build]
   base = ""
   publish = "dist"
-  command = "corepack enable && pnpm install --frozen-lockfile && rm -rf node_modules/.cache && pnpm run build"
+  command = "corepack enable && rm -rf node_modules && pnpm install --frozen-lockfile && pnpm run build"
   environment = { CI = "true", NODE_VERSION = "20", NETLIFY_CACHE_CLEAR = "true" }
 
 [context.staging]
-  command = "corepack enable && pnpm install --frozen-lockfile && pnpm run build"
+  command = "corepack enable && rm -rf node_modules && pnpm install --frozen-lockfile && pnpm run build"
   environment = { VITE_API_URL = "https://staging.trinity-platform.app" }
 
 [dev]

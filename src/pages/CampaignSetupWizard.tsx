@@ -352,49 +352,68 @@ export default function CampaignSetupWizard() {
       if (!profile?.organization_id) return;
       const orgId = profile.organization_id;
 
-      // Load org billing info
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('credit_balance, plan_tier_id, settings')
-        .eq('id', orgId)
-        .single();
+      try {
+        // Load org billing info
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('credit_balance, plan_tier_id, settings')
+          .eq('id', orgId)
+          .single();
 
-      if (org) {
-        setOrgCreditBalance(org.credit_balance || 0);
-        setOrgPlanId(org.plan_tier_id || 'employee_1');
+        if (org) {
+          setOrgCreditBalance(org.credit_balance || 0);
+          setOrgPlanId(org.plan_tier_id || 'employee_1');
+        }
+
+        // Credits used this period
+        try {
+          const { data: usage } = await supabase.rpc('get_credits_used_this_period', {
+            p_organization_id: orgId,
+          });
+          setOrgCreditsUsed(usage || 0);
+        } catch {
+          // RPC may not exist yet — default to 0
+          setOrgCreditsUsed(0);
+        }
+
+        // Auto-recharge status
+        try {
+          const { data: arConfig } = await supabase
+            .from('auto_recharge_config')
+            .select('enabled')
+            .eq('organization_id', orgId)
+            .single();
+          setOrgAutoRechargeEnabled(arConfig?.enabled || false);
+        } catch {
+          // Table may not exist — default to false
+          setOrgAutoRechargeEnabled(false);
+        }
+
+        // Team members
+        setLoadingTeam(true);
+        try {
+          const { data: members } = await supabase
+            .from('organization_members')
+            .select('user_id, role, profiles(id, full_name, email, avatar_url)')
+            .eq('organization_id', orgId);
+
+          if (members) {
+            setTeamMembersData(members.map((m: any) => ({
+              id: m.user_id,
+              name: m.profiles?.full_name || m.profiles?.email || 'Team Member',
+              email: m.profiles?.email || '',
+              role: m.role || 'member',
+              avatar: (m.profiles?.full_name || 'TM').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase(),
+            })));
+          }
+        } catch {
+          // Org members query failed — proceed with empty team
+        }
+        setLoadingTeam(false);
+      } catch (error) {
+        console.error('⚠️ loadOrgData error:', error);
+        setLoadingTeam(false);
       }
-
-      // Credits used this period
-      const { data: usage } = await supabase.rpc('get_credits_used_this_period', {
-        p_organization_id: orgId,
-      }).catch(() => ({ data: 0 }));
-      setOrgCreditsUsed(usage || 0);
-
-      // Auto-recharge status
-      const { data: arConfig } = await supabase
-        .from('auto_recharge_config')
-        .select('enabled')
-        .eq('organization_id', orgId)
-        .single();
-      setOrgAutoRechargeEnabled(arConfig?.enabled || false);
-
-      // Team members
-      setLoadingTeam(true);
-      const { data: members } = await supabase
-        .from('organization_members')
-        .select('user_id, role, profiles(id, full_name, email, avatar_url)')
-        .eq('organization_id', orgId);
-
-      if (members) {
-        setTeamMembersData(members.map((m: any) => ({
-          id: m.user_id,
-          name: m.profiles?.full_name || m.profiles?.email || 'Team Member',
-          email: m.profiles?.email || '',
-          role: m.role || 'member',
-          avatar: (m.profiles?.full_name || 'TM').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase(),
-        })));
-      }
-      setLoadingTeam(false);
     };
 
     loadOrgData();
