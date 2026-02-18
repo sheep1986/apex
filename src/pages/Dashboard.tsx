@@ -157,7 +157,7 @@ function CreditProgressRing({
 export default function Dashboard() {
   const navigate = useNavigate();
   const { userContext } = useUserContext();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { toast } = useToast();
   const { isReadOnly, isSuspended } = useSubscriptionGate();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -214,6 +214,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (orgId) fetchRealData();
   }, [orgId]);
+
+  // Exit loading state if user context has loaded but orgId is missing
+  useEffect(() => {
+    if (isLoaded && !orgId) {
+      setLoading(false);
+    }
+  }, [isLoaded, orgId]);
 
   const fetchRealData = async () => {
     try {
@@ -400,6 +407,60 @@ export default function Dashboard() {
         <div className="flex h-96 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
           <span className="ml-3 text-gray-400">Loading dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!orgId) {
+    return (
+      <div className="min-h-screen w-full bg-black">
+        <div className="flex flex-col items-center justify-center h-96 text-center px-4">
+          <Building className="h-16 w-16 text-gray-600 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-300 mb-2">
+            No Organization Found
+          </h2>
+          <p className="text-sm text-gray-500 max-w-md mb-6">
+            Your account isn't linked to an organization yet. This usually
+            resolves automatically — try the button below or log out and back in.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (session?.access_token) {
+                    await fetch('/.netlify/functions/bootstrap', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                    });
+                    window.location.reload();
+                  }
+                } catch {
+                  toast({
+                    title: 'Setup Failed',
+                    description: 'Could not set up your organization. Please try again or contact support.',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              <Rocket className="mr-2 h-4 w-4" />
+              Set Up Organization
+            </Button>
+          </div>
         </div>
       </div>
     );

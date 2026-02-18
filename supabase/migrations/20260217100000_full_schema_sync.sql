@@ -2039,39 +2039,47 @@ WHERE onboarding_completed IS NULL OR onboarding_completed = false;
 -- SECTION 35: PLATFORM-OWNER READ-ALL POLICIES
 -- ============================================================================
 
+-- Helper function: bypasses RLS via SECURITY DEFINER to avoid infinite recursion
+-- when platform-owner policies need to check the profiles table.
+CREATE OR REPLACE FUNCTION is_platform_owner()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid()
+        AND role = 'platform_owner'
+    );
+$$;
+
 -- Allow platform owners to read all organizations
 DO $$ BEGIN
     CREATE POLICY "Platform owners can read all orgs" ON organizations
-        FOR SELECT USING (
-            EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'platform_owner')
-        );
+        FOR SELECT USING (is_platform_owner());
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- Allow platform owners to read all profiles
 DO $$ BEGIN
     CREATE POLICY "Platform owners can read all profiles" ON profiles
-        FOR SELECT USING (
-            EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'platform_owner')
-        );
+        FOR SELECT USING (is_platform_owner());
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- Allow platform owners to read all voice calls
 DO $$ BEGIN
     CREATE POLICY "Platform owners can view all calls" ON voice_calls
-        FOR SELECT USING (
-            EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'platform_owner')
-        );
+        FOR SELECT USING (is_platform_owner());
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- Allow platform owners to read all campaigns
 DO $$ BEGIN
     CREATE POLICY "Platform owners can view all campaigns" ON campaigns
-        FOR SELECT USING (
-            EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'platform_owner')
-        );
+        FOR SELECT USING (is_platform_owner());
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 

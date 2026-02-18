@@ -30,36 +30,60 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
   useEffect(() => {
     // Only update if user ID changes to prevent infinite loops
     const currentUserId = user?.id || user?.email || null;
-    
+
     if (isLoaded && user && currentUserId !== lastUserId) {
       setLastUserId(currentUserId);
-      
-      // Use data from the auth system (dev or supabase via useUser hook)
-      const email = user.primaryEmailAddress?.emailAddress || 
-                   user.emailAddresses?.[0]?.emailAddress || 
-                   user.email || 
-                   'user@example.com';
-      
-      // Use actual user data from the authentication system
-      const userInfo = {
-        firstName: user.firstName || user.first_name || 'User',
-        lastName: user.lastName || user.last_name || '',
-        organizationName: user.organizationName || user.organizations?.name || 'Organization',
-        organization_id: user.organization_id,
-        email: email,
-        role: user.role || 'client_user', // Use role from Supabase database
-      };
-      
-      // Initialize Voice Service
-      if (userInfo.organization_id) {
+
+      const resolveAndSetContext = async () => {
+        // Use data from the auth system (dev or supabase via useUser hook)
+        const email = user.primaryEmailAddress?.emailAddress ||
+                     user.emailAddresses?.[0]?.emailAddress ||
+                     user.email ||
+                     'user@example.com';
+
+        // Use actual user data from the authentication system
+        const userInfo: any = {
+          firstName: user.firstName || user.first_name || 'User',
+          lastName: user.lastName || user.last_name || '',
+          organizationName: user.organizationName || user.organizations?.name || 'Organization',
+          organization_id: user.organization_id,
+          email: email,
+          role: user.role || 'client_user', // Use role from Supabase database
+        };
+
+        // Fallback: if profile has no organization_id, check organization_members table
+        if (!userInfo.organization_id && user.id) {
+          try {
+            const { data: membership } = await supabase
+              .from('organization_members')
+              .select('organization_id')
+              .eq('user_id', user.id)
+              .limit(1)
+              .single();
+
+            if (membership?.organization_id) {
+              userInfo.organization_id = membership.organization_id;
+              console.log('✅ Resolved organization_id from organization_members fallback');
+            }
+          } catch {
+            // No membership found — user genuinely has no org yet
+            console.warn('⚠️ No organization found for user via fallback');
+          }
+        }
+
+        // Set context immediately so downstream components get data
+        setUserContext(userInfo);
+
+        // Initialize Voice Service + fetch org plan info
+        if (userInfo.organization_id) {
           import('./voice-service').then(({ voiceService }) => {
-              voiceService.initializeWithOrganization(userInfo.organization_id!)
-                  .then((success) => {
-                      if (!success) {
-                          console.warn('⚠️ Voice Service Initialization Failed (Likely no API Key)');
-                      }
-                  })
-                  .catch(err => console.error('❌ Voice Service Initialization Error:', err));
+            voiceService.initializeWithOrganization(userInfo.organization_id!)
+              .then((success) => {
+                if (!success) {
+                  console.warn('⚠️ Voice Service Initialization Failed (Likely no API Key)');
+                }
+              })
+              .catch(err => console.error('❌ Voice Service Initialization Error:', err));
           });
 
           // Fetch org plan info
@@ -74,11 +98,12 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
               }
             })
             .catch(() => {});
-      } else {
+        } else {
           console.warn('⚠️ No Organization ID found for Voice Service Initialization');
-      }
+        }
+      };
 
-      setUserContext(userInfo);
+      resolveAndSetContext();
     } else if (isLoaded && !user && lastUserId !== null) {
       setLastUserId(null);
       setUserContext(null);
