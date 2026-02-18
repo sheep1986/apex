@@ -25,9 +25,18 @@ export const Login = () => {
     setError(null);
     setLoading(true);
 
+    // Safety timeout — if login hangs for any reason, reset after 10s
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+      setError('Login timed out. Please try again.');
+      console.error('⏱️ Login safety timeout triggered after 10s');
+    }, 10000);
+
     try {
+      console.log('🔐 Attempting sign in...');
       const { error, data } = await signIn(email, password);
       if (error) throw error;
+      console.log('✅ Sign in successful');
 
       // Call bootstrap to ensure profile + org exist (with timeout so login never hangs)
       const token = data?.session?.access_token;
@@ -44,17 +53,21 @@ export const Login = () => {
             signal: controller.signal,
           });
           clearTimeout(timeout);
+          console.log('✅ Bootstrap complete');
         } catch (bootstrapErr: any) {
           // Don't block login if bootstrap fails or times out
-          if (bootstrapErr?.name !== 'AbortError') {
-            console.warn('Bootstrap call failed (non-blocking):', bootstrapErr);
-          }
+          console.warn('⚠️ Bootstrap skipped:', bootstrapErr?.name || bootstrapErr?.message);
         }
       }
 
+      clearTimeout(safetyTimeout);
+
       // RoleBasedRedirect will route to the correct dashboard for the user's role
+      console.log('🔄 Navigating to /role-redirect...');
       navigate('/role-redirect');
     } catch (err: any) {
+      clearTimeout(safetyTimeout);
+      console.error('❌ Login error:', err);
       setError(err.message || 'Failed to sign in');
     } finally {
       setLoading(false);
