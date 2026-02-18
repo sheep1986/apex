@@ -24,6 +24,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [dbUser, setDbUser] = useState<DatabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [orgFallback, setOrgFallback] = useState<{ id: string; name: string; slug: string } | null>(null);
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
         if (result) {
           setDbUser(result);
+          setOrgFallback(null); // dbUser loaded — clear fallback
           loadedUserId = authUser.id;
         } else if (!isRetry) {
           // Profile came back null — retry once after 2s delay
@@ -59,7 +61,29 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
             }
           }, 2000);
         } else {
+          // All retries exhausted — do a lightweight org fallback query
+          // so pages that depend on organization?.id can still load data
           setDbUser(null);
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('organization_id')
+              .eq('id', authUser.id)
+              .single();
+            if (profile?.organization_id) {
+              const { data: org } = await supabase
+                .from('organizations')
+                .select('id, name, slug')
+                .eq('id', profile.organization_id)
+                .single();
+              if (org && thisVersion === loadVersion) {
+                setOrgFallback({ id: org.id, name: org.name || '', slug: org.slug || '' });
+                console.log('✅ Resolved organization from auth context fallback');
+              }
+            }
+          } catch {
+            // Non-critical — MinimalUserProvider has its own fallback
+          }
         }
       } catch (error: any) {
         if (error?.name === 'AbortError') return;
@@ -104,6 +128,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         loadedUserId = null;
         loadingUserId = null;
         setDbUser(null);
+        setOrgFallback(null);
       }
 
       setLoading(false);
@@ -183,6 +208,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       // Reset state
       setUser(null);
       setDbUser(null);
+      setOrgFallback(null);
       setSession(null);
     } finally {
       setLoading(false);
@@ -223,7 +249,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signOut,
     resetPassword,
     signInWithOAuth,
-    organization: dbUser?.organizations || null
+    organization: dbUser?.organizations || orgFallback || null
   };
 
   return (
