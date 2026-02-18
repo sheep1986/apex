@@ -50,7 +50,7 @@ import {
     Users
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { useBlocker, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 interface CampaignData {
   // Step 1: Name & Objective
@@ -272,12 +272,7 @@ export default function CampaignSetupWizard() {
     await saveDraft();
     setShowExitDialog(false);
     if (pendingNavigation) {
-      // Proceed with the blocked navigation
-      if (blocker.state === 'blocked') {
-        blocker.proceed();
-      } else {
-        navigate(pendingNavigation);
-      }
+      navigate(pendingNavigation);
       setPendingNavigation(null);
     }
   };
@@ -286,12 +281,7 @@ export default function CampaignSetupWizard() {
     clearDraft();
     setShowExitDialog(false);
     if (pendingNavigation) {
-      // Proceed with the blocked navigation
-      if (blocker.state === 'blocked') {
-        blocker.proceed();
-      } else {
-        navigate(pendingNavigation);
-      }
+      navigate(pendingNavigation);
       setPendingNavigation(null);
     }
   };
@@ -444,21 +434,8 @@ export default function CampaignSetupWizard() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [campaignData, currentStep]);
 
-  // Block React Router navigation when there are unsaved changes
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) => {
-      const shouldBlock = hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname;
-      return shouldBlock;
-    }
-  );
-
-  // Handle the blocked navigation
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      setPendingNavigation(blocker.location?.pathname || '/campaigns');
-      setShowExitDialog(true);
-    }
-  }, [blocker.state]);
+  // Note: useBlocker requires Data Router (createBrowserRouter) which we don't use.
+  // Navigation blocking is handled via the beforeunload event + custom exit dialog instead.
 
   // Add global event listeners to detect user interaction
   useEffect(() => {
@@ -2023,9 +2000,7 @@ export default function CampaignSetupWizard() {
           open={showExitDialog} 
           onOpenChange={(open) => {
             setShowExitDialog(open);
-            if (!open && blocker.state === 'blocked') {
-              // User cancelled the dialog, reset the blocker
-              blocker.reset();
+            if (!open) {
               setPendingNavigation(null);
             }
           }}
