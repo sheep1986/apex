@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { supabase } from '@/services/supabase-client';
 import { campaignOutboundService } from '@/services/campaign-outbound.service';
 import CampaignCapacityPlanner, { type ScheduleConfig } from '@/components/CampaignCapacityPlanner';
 import { classifyAssistantTier } from '@/config/credit-rates';
@@ -135,7 +136,7 @@ const TEAM_MEMBERS: { id: string; name: string; role: string; avatar: string }[]
 
 export default function CampaignSetupWizard() {
   const navigate = useNavigate();
-  const { supabase, user, profile } = useSupabaseAuth();
+  const { user, dbUser: profile, organization } = useSupabaseAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -364,13 +365,13 @@ export default function CampaignSetupWizard() {
       // Load org billing info
       const { data: org } = await supabase
         .from('organizations')
-        .select('credit_balance, plan_id, settings')
+        .select('credit_balance, plan_tier_id, settings')
         .eq('id', orgId)
         .single();
 
       if (org) {
         setOrgCreditBalance(org.credit_balance || 0);
-        setOrgPlanId(org.plan_id || 'employee_1');
+        setOrgPlanId(org.plan_tier_id || 'employee_1');
       }
 
       // Credits used this period
@@ -407,7 +408,7 @@ export default function CampaignSetupWizard() {
     };
 
     loadOrgData();
-  }, [profile?.organization_id, supabase]);
+  }, [profile?.organization_id]);
 
   // Load draft on component mount
   useEffect(() => {
