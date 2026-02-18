@@ -1,5 +1,7 @@
 // API Configuration Service - Frontend Client
 // All API calls go through Netlify Functions (relative paths)
+import { supabase } from './supabase-client';
+
 const API_BASE_URL = '';
 
 export interface ApiConfiguration {
@@ -39,7 +41,9 @@ export type ServiceConfigs = {
 
 class ApiConfigurationService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('supabase_token');
+    // Get auth token from Supabase session (not localStorage — Supabase SDK manages its own storage)
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || null;
     const url = `${API_BASE_URL}${endpoint}`;
     
     const response = await fetch(url, {

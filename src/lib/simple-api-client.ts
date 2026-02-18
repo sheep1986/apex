@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from '../services/supabase-client';
 
 // All API calls go through Netlify Functions (relative paths)
 const API_BASE_URL = '/api';
@@ -14,13 +15,12 @@ const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   async (config) => {
-    // Get auth token from MinimalUserProvider
-    let token = localStorage.getItem('auth_token');
+    // Get auth token from Supabase session (not localStorage — Supabase SDK manages its own storage)
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || null;
 
     if (!token) {
-      // Fallback token for development
-      token = 'test-token';
-      console.warn('⚠️ No auth token found, using fallback');
+      console.warn('⚠️ No Supabase session token found');
     }
 
     if (token) {

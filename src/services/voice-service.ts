@@ -8,6 +8,8 @@
  * Pages import from this file — never directly from a provider.
  */
 
+import { supabase } from './supabase-client';
+
 // ─── Types ──────────────────────────────────────────────────────────
 
 // ─── Analysis & Behavior Plans ──────────────────────────────────
@@ -285,7 +287,9 @@ class VoiceService {
    */
   async initializeWithOrganization(organizationId: string): Promise<boolean> {
     try {
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      // Get auth token from Supabase session (not localStorage — Supabase SDK manages its own storage)
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || null;
 
       const response = await fetch(`${window.location.origin}/api/voice/credentials`, {
         method: 'GET',
