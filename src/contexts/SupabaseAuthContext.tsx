@@ -28,35 +28,37 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     let loadedUserId: string | null = null;
-    let loadVersion = 0; // Prevents stale responses from overwriting fresh ones
+    let loadingUserId: string | null = null; // Prevents duplicate concurrent loads
+    let loadVersion = 0;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const loadDbUser = async (authUser: User, isRetry = false) => {
+      // Prevent duplicate concurrent loads for the same user
+      if (loadingUserId === authUser.id && !isRetry) return;
+      loadingUserId = authUser.id;
       const thisVersion = ++loadVersion;
       try {
-        // 5s timeout — if profile load hangs, proceed without it
+        // getUserById has its own 8s per-query timeout — give it 12s total (covers retries)
         const result = await Promise.race([
           supabaseService.getUserById(authUser.id),
           new Promise<null>((resolve) => setTimeout(() => {
-            console.warn('⚠️ loadDbUser timed out after 5s — proceeding without profile');
+            console.warn('⚠️ loadDbUser timed out after 12s — proceeding without profile');
             resolve(null);
-          }, 5000)),
+          }, 12000)),
         ]);
-        // Only apply if this is still the latest request
         if (thisVersion !== loadVersion) return;
 
         if (result) {
           setDbUser(result);
           loadedUserId = authUser.id;
         } else if (!isRetry) {
-          // Profile came back null (AbortError, timeout, or not found yet) — retry once after delay
+          // Profile came back null — retry once after 2s delay
           retryTimer = setTimeout(() => {
             if (loadVersion === thisVersion) {
               loadDbUser(authUser, true);
             }
-          }, 1000);
+          }, 2000);
         } else {
-          // Retry also returned null — set it and move on
           setDbUser(null);
         }
       } catch (error: any) {
@@ -64,6 +66,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         console.error('❌ Error loading database user:', error);
         if (thisVersion === loadVersion) {
           setDbUser(null);
+        }
+      } finally {
+        if (thisVersion === loadVersion) {
+          loadingUserId = null;
         }
       }
     };
@@ -79,8 +85,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Handle password recovery — redirect to reset page
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         window.location.href = '/reset-password';
         return;
@@ -90,13 +95,14 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        // Skip if we already loaded this user's profile successfully
+        // Skip if already loaded OR already loading this user's profile
         if (loadedUserId === session.user.id) return;
-        // Fire-and-forget — don't block setLoading(false) on profile load
+        // Fire-and-forget — loadDbUser deduplicates internally
         loadDbUser(session.user);
       } else {
-        loadVersion++; // Cancel any in-flight requests
+        loadVersion++;
         loadedUserId = null;
+        loadingUserId = null;
         setDbUser(null);
       }
 
@@ -104,7 +110,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     });
 
     return () => {
-      loadVersion++; // Cancel any in-flight requests on cleanup
+      loadVersion++;
       if (retryTimer) clearTimeout(retryTimer);
       subscription.unsubscribe();
     };

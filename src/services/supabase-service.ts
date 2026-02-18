@@ -341,19 +341,18 @@ class SupabaseService {
     return data as DatabaseUser[];
   }
 
-  async getUserById(id: string, retries = 2): Promise<DatabaseUser | null> {
+  async getUserById(id: string, retries = 1): Promise<DatabaseUser | null> {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', id)
-        .single()
-        .abortSignal(AbortSignal.timeout(4000));
+        .single();
 
       if (error) {
         // Retry on transient errors (network, timeout, RLS race with bootstrap)
         if (retries > 0 && (error.code === 'PGRST116' || error.message?.includes('fetch') || error.code === '408')) {
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 1000));
           return this.getUserById(id, retries - 1);
         }
         console.error('❌ getUserById error:', error.message || error.code || error);
@@ -375,8 +374,7 @@ class SupabaseService {
             .from('organizations')
             .select('id, name')
             .eq('id', profile.organization_id)
-            .single()
-            .abortSignal(AbortSignal.timeout(4000));
+            .single();
           organizationName = org?.name;
         } catch {
           // Ignore org fetch failures — profile still usable without org name
@@ -390,13 +388,13 @@ class SupabaseService {
         organizationName
       } as DatabaseUser;
     } catch (err: any) {
-      // AbortError is thrown by Supabase client when auth state changes mid-request — safe to ignore
+      // AbortError from timeout signal or auth state change — return null quietly
       if (err?.name === 'AbortError') {
         return null;
       }
-      // Retry on network errors
+      // Retry once on network errors
       if (retries > 0) {
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 1000));
         return this.getUserById(id, retries - 1);
       }
       console.error('❌ getUserById error:', err?.message || err);
