@@ -99,7 +99,7 @@ export const handler: Handler = async (event) => {
     // 5. Lookup Assistant & Verify Ownership
     const { data: assistant } = await supabase
         .from('assistants')
-        .select('provider_assistant_id, provider, organization_id')
+        .select('vapi_assistant_id, organization_id')
         .eq('id', assistantId)
         .single();
     
@@ -134,7 +134,7 @@ export const handler: Handler = async (event) => {
 
     // 7. Initiate Call via Provider
     const callPayload: any = {
-      assistantId: assistant.provider_assistant_id,
+      assistantId: assistant.vapi_assistant_id,
       // Pass Trinity ID in metadata so webhook can map it back
       assistant: {
         metadata: {

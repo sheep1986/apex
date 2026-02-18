@@ -559,85 +559,83 @@ export default function CampaignSetupWizard() {
               }
             >
               <div className="space-y-4">
-                <div
-                  className={`cursor-pointer rounded-lg border p-6 transition-all ${
+                <Label
+                  htmlFor="b2b"
+                  className={`block cursor-pointer rounded-lg border p-6 transition-all ${
                     campaignData.campaignType === 'b2b'
                       ? 'border-emerald-500 bg-emerald-900/20'
                       : 'border-gray-700 hover:border-gray-600'
                   }`}
                 >
                   <RadioGroupItem value="b2b" id="b2b" className="sr-only" />
-                  <Label htmlFor="b2b" className="cursor-pointer">
-                    <div className="flex items-start gap-4">
-                      <div className="rounded-lg bg-blue-900/30 p-3">
-                        <Building className="h-6 w-6 text-blue-400" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="mb-1 font-medium text-white">B2B (Business to Business)</h4>
-                        <p className="mb-3 text-sm text-gray-400">
-                          Target business decision makers and companies
-                        </p>
-                        <div className="space-y-2">
-                          <p className="text-xs text-gray-500">Required fields:</p>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
-                              Company Name
-                            </Badge>
-                            <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
-                              Contact Title
-                            </Badge>
-                            <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
-                              Industry
-                            </Badge>
-                            <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
-                              Company Size
-                            </Badge>
-                          </div>
+                  <div className="flex items-start gap-4">
+                    <div className="rounded-lg bg-blue-900/30 p-3">
+                      <Building className="h-6 w-6 text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="mb-1 font-medium text-white">B2B (Business to Business)</h4>
+                      <p className="mb-3 text-sm text-gray-400">
+                        Target business decision makers and companies
+                      </p>
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500">Required fields:</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
+                            Company Name
+                          </Badge>
+                          <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
+                            Contact Title
+                          </Badge>
+                          <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
+                            Industry
+                          </Badge>
+                          <Badge className="border-blue-800 bg-blue-900/30 text-blue-300">
+                            Company Size
+                          </Badge>
                         </div>
                       </div>
                     </div>
-                  </Label>
-                </div>
+                  </div>
+                </Label>
 
-                <div
-                  className={`cursor-pointer rounded-lg border p-6 transition-all ${
+                <Label
+                  htmlFor="b2c"
+                  className={`block cursor-pointer rounded-lg border p-6 transition-all ${
                     campaignData.campaignType === 'b2c'
                       ? 'border-emerald-500 bg-emerald-900/20'
                       : 'border-gray-700 hover:border-gray-600'
                   }`}
                 >
                   <RadioGroupItem value="b2c" id="b2c" className="sr-only" />
-                  <Label htmlFor="b2c" className="cursor-pointer">
-                    <div className="flex items-start gap-4">
-                      <div className="rounded-lg bg-emerald-900/30 p-3">
-                        <User className="h-6 w-6 text-emerald-400" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="mb-1 font-medium text-white">B2C (Business to Consumer)</h4>
-                        <p className="mb-3 text-sm text-gray-400">
-                          Target individual consumers with personalized offers
-                        </p>
-                        <div className="space-y-2">
-                          <p className="text-xs text-gray-500">Required fields:</p>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
-                              Age Range
-                            </Badge>
-                            <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
-                              Interests
-                            </Badge>
-                            <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
-                              Location
-                            </Badge>
-                            <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
-                              Consent Status
-                            </Badge>
-                          </div>
+                  <div className="flex items-start gap-4">
+                    <div className="rounded-lg bg-emerald-900/30 p-3">
+                      <User className="h-6 w-6 text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="mb-1 font-medium text-white">B2C (Business to Consumer)</h4>
+                      <p className="mb-3 text-sm text-gray-400">
+                        Target individual consumers with personalized offers
+                      </p>
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500">Required fields:</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
+                            Age Range
+                          </Badge>
+                          <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
+                            Interests
+                          </Badge>
+                          <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
+                            Location
+                          </Badge>
+                          <Badge className="border-emerald-800 bg-emerald-900/30 text-emerald-300">
+                            Consent Status
+                          </Badge>
                         </div>
                       </div>
                     </div>
-                  </Label>
-                </div>
+                  </div>
+                </Label>
               </div>
             </RadioGroup>
 
@@ -684,7 +682,8 @@ export default function CampaignSetupWizard() {
                 >
                   <div className="grid grid-cols-2 gap-4">
                     {OBJECTIVES.map((objective) => (
-                      <div
+                      <Label
+                        htmlFor={objective.id}
                         key={objective.id}
                         className={`relative flex cursor-pointer items-start space-x-3 rounded-lg border p-4 transition-all ${
                           campaignData.objective === objective.id
@@ -693,11 +692,11 @@ export default function CampaignSetupWizard() {
                         }`}
                       >
                         <RadioGroupItem value={objective.id} id={objective.id} className="mt-1" />
-                        <Label htmlFor={objective.id} className="cursor-pointer">
+                        <span>
                           <div className="font-medium text-white">{objective.name}</div>
                           <div className="text-sm text-gray-400">{objective.description}</div>
-                        </Label>
-                      </div>
+                        </span>
+                      </Label>
                     ))}
                   </div>
                 </RadioGroup>
@@ -740,9 +739,9 @@ export default function CampaignSetupWizard() {
                   }
                 >
                   <div className="space-y-3">
-                    <div className="flex items-start space-x-3 rounded-lg border border-gray-700 p-4">
+                    <Label htmlFor="voice-engine" className="flex cursor-pointer items-start space-x-3 rounded-lg border border-gray-700 p-4">
                       <RadioGroupItem value="voice-engine" id="voice-engine" />
-                      <Label htmlFor="voice-engine" className="cursor-pointer">
+                      <span>
                         <div className="mb-1 flex items-center gap-2">
                           <Phone className="h-4 w-4 text-emerald-500" />
                           <span className="font-medium text-white">Trinity Phone Numbers</span>
@@ -751,12 +750,12 @@ export default function CampaignSetupWizard() {
                         <p className="text-sm text-gray-400">
                           Use phone numbers provisioned through Trinity
                         </p>
-                      </Label>
-                    </div>
+                      </span>
+                    </Label>
 
-                    <div className="flex items-start space-x-3 rounded-lg border border-gray-700 p-4">
+                    <Label htmlFor="twilio" className="flex cursor-pointer items-start space-x-3 rounded-lg border border-gray-700 p-4">
                       <RadioGroupItem value="twilio" id="twilio" />
-                      <Label htmlFor="twilio" className="cursor-pointer">
+                      <span>
                         <div className="mb-1 flex items-center gap-2">
                           <Phone className="h-4 w-4 text-green-500" />
                           <span className="font-medium text-white">Twilio Integration</span>
@@ -764,8 +763,8 @@ export default function CampaignSetupWizard() {
                         <p className="text-sm text-gray-400">
                           Use your existing Twilio phone numbers
                         </p>
-                      </Label>
-                    </div>
+                      </span>
+                    </Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -1638,25 +1637,25 @@ export default function CampaignSetupWizard() {
                   onValueChange={(value) => updateCampaignData({ immediateStart: value === 'now' })}
                 >
                   <div className="space-y-3">
-                    <div className="flex items-center space-x-3 rounded-lg border border-gray-700 p-4">
+                    <Label htmlFor="now" className="flex cursor-pointer items-center space-x-3 rounded-lg border border-gray-700 p-4">
                       <RadioGroupItem value="now" id="now" />
-                      <Label htmlFor="now" className="cursor-pointer">
+                      <span>
                         <div className="font-medium text-white">Launch Immediately</div>
                         <p className="text-sm text-gray-400">
                           Start calling as soon as you click launch
                         </p>
-                      </Label>
-                    </div>
+                      </span>
+                    </Label>
 
-                    <div className="flex items-center space-x-3 rounded-lg border border-gray-700 p-4">
+                    <Label htmlFor="schedule" className="flex cursor-pointer items-center space-x-3 rounded-lg border border-gray-700 p-4">
                       <RadioGroupItem value="schedule" id="schedule" />
-                      <Label htmlFor="schedule" className="cursor-pointer">
+                      <span>
                         <div className="font-medium text-white">Schedule for Later</div>
                         <p className="text-sm text-gray-400">
                           Set a specific date and time to start
                         </p>
-                      </Label>
-                    </div>
+                      </span>
+                    </Label>
                   </div>
                 </RadioGroup>
 

@@ -22,6 +22,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = event.headers.authorization || event.headers.Authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
@@ -33,6 +34,7 @@ export const handler: Handler = async (event) => {
       return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
     }
 
+    // ── Org context ──────────────────────────────────────────────────────
     let organizationId: string | null = null;
 
     const { data: member } = await supabase
@@ -59,31 +61,102 @@ export const handler: Handler = async (event) => {
     if (!vapiApiKey) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Voice credentials not configured' }) };
     }
-    const apiKey = vapiApiKey;
 
     const pathParts = event.path.split('/');
-    const maybeId = pathParts.length > 4 ? pathParts[4] : null;
+    const toolId = pathParts.length > 4 ? pathParts[4] : null;
 
-    const url = maybeId
-      ? `https://api.vapi.ai/tool/${maybeId}`
-      : 'https://api.vapi.ai/tool';
+    // ── GET (list all) — Query Supabase, enrich from Vapi ────────────────
+    if (!toolId && event.httpMethod === 'GET') {
+      const { data: dbTools } = await supabase
+        .from('voice_tools')
+        .select('id, provider_tool_id, name, description, type, created_at')
+        .eq('organization_id', organizationId);
 
-    const response = await fetch(url, {
-      method: event.httpMethod,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: ['GET', 'DELETE'].includes(event.httpMethod) ? undefined : event.body
-    });
+      const enriched = await Promise.all((dbTools || []).map(async (t) => {
+        if (!t.provider_tool_id) {
+          return { id: t.id, name: t.name, description: t.description, type: t.type };
+        }
+        try {
+          const resp = await fetch(`https://api.vapi.ai/tool/${t.provider_tool_id}`, {
+            headers: { 'Authorization': `Bearer ${vapiApiKey}` }
+          });
+          if (resp.ok) {
+            const vapi: any = await resp.json();
+            return { ...vapi, _dbId: t.id, _organizationId: organizationId };
+          }
+        } catch {}
+        return { id: t.provider_tool_id, name: t.name, description: t.description, type: t.type };
+      }));
 
-    const text = await response.text();
+      return { statusCode: 200, headers, body: JSON.stringify(enriched) };
+    }
 
-    return {
-      statusCode: response.status,
-      headers,
-      body: text
-    };
+    // ── POST (create) — Proxy to Vapi, save ownership ────────────────────
+    if (event.httpMethod === 'POST') {
+      const response = await fetch('https://api.vapi.ai/tool', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vapiApiKey}`
+        },
+        body: event.body
+      });
+
+      const vapiResult: any = await response.json();
+
+      if (response.ok && vapiResult.id) {
+        try {
+          await supabase.from('voice_tools').insert({
+            organization_id: organizationId,
+            provider_tool_id: vapiResult.id,
+            name: vapiResult.function?.name || vapiResult.name || 'New Tool',
+            description: vapiResult.function?.description || '',
+            type: vapiResult.type || 'function',
+          });
+        } catch (dbErr) {
+          console.error('⚠️ Failed to save tool ownership:', dbErr);
+        }
+      }
+
+      return { statusCode: response.status, headers, body: JSON.stringify(vapiResult) };
+    }
+
+    // ── GET/PATCH/DELETE (single) — Verify ownership ─────────────────────
+    if (toolId) {
+      const { data: owned } = await supabase
+        .from('voice_tools')
+        .select('id, provider_tool_id')
+        .or(`provider_tool_id.eq.${toolId},id.eq.${toolId}`)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (!owned) {
+        return { statusCode: 404, headers, body: JSON.stringify({ error: 'Tool not found' }) };
+      }
+
+      const vapiId = owned.provider_tool_id || toolId;
+      const url = `https://api.vapi.ai/tool/${vapiId}`;
+
+      const response = await fetch(url, {
+        method: event.httpMethod,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vapiApiKey}`
+        },
+        body: ['GET', 'DELETE'].includes(event.httpMethod) ? undefined : event.body
+      });
+
+      // Clean up on delete
+      if (event.httpMethod === 'DELETE' && response.ok) {
+        await supabase.from('voice_tools').delete().eq('id', owned.id);
+      }
+
+      const text = await response.text();
+      return { statusCode: response.status, headers, body: text };
+    }
+
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+
   } catch (error: any) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: error.message || 'Internal error' }) };
   }

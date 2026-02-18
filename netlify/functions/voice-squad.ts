@@ -22,6 +22,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = event.headers.authorization || event.headers.Authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
@@ -33,6 +34,7 @@ export const handler: Handler = async (event) => {
       return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
     }
 
+    // ── Org context ──────────────────────────────────────────────────────
     let organizationId: string | null = null;
 
     const { data: member } = await supabase
@@ -59,31 +61,101 @@ export const handler: Handler = async (event) => {
     if (!vapiApiKey) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Voice credentials not configured' }) };
     }
-    const apiKey = vapiApiKey;
 
     const pathParts = event.path.split('/');
-    const maybeId = pathParts.length > 4 ? pathParts[4] : null;
+    const squadId = pathParts.length > 4 ? pathParts[4] : null;
 
-    const url = maybeId
-      ? `https://api.vapi.ai/squad/${maybeId}`
-      : 'https://api.vapi.ai/squad';
+    // ── GET (list all) — Query Supabase, enrich from Vapi ────────────────
+    if (!squadId && event.httpMethod === 'GET') {
+      const { data: dbSquads } = await supabase
+        .from('voice_squads')
+        .select('id, provider_squad_id, name, members_config, created_at')
+        .eq('organization_id', organizationId);
 
-    const response = await fetch(url, {
-      method: event.httpMethod,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: ['GET', 'DELETE'].includes(event.httpMethod) ? undefined : event.body
-    });
+      const enriched = await Promise.all((dbSquads || []).map(async (s) => {
+        if (!s.provider_squad_id) {
+          return { id: s.id, name: s.name, members: s.members_config };
+        }
+        try {
+          const resp = await fetch(`https://api.vapi.ai/squad/${s.provider_squad_id}`, {
+            headers: { 'Authorization': `Bearer ${vapiApiKey}` }
+          });
+          if (resp.ok) {
+            const vapi: any = await resp.json();
+            return { ...vapi, _dbId: s.id, _organizationId: organizationId };
+          }
+        } catch {}
+        return { id: s.provider_squad_id, name: s.name, members: s.members_config };
+      }));
 
-    const text = await response.text();
+      return { statusCode: 200, headers, body: JSON.stringify(enriched) };
+    }
 
-    return {
-      statusCode: response.status,
-      headers,
-      body: text
-    };
+    // ── POST (create) — Proxy to Vapi, save ownership ────────────────────
+    if (event.httpMethod === 'POST') {
+      const response = await fetch('https://api.vapi.ai/squad', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vapiApiKey}`
+        },
+        body: event.body
+      });
+
+      const vapiResult: any = await response.json();
+
+      if (response.ok && vapiResult.id) {
+        try {
+          await supabase.from('voice_squads').insert({
+            organization_id: organizationId,
+            provider_squad_id: vapiResult.id,
+            name: vapiResult.name || 'New Squad',
+            members_config: vapiResult.members || [],
+          });
+        } catch (dbErr) {
+          console.error('⚠️ Failed to save squad ownership:', dbErr);
+        }
+      }
+
+      return { statusCode: response.status, headers, body: JSON.stringify(vapiResult) };
+    }
+
+    // ── GET/PATCH/DELETE (single) — Verify ownership ─────────────────────
+    if (squadId) {
+      const { data: owned } = await supabase
+        .from('voice_squads')
+        .select('id, provider_squad_id')
+        .or(`provider_squad_id.eq.${squadId},id.eq.${squadId}`)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (!owned) {
+        return { statusCode: 404, headers, body: JSON.stringify({ error: 'Squad not found' }) };
+      }
+
+      const vapiId = owned.provider_squad_id || squadId;
+      const url = `https://api.vapi.ai/squad/${vapiId}`;
+
+      const response = await fetch(url, {
+        method: event.httpMethod,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vapiApiKey}`
+        },
+        body: ['GET', 'DELETE'].includes(event.httpMethod) ? undefined : event.body
+      });
+
+      // Clean up on delete
+      if (event.httpMethod === 'DELETE' && response.ok) {
+        await supabase.from('voice_squads').delete().eq('id', owned.id);
+      }
+
+      const text = await response.text();
+      return { statusCode: response.status, headers, body: text };
+    }
+
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+
   } catch (error: any) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: error.message || 'Internal error' }) };
   }

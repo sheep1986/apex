@@ -22,6 +22,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = event.headers.authorization || event.headers.Authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
@@ -33,7 +34,7 @@ export const handler: Handler = async (event) => {
       return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
     }
 
-    // Check organization_members first, then fall back to profiles.organization_id
+    // ── Org context ──────────────────────────────────────────────────────
     let organizationId: string | null = null;
 
     const { data: member } = await supabase
@@ -60,13 +61,43 @@ export const handler: Handler = async (event) => {
     if (!vapiApiKey) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Voice credentials not configured' }) };
     }
-    const apiKey = vapiApiKey;
 
     const pathParts = event.path.split('/');
-    const maybeId = pathParts.length > 4 ? pathParts[4] : null; // /api/voice/assistant/{id}
+    const maybeId = pathParts.length > 4 ? pathParts[4] : null;
     const assistantId = maybeId || (event.queryStringParameters?.id || null);
 
-    // Enforce assistant limit on creation
+    // ── GET (list all) — Query Supabase, enrich from Vapi ────────────────
+    if (!assistantId && event.httpMethod === 'GET') {
+      const { data: dbAssistants } = await supabase
+        .from('assistants')
+        .select('id, vapi_assistant_id, name, created_at')
+        .eq('organization_id', organizationId);
+
+      // Enrich each from Vapi for live config
+      const enriched = await Promise.all((dbAssistants || []).map(async (a) => {
+        if (!a.vapi_assistant_id) {
+          return { id: a.id, name: a.name };
+        }
+        try {
+          const resp = await fetch(`https://api.vapi.ai/assistant/${a.vapi_assistant_id}`, {
+            headers: { 'Authorization': `Bearer ${vapiApiKey}` }
+          });
+          if (resp.ok) {
+            const vapi: any = await resp.json();
+            return {
+              ...vapi,
+              _dbId: a.id,
+              _organizationId: organizationId,
+            };
+          }
+        } catch {}
+        return { id: a.vapi_assistant_id, name: a.name };
+      }));
+
+      return { statusCode: 200, headers, body: JSON.stringify(enriched) };
+    }
+
+    // ── Enforce assistant limit on creation (count from Supabase, not Vapi) ─
     if (event.httpMethod === 'POST') {
       const { data: orgLimits } = await supabase
         .from('organizations')
@@ -76,44 +107,138 @@ export const handler: Handler = async (event) => {
 
       const maxAssistants = orgLimits?.max_assistants ?? 3;
       if (maxAssistants !== -1) {
-        // Count existing assistants via Vapi API
-        const countResp = await fetch('https://api.vapi.ai/assistant', {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        });
-        if (countResp.ok) {
-          const existing = await countResp.json() as any[];
-          if (existing.length >= maxAssistants) {
-            return {
-              statusCode: 403, headers,
-              body: JSON.stringify({ error: `Assistant limit reached (${maxAssistants}). Upgrade your plan for more.` })
-            };
-          }
-        } else {
-          console.warn(`[voice-assistant] Failed to count assistants (status ${countResp.status}), skipping limit check`);
+        const { count } = await supabase
+          .from('assistants')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', organizationId);
+
+        if ((count || 0) >= maxAssistants) {
+          return {
+            statusCode: 403, headers,
+            body: JSON.stringify({ error: `Assistant limit reached (${maxAssistants}). Upgrade your plan for more.` })
+          };
         }
       }
+
+      // Proxy creation to Vapi
+      const response = await fetch('https://api.vapi.ai/assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vapiApiKey}`
+        },
+        body: event.body
+      });
+
+      const vapiResult: any = await response.json();
+
+      // Save ownership to Supabase
+      if (response.ok && vapiResult.id) {
+        try {
+          await supabase
+            .from('assistants')
+            .insert({
+              organization_id: organizationId,
+              vapi_assistant_id: vapiResult.id,
+              name: vapiResult.name || 'New Assistant',
+            });
+        } catch (dbErr) {
+          console.error('⚠️ Failed to save assistant ownership:', dbErr);
+        }
+      }
+
+      return { statusCode: response.status, headers, body: JSON.stringify(vapiResult) };
     }
 
-    const url = assistantId
-      ? `https://api.vapi.ai/assistant/${assistantId}`
-      : 'https://api.vapi.ai/assistant';
+    // ── GET (single) — Verify ownership before proxying ──────────────────
+    if (assistantId && event.httpMethod === 'GET') {
+      const { data: owned } = await supabase
+        .from('assistants')
+        .select('id, vapi_assistant_id')
+        .or(`vapi_assistant_id.eq.${assistantId},id.eq.${assistantId}`)
+        .eq('organization_id', organizationId)
+        .single();
 
-    const response = await fetch(url, {
-      method: event.httpMethod,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: ['GET', 'DELETE'].includes(event.httpMethod) ? undefined : event.body
-    });
+      if (!owned) {
+        return { statusCode: 404, headers, body: JSON.stringify({ error: 'Assistant not found' }) };
+      }
 
-    const text = await response.text();
+      const vapiId = owned.vapi_assistant_id || assistantId;
+      const response = await fetch(`https://api.vapi.ai/assistant/${vapiId}`, {
+        headers: { 'Authorization': `Bearer ${vapiApiKey}` }
+      });
+      const text = await response.text();
+      return { statusCode: response.status, headers, body: text };
+    }
 
-    return {
-      statusCode: response.status,
-      headers,
-      body: text
-    };
+    // ── PATCH (update) — Verify ownership before proxying ────────────────
+    if (assistantId && event.httpMethod === 'PATCH') {
+      const { data: owned } = await supabase
+        .from('assistants')
+        .select('id, vapi_assistant_id')
+        .or(`vapi_assistant_id.eq.${assistantId},id.eq.${assistantId}`)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (!owned) {
+        return { statusCode: 404, headers, body: JSON.stringify({ error: 'Assistant not found' }) };
+      }
+
+      const vapiId = owned.vapi_assistant_id || assistantId;
+      const response = await fetch(`https://api.vapi.ai/assistant/${vapiId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vapiApiKey}`
+        },
+        body: event.body
+      });
+
+      const vapiResult: any = await response.json();
+
+      // Update local name cache
+      if (response.ok && vapiResult.name) {
+        try {
+          await supabase
+            .from('assistants')
+            .update({ name: vapiResult.name })
+            .eq('id', owned.id);
+        } catch {}
+      }
+
+      return { statusCode: response.status, headers, body: JSON.stringify(vapiResult) };
+    }
+
+    // ── DELETE — Verify ownership before proxying ────────────────────────
+    if (assistantId && event.httpMethod === 'DELETE') {
+      const { data: owned } = await supabase
+        .from('assistants')
+        .select('id, vapi_assistant_id')
+        .or(`vapi_assistant_id.eq.${assistantId},id.eq.${assistantId}`)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (!owned) {
+        return { statusCode: 404, headers, body: JSON.stringify({ error: 'Assistant not found' }) };
+      }
+
+      const vapiId = owned.vapi_assistant_id || assistantId;
+      const response = await fetch(`https://api.vapi.ai/assistant/${vapiId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${vapiApiKey}` }
+      });
+
+      // Remove from local DB
+      if (response.ok) {
+        await supabase.from('assistants').delete().eq('id', owned.id);
+      }
+
+      const text = await response.text();
+      return { statusCode: response.status, headers, body: text };
+    }
+
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+
   } catch (error: any) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: error.message || 'Internal error' }) };
   }

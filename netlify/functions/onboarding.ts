@@ -21,10 +21,44 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // ── Auth: Verify user belongs to the claimed organization ─────────────
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
+    }
+    const token = authHeader.split(' ')[1];
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
+    }
+
     const { organizationId, assistantName, voiceId, goal } = JSON.parse(event.body || '{}');
 
     if (!organizationId || !assistantName) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing Required Fields' }) };
+    }
+
+    // Verify user actually belongs to this organization
+    const { data: memberCheck } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (!memberCheck) {
+      // Fallback: check profiles
+      const { data: profileCheck } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (!profileCheck) {
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Not a member of this organization' }) };
+      }
     }
 
     if (!vapiPrivateKey) {
@@ -74,10 +108,8 @@ export const handler: Handler = async (event) => {
       .from('assistants')
       .insert({
         organization_id: organizationId,
-        provider: 'vapi', // Internal (Zero-Trace)
-        provider_assistant_id: vapiAssistant.id,
+        vapi_assistant_id: vapiAssistant.id,
         name: assistantName,
-        config: vapiAssistant
       })
       .select('id')
       .single();

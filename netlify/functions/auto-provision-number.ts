@@ -123,12 +123,9 @@ export const handler: Handler = async (event) => {
       .from('phone_numbers')
       .insert({
         organization_id: organizationId,
-        e164: vapiNumber.number || vapiNumber.phoneNumber,
+        number: vapiNumber.number || vapiNumber.phoneNumber,
         status: 'active',
-        provider_number_sid: vapiNumber.id,
-        provider: 'vapi',
-        name: name || buyPayload.name,
-        capabilities: { voice: true, sms: false },
+        vapi_number_id: vapiNumber.id,
       })
       .select()
       .single();

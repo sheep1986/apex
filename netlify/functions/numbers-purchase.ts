@@ -105,12 +105,9 @@ export const handler: Handler = async (event) => {
       .from('phone_numbers')
       .insert({
         organization_id: organizationId,
-        e164: phoneNumber,
+        number: phoneNumber,
         status: 'active',
-        provider_number_sid: vapiNumberId || providerSid, 
-        provider: 'vapi',
-        name: name || 'New Number',
-        capabilities: { voice: true, sms: true }
+        vapi_number_id: vapiNumberId || providerSid
       })
       .select()
       .single();

@@ -68,7 +68,7 @@ export const handler: Handler = async (event) => {
     const { data: phoneNumber } = await supabase
         .from('phone_numbers')
         .select('id, organization_id, inbound_route_id, ai_enabled, ai_disabled_forward_to')
-        .eq('e164', calledNumber)
+        .eq('number', calledNumber)
         .single();
 
     if (!phoneNumber) {
@@ -232,13 +232,13 @@ export const handler: Handler = async (event) => {
         trinityAssistantId = routeConfig.destination.targetId;
         const { data: assistant } = await supabase
             .from('assistants')
-            .select('provider_assistant_id, runtime_config, model_config')
+            .select('vapi_assistant_id')
             .eq('id', trinityAssistantId)
             .single();
-        
+
         if (assistant) {
             resolvedAssistant = assistant;
-            providerAssistantId = assistant.provider_assistant_id;
+            providerAssistantId = assistant.vapi_assistant_id;
             runtimeConfig = assistant.runtime_config || {};
         }
     }
