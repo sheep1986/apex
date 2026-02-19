@@ -1,3 +1,33 @@
-# All API routing is handled by netlify.toml redirects → Netlify Functions
+# API routing (duplicated here to avoid SPA fallback hijacking /api/* on deploy previews)
+/api/voice/webhook              /.netlify/functions/voice-webhook           200
+/api/voice-engine-auto-setup    /.netlify/functions/voice-engine-auto-setup 200
+/api/voice/test-call            /.netlify/functions/voice-test-call         200
+/api/voice/calls/*              /.netlify/functions/voice-calls             200
+/api/voice/calls                /.netlify/functions/voice-calls             200
+/api/voice/credentials          /.netlify/functions/voice-credentials       200
+/api/voice/assistant/*          /.netlify/functions/voice-assistant         200
+/api/voice/assistant            /.netlify/functions/voice-assistant         200
+/api/voice/phone-number/*       /.netlify/functions/voice-phone-number      200
+/api/voice/phone-number         /.netlify/functions/voice-phone-number      200
+/api/voice/numbers-search       /.netlify/functions/numbers-search          200
+/api/voice/numbers-purchase     /.netlify/functions/numbers-purchase        200
+/api/voice/auto-provision-number /.netlify/functions/auto-provision-number 200
+/api/voice/numbers-assign-route /.netlify/functions/numbers-assign-route    200
+/api/voice/files-upload         /.netlify/functions/files-upload            200
+/api/voice/squad/*              /.netlify/functions/voice-squad             200
+/api/voice/squad                /.netlify/functions/voice-squad             200
+/api/voice/tool/*               /.netlify/functions/voice-tool              200
+/api/voice/tool                 /.netlify/functions/voice-tool              200
+/api/vapi-router                /.netlify/functions/vapi-router             200
+/api/campaign/*                 /.netlify/functions/campaign-manager        200
+/api/bootstrap                  /.netlify/functions/bootstrap               200
+/api/make-call                  /.netlify/functions/make-call               200
+/api/onboarding/*               /.netlify/functions/onboarding              200
+/api/billing/checkout           /.netlify/functions/billing-create-checkout 200
+/api/billing/manage-subscription /.netlify/functions/billing-manage-subscription 200
+/api/billing/webhook            /.netlify/functions/billing-webhook         200
+/api/campaign/import            /.netlify/functions/campaign-import         200
+/api/recording/*                /.netlify/functions/recording-proxy         200
+
 # SPA fallback
 /*    /index.html   200
