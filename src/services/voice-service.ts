@@ -276,6 +276,8 @@ const activeProvider: VoiceProvider = new VapiProvider();
 
 class VoiceService {
   private provider: VoiceProvider = activeProvider;
+  private initListeners: Array<() => void> = [];
+  private initializingPromise: Promise<boolean> | null = null;
 
   constructor() {
     // Voice Service initialized
@@ -284,46 +286,114 @@ class VoiceService {
   /**
    * Initialize service with organization credentials.
    * Fetches the API key from the credentials endpoint and passes it to the active provider.
+   * Retries up to 3 times with exponential backoff on transient failures (401, 403, network errors).
+   * Does NOT retry when hasApiKey is false (genuine config issue).
    */
   async initializeWithOrganization(organizationId: string): Promise<boolean> {
-    try {
-      // Get auth token from Supabase session (not localStorage — Supabase SDK manages its own storage)
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || null;
+    // Deduplicate concurrent calls — if already initializing, return the existing promise
+    if (this.initializingPromise) {
+      return this.initializingPromise;
+    }
 
-      const response = await fetch(`${window.location.origin}/api/voice/credentials`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
+    this.initializingPromise = this._doInitialize(organizationId);
+    const result = await this.initializingPromise;
+    this.initializingPromise = null;
+    return result;
+  }
 
-      if (!response.ok) {
-        console.warn(`⚠️ Failed to fetch Voice credentials. Status: ${response.status}`);
-        return false;
-      }
+  private async _doInitialize(organizationId: string): Promise<boolean> {
+    const RETRY_DELAYS = [1000, 2000, 4000]; // 3 retries: 1s, 2s, 4s
+    let lastError: any;
 
-      const data = await response.json();
+    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+      try {
+        // Get auth token from Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || null;
 
-      if (data.hasApiKey && data.credentials?.provider_api_key) {
-        const success = await this.provider.initialize({
-          organizationId,
-          apiKey: data.credentials.provider_api_key,
+        // No token yet — transient timing issue, retry
+        if (!token && attempt < RETRY_DELAYS.length) {
+          console.warn(`⚠️ Voice init attempt ${attempt + 1}: No auth token yet, retrying in ${RETRY_DELAYS[attempt]}ms...`);
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+          continue;
+        }
+
+        const response = await fetch(`${window.location.origin}/api/voice/credentials`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
         });
-        return success;
-      } else if (data.hasApiKey) {
-        console.warn('⚠️ Voice API key exists but user lacks permission to view it');
-        return false;
-      } else {
-        console.warn('⚠️ No Voice API key configured for this organization');
-        return false;
+
+        if (!response.ok) {
+          // 401/403 likely means token not yet valid — retry on transient auth errors
+          if ((response.status === 401 || response.status === 403) && attempt < RETRY_DELAYS.length) {
+            console.warn(`⚠️ Voice init attempt ${attempt + 1}: Got ${response.status}, retrying in ${RETRY_DELAYS[attempt]}ms...`);
+            await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+            continue;
+          }
+          console.warn(`⚠️ Failed to fetch Voice credentials. Status: ${response.status}`);
+          return false;
+        }
+
+        const data = await response.json();
+
+        if (data.hasApiKey && data.credentials?.provider_api_key) {
+          const success = await this.provider.initialize({
+            organizationId,
+            apiKey: data.credentials.provider_api_key,
+          });
+          if (success) {
+            console.log('✅ Voice service initialized successfully' + (attempt > 0 ? ` (after ${attempt} retries)` : ''));
+            this.notifyInitListeners();
+          }
+          return success;
+        } else if (!data.hasApiKey) {
+          // Genuine config issue — no VAPI_PRIVATE_API_KEY env var. Do NOT retry.
+          console.warn('⚠️ No Voice API key configured for this organization');
+          return false;
+        } else {
+          console.warn('⚠️ Voice API key exists but credentials missing from response');
+          return false;
+        }
+      } catch (error) {
+        lastError = error;
+        if (attempt < RETRY_DELAYS.length) {
+          console.warn(`⚠️ Voice init attempt ${attempt + 1}: Network error, retrying in ${RETRY_DELAYS[attempt]}ms...`, error);
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+          continue;
+        }
       }
-    } catch (error) {
-      console.error('❌ Error initializing Voice service:', error);
-      return false;
+    }
+
+    console.error('❌ Voice service initialization failed after all retries:', lastError);
+    return false;
+  }
+
+  // ─── Init Event Emitter ─────────────────────────────────────────────
+
+  /** Subscribe to initialization success. Fires immediately if already initialized. */
+  onInitialized(callback: () => void): void {
+    this.initListeners.push(callback);
+    // If already initialized, fire immediately so late subscribers don't miss it
+    if (this.isInitialized()) {
+      callback();
     }
   }
+
+  /** Unsubscribe from initialization events. */
+  offInitialized(callback: () => void): void {
+    this.initListeners = this.initListeners.filter(cb => cb !== callback);
+  }
+
+  private notifyInitListeners(): void {
+    for (const cb of this.initListeners) {
+      try { cb(); } catch (e) { console.error('Voice init listener error:', e); }
+    }
+  }
+
+  // ─── Core State ─────────────────────────────────────────────────────
 
   isInitialized(): boolean {
     return this.provider.isInitialized();

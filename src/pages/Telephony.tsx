@@ -201,8 +201,14 @@ export default function Telephony() {
 
   // ── Initialize Voice Service ──────────────────────────────────────────────
   useEffect(() => {
+    // Already initialized — skip polling entirely
+    if (voiceService.isInitialized()) {
+      setInitStatus('ready');
+      return;
+    }
+
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 20; // 10 seconds (covers retry window: 1s + 2s + 4s)
 
     const checkInit = setInterval(() => {
       attempts++;
@@ -219,7 +225,17 @@ export default function Telephony() {
       }
     }, 500);
 
-    return () => clearInterval(checkInit);
+    // Subscribe to init event for instant recovery (belt-and-suspenders with polling)
+    const handleInit = () => {
+      setInitStatus('ready');
+      clearInterval(checkInit);
+    };
+    voiceService.onInitialized(handleInit);
+
+    return () => {
+      clearInterval(checkInit);
+      voiceService.offInitialized(handleInit);
+    };
   }, [userContext]);
 
   // ── Fetch Data ────────────────────────────────────────────────────────────

@@ -140,11 +140,13 @@ export const MinimalUserProvider: React.FC<{ children: ReactNode }> = ({ childre
           import('./voice-service').then(({ voiceService }) => {
             voiceService.initializeWithOrganization(userInfo.organization_id!)
               .then((success) => {
-                if (!success) {
-                  console.warn('⚠️ Voice Service Initialization Failed (Likely no API Key)');
+                if (success) {
+                  console.log('✅ Voice Service ready for org:', userInfo.organization_id);
+                } else {
+                  console.warn('⚠️ Voice Service init returned false (no API key or retries exhausted)');
                 }
               })
-              .catch(err => console.error('❌ Voice Service Initialization Error:', err));
+              .catch(err => console.error('❌ Voice Service init threw:', err));
           });
 
           // Fetch org plan info
