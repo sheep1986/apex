@@ -81,6 +81,9 @@
   }
 }
 
+/* Hide Netlify deploy preview drawer */
+iframe[title="Netlify Drawer"] { display: none !important; }
+
 body {
   font-family:
     'Inter',
