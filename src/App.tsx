@@ -47,8 +47,12 @@ const AllCalls = lazy(() => import('./pages/AllCalls'));
 const LiveCalls = lazy(() => import('./pages/LiveCalls'));
 
 // CRM pages
-const Contacts = lazy(() => import('./pages/Contacts'));
-const ContactDetail = lazy(() => import('./pages/ContactDetail'));
+const CRM = lazy(() => import('./pages/CRM'));
+const LeadPage = lazy(() => import('./pages/LeadPage'));
+const LeadDetails = lazy(() => import('./pages/LeadDetails'));
+const LeadManagement = lazy(() => import('./pages/LeadManagement'));
+const LeadImport = lazy(() => import('./pages/LeadImport'));
+const LeadReview = lazy(() => import('./pages/LeadReview'));
 const SalesPipeline = lazy(() => import('./pages/SalesPipeline'));
 
 // Campaign sub-pages
@@ -161,8 +165,12 @@ function App() {
               <Route path="/knowledge" element={<KnowledgeBase />} />
 
               {/* CRM Routes */}
-              <Route path="/contacts" element={<Contacts />} />
-              <Route path="/contacts/:id" element={<ContactDetail />} />
+              <Route path="/contacts" element={<CRM />} />
+              <Route path="/contacts/:id" element={<LeadDetails />} />
+              <Route path="/leads/:leadId" element={<LeadPage />} />
+              <Route path="/lead-management" element={<LeadManagement />} />
+              <Route path="/lead-import" element={<LeadImport />} />
+              <Route path="/lead-review" element={<LeadReview />} />
               <Route path="/pipeline" element={<SalesPipeline />} />
 
               {/* Campaign Sub-routes */}
